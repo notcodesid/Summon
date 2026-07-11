@@ -15,8 +15,8 @@ Build — Phase 1: ER session + pull transaction
 | Field | Value |
 |-------|-------|
 | `mobile.platform` | `react-native` |
-| `mobile.wallet_method` | `mwa` |
-| `mobile.scaffold_repo` | `create-solana-dapp` → `web3js-expo-minimal` |
+| `mobile.wallet_method` | `privy` (embedded Solana; email login) |
+| `mobile.scaffold_repo` | `create-solana-dapp` → `web3js-expo-minimal` (then Privy) |
 | `mobile.physical_device_tested` | `false` |
 
 ## On-chain stack (hackathon)
@@ -40,10 +40,10 @@ Build — Phase 1: ER session + pull transaction
 
 1. ✅ Solana.new skills setup
 2. ✅ Scaffold `web3js-expo-minimal` (React Native + Expo)
-3. ✅ `npm install` — MWA deps per Solana Mobile docs
-4. ✅ Polyfills (`polyfill.js` + `react-native-get-random-values`) + `MobileWalletProvider`
-5. ✅ `expo-doctor` — 19/19 checks passed
-6. ⬜ `npm run android` on device/emulator + Mock MWA Wallet
+3. ✅ Switched to Privy embedded Solana wallets (`@privy-io/expo`)
+4. ✅ Polyfills (text-encoding, get-random-values, Buffer, ethers shims, quick-crypto)
+5. ⬜ Set `EXPO_PUBLIC_PRIVY_CLIENT_ID` + Privy dashboard app client (bundle `com.summon.app`, scheme `summon`)
+6. ⬜ Rebuild native client (`npm run ios` / `npm run android`) and smoke-test email login + wallet
 7. ⬜ `eas.json` dApp Store APK profile
 
 ## References

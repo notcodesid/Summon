@@ -1,6 +1,6 @@
 import { Button, View } from 'react-native'
 import React from 'react'
-import { SolanaCluster } from '@wallet-ui/react-native-web3js'
+import { SolanaCluster } from '@/constants/app-config'
 import { appStyles } from '@/constants/app-styles'
 
 export function NetworkUiSelect({

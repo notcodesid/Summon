@@ -71,26 +71,32 @@ MagicBlock describes it as: *"A collectible pull game where every draw is provab
 ## Client stack
 
 - React Native + Expo (custom dev build — not Expo Go)
-- `@wallet-ui/react-native-web3js` + `@solana/web3.js`
-- Mobile Wallet Adapter (Seed Vault Wallet on Seeker)
+- **Privy** embedded Solana wallets (`@privy-io/expo`) — email login + auto wallet
+- `@solana/web3.js` for RPC / transactions
+
+> We intentionally use Privy embedded wallets (works on iOS + Android) instead of Mobile Wallet Adapter for the MVP login path. MWA/Seed Vault can be re-added later for Seeker external wallets.
 
 ## Development
 
-Initialized with [Solana Mobile's React Native + Expo template](https://docs.solanamobile.com/get-started/react-native/create-solana-mobile-app) (`web3js-expo-minimal` via `create-solana-dapp`).
+Scaffolded from [Solana Mobile's React Native + Expo template](https://docs.solanamobile.com/get-started/react-native/create-solana-mobile-app), then switched auth/wallets to [Privy Expo](https://docs.privy.io/basics/react-native/quickstart).
 
-**Stack installed (per [MWA installation docs](https://docs.solanamobile.com/get-started/react-native/installation)):**
-- Expo ~55 + `expo-dev-client` (custom dev build — **not Expo Go**)
-- `@wallet-ui/react-native-web3js` + `@solana/web3.js`
-- `react-native-quick-crypto` polyfill (loaded in `index.js` before app code)
+### Privy setup
+
+1. Copy `.env.example` → `.env`
+2. Dashboard → **App ID** → `EXPO_PUBLIC_PRIVY_APP_ID`
+3. Dashboard → **Clients** → create mobile client → `EXPO_PUBLIC_PRIVY_CLIENT_ID`
+4. On that client, allow:
+   - App identifiers: `com.summon.app` (iOS + Android)
+   - URL scheme: `summon` (from `app.json`)
+5. Enable **email** login and **Solana** embedded wallets in the Privy dashboard
+6. Keep `PRIVY_APP_SECRET` **server-only** — never use `EXPO_PUBLIC_` for the secret
 
 ```bash
-npm install          # already run
-npm run android      # builds custom dev client + launches on device/emulator
-npm run dev          # Metro bundler (after dev client is installed)
-npm run doctor       # expo-doctor health check
+npm install
+npm run ios          # or npm run android — custom dev client required for Privy native modules
+npm run dev          # Metro after the native client is installed
+npm run doctor
 ```
-
-Requires an Android device or emulator. Use [Mock MWA Wallet](https://github.com/solana-mobile/mock-mwa-wallet) for wallet testing during development.
 
 ### Backup demo video
 

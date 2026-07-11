@@ -1,34 +1,56 @@
-import { Text, View } from 'react-native'
+import { ActivityIndicator, Text, View } from 'react-native'
 import { ellipsify } from '@/utils/ellipsify'
 import React from 'react'
-import { AccountFeatureGetBalance } from '@/features/account/account-feature-get-balance'
-import { useMobileWallet } from '@wallet-ui/react-native-web3js'
+import { usePrivy, useEmbeddedSolanaWallet } from '@privy-io/expo'
 import { appStyles } from '@/constants/app-styles'
+import { AccountFeatureGetBalance } from '@/features/account/account-feature-get-balance'
 import { AccountFeatureSignMessage } from '@/features/account/account-feature-sign-message'
 import { AccountFeatureSignTransaction } from '@/features/account/account-feature-sign-transaction'
-import { AccountFeatureSignIn } from '@/features/account/account-feature-sign-in'
-import { AccountFeatureDisconnect } from '@/features/account/account-feature-disconnect'
-import { AccountFeatureConnect } from '@/features/account/account-feature-connect'
+import { AccountFeatureCreateWallet } from '@/features/account/account-feature-create-wallet'
+import { AccountFeatureLogout } from '@/features/account/account-feature-logout'
+import { AccountFeatureLogin } from '@/features/account/account-feature-login'
 
 export function AccountFeatureIndex() {
-  const { account } = useMobileWallet()
+  const { isReady, user } = usePrivy()
+  const solana = useEmbeddedSolanaWallet()
+  const wallet = solana.wallets?.[0]
+  const address = wallet?.address
+
+  if (!isReady) {
+    return (
+      <View style={appStyles.stack}>
+        <Text style={appStyles.title}>Account</Text>
+        <ActivityIndicator />
+      </View>
+    )
+  }
 
   return (
     <View style={appStyles.stack}>
       <Text style={appStyles.title}>Account</Text>
-      {account ? (
+      {user ? (
         <View style={appStyles.stack}>
           <View style={appStyles.card}>
-            <Text>Connected to {ellipsify(account.address.toString(), 8)}</Text>
-            <AccountFeatureGetBalance address={account.address} />
+            {address ? (
+              <>
+                <Text>Privy Solana wallet {ellipsify(address, 8)}</Text>
+                <AccountFeatureGetBalance address={address} />
+              </>
+            ) : (
+              <Text>Logged in — no Solana wallet yet</Text>
+            )}
           </View>
-          <AccountFeatureSignIn address={account.address} />
-          <AccountFeatureSignMessage address={account.address} />
-          <AccountFeatureSignTransaction address={account.address} />
-          <AccountFeatureDisconnect />
+          {!address ? <AccountFeatureCreateWallet /> : null}
+          {address ? (
+            <>
+              <AccountFeatureSignMessage address={address} />
+              <AccountFeatureSignTransaction address={address} />
+            </>
+          ) : null}
+          <AccountFeatureLogout />
         </View>
       ) : (
-        <AccountFeatureConnect />
+        <AccountFeatureLogin />
       )}
     </View>
   )

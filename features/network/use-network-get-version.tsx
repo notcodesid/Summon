@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMobileWallet } from '@wallet-ui/react-native-web3js'
+import { useConnection } from './use-connection'
+import { useNetwork } from './use-network'
 
 export function useNetworkGetVersion() {
-  const { chain, connection } = useMobileWallet()
+  const connection = useConnection()
+  const { selectedNetwork } = useNetwork()
   return useQuery({
-    queryKey: ['getVersion', chain],
+    queryKey: ['getVersion', selectedNetwork.id],
     queryFn: () =>
-      connection.getVersion().then((version) => ({ core: version['solana-core'], features: version['feature-set'] })),
+      connection.getVersion().then((version) => ({
+        core: version['solana-core'],
+        features: version['feature-set'],
+      })),
   })
 }

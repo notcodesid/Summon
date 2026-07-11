@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMobileWallet } from '@wallet-ui/react-native-web3js'
+import { useConnection } from './use-connection'
+import { useNetwork } from './use-network'
 
 export function useNetworkGetGenesisHash() {
-  const { chain, connection } = useMobileWallet()
+  const connection = useConnection()
+  const { selectedNetwork } = useNetwork()
   return useQuery({
-    queryKey: ['getGenesisHash', chain],
+    queryKey: ['getGenesisHash', selectedNetwork.id],
     queryFn: () => connection.getGenesisHash(),
   })
 }
