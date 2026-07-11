@@ -9,7 +9,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.summon.app"
+      "bundleIdentifier": "com.summon.app",
+      "userInterfaceStyle": "light",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Light"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,10 +38,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#FCFCFB"
         }
       ],
       "expo-web-browser",
