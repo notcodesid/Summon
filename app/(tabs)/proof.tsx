@@ -19,11 +19,8 @@ export default function ProofScreen() {
         <View style={styles.infoIcon}>
           <AppIcon name="checkmark.shield.fill" size={22} color="#FFFFFF" />
         </View>
-        <Text style={styles.infoTitle}>Fairness you can inspect</Text>
-        <Text style={styles.infoCopy}>
-          Every outcome includes its random roll, seed and settlement signature. The same fields will be populated by
-          VRF and the Ephemeral Rollup.
-        </Text>
+        <Text style={styles.infoTitle}>Provably fair</Text>
+        <Text style={styles.infoCopy}>Every pull includes proof you can verify on Solana.</Text>
       </View>
 
       {loading ? (

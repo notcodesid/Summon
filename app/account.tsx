@@ -68,7 +68,6 @@ export default function AccountScreen() {
             <View style={styles.card}>
               <Text style={styles.label}>ACCOUNT</Text>
               <Text style={styles.value}>{email ?? 'Signed in'}</Text>
-              {method ? <Text style={styles.muted}>Via {method}</Text> : null}
             </View>
 
             <View style={styles.card}>
