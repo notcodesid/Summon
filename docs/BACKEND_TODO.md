@@ -74,7 +74,7 @@ mobile app.
   - Acceptance: no private key enters app code, cluster mismatch is rejected, and every
     transaction is simulated before a signing prompt.
 
-- [ ] **B10 — Async pull state and proof hydration**
+- [x] **B10 — Async pull state and proof hydration**
   - Model `idle → requesting → awaiting_vrf → resolved/failed`, poll or subscribe to the
     player PDA, and hydrate the UI proof fields from on-chain state and transaction IDs.
   - Acceptance: a pull cannot be double-submitted, app reload resumes a pending pull,
@@ -94,7 +94,6 @@ mobile app.
 
 ## Remaining verification
 
-- Confirm `commit_player` succeeds and the resolved state remains after app reload.
 - Re-run the full local check suite after the end-to-end fixes, with zero lint warnings.
 
 ## Explicitly out of scope for this milestone
