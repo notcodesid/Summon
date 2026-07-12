@@ -21,8 +21,8 @@ export default function ProofScreen() {
         </View>
         <Text style={styles.infoTitle}>Fairness you can inspect</Text>
         <Text style={styles.infoCopy}>
-          Every outcome includes its random roll, seed and settlement signature. The same fields
-          will be populated by VRF and the Ephemeral Rollup.
+          Every outcome includes its random roll, seed and settlement signature. The same fields will be populated by
+          VRF and the Ephemeral Rollup.
         </Text>
       </View>
 
@@ -59,7 +59,7 @@ export default function ProofScreen() {
                   </View>
                   <View style={styles.status}>
                     <AppIcon name="checkmark" size={12} color={theme.colors.text} weight="bold" />
-                    <Text style={styles.statusText}>Verified</Text>
+                    <Text style={styles.statusText}>{pull.status === 'verified' ? 'Verified' : 'Demo'}</Text>
                   </View>
                 </View>
                 <View style={styles.divider} />

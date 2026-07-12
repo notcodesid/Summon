@@ -4,32 +4,44 @@ import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
 import { AppIcon } from '@/components/summon/app-icon'
 import { theme } from '@/constants/theme'
 import { ellipsify } from '@/utils/ellipsify'
+import { emailFromPrivyUser } from '@/utils/privy-user'
 
 /**
- * Header wallet control — navigates to login or account screens.
+ * Header account control — Sign in (social) or wallet address when ready.
+ * Not a browser "Connect wallet" flow; Privy embeds the Solana wallet after login.
  */
 export function WalletPill() {
   const { isReady, user } = usePrivy()
   const solana = useEmbeddedSolanaWallet()
   const address = solana.wallets?.[0]?.address
+  const email = emailFromPrivyUser(user)
 
   const label = !isReady
     ? '…'
     : address
       ? ellipsify(address, 4)
       : user
-        ? 'Wallet…'
-        : 'Connect'
+        ? email
+          ? email.split('@')[0]
+          : 'Wallet…'
+        : 'Sign in'
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Open wallet"
-      onPress={() => router.push(user ? '/account' : '/login')}
+      accessibilityLabel={user ? 'Open account' : 'Sign in'}
+      onPress={() => router.push(user ? '/account' : '/onboarding')}
       style={({ pressed }) => [styles.root, pressed && styles.pressed]}
     >
-      <AppIcon name="wallet.pass" size={17} color={theme.colors.text} weight="medium" />
-      <Text style={styles.text}>{label}</Text>
+      <AppIcon
+        name={user ? 'person.crop.circle' : 'person.crop.circle'}
+        size={17}
+        color={theme.colors.text}
+        weight="medium"
+      />
+      <Text style={styles.text} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   )
 }
@@ -37,6 +49,7 @@ export function WalletPill() {
 const styles = StyleSheet.create({
   root: {
     minHeight: 44,
+    maxWidth: 160,
     paddingHorizontal: 15,
     flexDirection: 'row',
     alignItems: 'center',
@@ -50,5 +63,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.body,
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 1,
   },
 })

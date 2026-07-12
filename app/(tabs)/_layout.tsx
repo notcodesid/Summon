@@ -1,39 +1,55 @@
+import { ActivityIndicator, DynamicColorIOS, Platform, View } from 'react-native'
+import { Redirect } from 'expo-router'
+import { usePrivy } from '@privy-io/expo'
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 import { theme } from '@/constants/theme'
 
 /**
- * Light liquid-glass tab bar (iOS 26+ system materials).
- * @see https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
- *
- * Forces *Light* material variants so the bar never follows dark system theme.
- * Icons are SF Symbols — no emoji, no vector-icon font downloads.
+ * Tabs are auth-gated. Unauthenticated users are sent back to onboarding.
+ * Liquid Glass on iOS 26+ when backgroundColor/blurEffect are left to the system.
  */
+
+const tint =
+  Platform.OS === 'ios'
+    ? DynamicColorIOS({ light: '#111111', dark: '#F5F5F5' })
+    : '#111111'
+
+const muted =
+  Platform.OS === 'ios'
+    ? DynamicColorIOS({ light: 'rgba(0,0,0,0.48)', dark: 'rgba(255,255,255,0.55)' })
+    : 'rgba(0,0,0,0.48)'
+
 export default function TabLayout() {
+  const { isReady, user } = usePrivy()
+
+  if (!isReady) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator color={theme.colors.text} />
+      </View>
+    )
+  }
+
+  if (!user) {
+    return <Redirect href="/onboarding" />
+  }
+
   return (
     <NativeTabs
-      // Opaque-enough light frosted glass (not black)
-      backgroundColor="rgba(252, 252, 251, 0.82)"
-      blurEffect="systemChromeMaterialLight"
-      iconColor={{
-        default: theme.colors.textMuted,
-        selected: theme.colors.text,
-      }}
+      tintColor={tint}
+      iconColor={{ default: muted, selected: tint }}
       labelStyle={{
-        default: {
-          color: theme.colors.textMuted,
-          fontSize: 11,
-          fontWeight: '600',
-        },
-        selected: {
-          color: theme.colors.text,
-          fontSize: 11,
-          fontWeight: '700',
-        },
+        default: { color: muted, fontSize: 11, fontWeight: '600' },
+        selected: { color: tint, fontSize: 11, fontWeight: '700' },
       }}
-      tintColor={theme.colors.text}
-      shadowColor="rgba(0,0,0,0.08)"
       minimizeBehavior="onScrollDown"
-      disableTransparentOnScrollEdge
       disableIndicator
     >
       <NativeTabs.Trigger name="index">

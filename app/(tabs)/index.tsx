@@ -73,9 +73,14 @@ export default function SummonScreen() {
       action={<WalletPill />}
     >
       <View style={styles.hero}>
-        <View style={styles.orbit}>
-          <View style={styles.core}>
-            <AppIcon name="sparkles" size={44} color={theme.colors.text} weight="semibold" />
+        <View style={styles.outerOrbit}>
+          <View style={styles.orbit}>
+            <View style={styles.core}>
+              <Image
+                source={require('@/assets/images/logo-mark.png')}
+                style={styles.coreLogo}
+              />
+            </View>
           </View>
         </View>
         <Text style={styles.heroTitle}>Something lovely{`\n`}is waiting.</Text>
@@ -150,23 +155,41 @@ const styles = StyleSheet.create({
     tintColor: '#000000',
   },
   hero: { alignItems: 'center', paddingVertical: 18 },
-  orbit: {
-    width: 184,
-    height: 184,
-    borderRadius: 92,
-    backgroundColor: theme.colors.surface,
+  outerOrbit: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
+  },
+  orbit: {
+    width: 154,
+    height: 154,
+    borderRadius: 77,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.08)',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   core: {
-    width: 120,
-    height: 120,
-    borderRadius: 38,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.07)',
+    boxShadow: '0 8px 30px rgba(0,0,0,0.05)',
+  },
+  coreLogo: {
+    width: 64,
+    height: 64,
+    resizeMode: 'contain',
+    tintColor: '#000000',
   },
   heroTitle: {
     color: theme.colors.text,
@@ -174,7 +197,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.font.display,
     fontSize: 36,
     lineHeight: 42,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -1,
   },
   heroCopy: {

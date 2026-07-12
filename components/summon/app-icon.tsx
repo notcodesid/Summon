@@ -1,6 +1,5 @@
 import { StyleProp, ViewStyle } from 'react-native'
-import { SymbolView, type SFSymbol } from 'expo-symbols'
-import type { SymbolWeight } from 'expo-symbols'
+import { SymbolView, type SFSymbol, type SymbolWeight } from 'expo-symbols'
 import { theme } from '@/constants/theme'
 
 type AppIconProps = {
@@ -15,13 +14,7 @@ type AppIconProps = {
  * Native SF Symbol icons (no font download from Metro).
  * Avoids @expo/vector-icons / Ionicons.ttf asset errors on device.
  */
-export function AppIcon({
-  name,
-  size = 22,
-  color = theme.colors.text,
-  style,
-  weight = 'medium',
-}: AppIconProps) {
+export function AppIcon({ name, size = 22, color = theme.colors.text, style, weight = 'medium' }: AppIconProps) {
   return (
     <SymbolView
       name={name}

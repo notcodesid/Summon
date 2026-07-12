@@ -34,9 +34,9 @@ export function ScreenShell({
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.background },
-  content: { padding: 24, paddingBottom: 118, gap: 26 },
+  content: { padding: 24, paddingTop: 8, paddingBottom: 118, gap: 26 },
   header: {
-    minHeight: 72,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

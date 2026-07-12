@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.summon.app",
+      "bundleIdentifier": "com.notcodesid.summon",
       "userInterfaceStyle": "light",
       "infoPlist": {
         "UIUserInterfaceStyle": "Light"
@@ -23,7 +23,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.summon.app"
+      "package": "com.notcodesid.summon"
     },
     "web": {
       "output": "static",

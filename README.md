@@ -2,7 +2,7 @@
 
 **Summon** is a mobile-first Solana gacha for **MagicBlock's Solana Blitz hackathon** (mobile theme, Ephemeral Rollups). Tap **Pull**, summon verifiable loot, watch the reveal, own it on-chain.
 
-> Built from MagicBlock's sponsor idea [*Onchain gacha*](https://x.com/magicblock) — VRF fairness + Ephemeral Rollup speed. One word: you summon collectibles from the rollup layer before they settle to mainnet.
+> Built from MagicBlock's sponsor idea [_Onchain gacha_](https://x.com/magicblock) — VRF fairness + Ephemeral Rollup speed. One word: you summon collectibles from the rollup layer before they settle to mainnet.
 
 ## What we're building
 
@@ -12,14 +12,14 @@ Built for MagicBlock's Solana Blitz hackathon. This is **[MagicBlock Idea 3: Onc
 
 ### Alignment with MagicBlock's idea
 
-MagicBlock describes it as: *"A collectible pull game where every draw is provably fair, pulls and inventory stay instant and gas free."*
+MagicBlock describes it as: _"A collectible pull game where every draw is provably fair, pulls and inventory stay instant and gas free."_
 
-| MagicBlock (Idea 3) | This repo |
-|---------------------|-----------|
-| Every pull uses VRF — verifiable rarity, no rigged odds | ✅ Core mechanic |
-| Pulls and inventory run on an ER — instant and gas free | ✅ Core mechanic |
-| Trade or list your drops straight from your phone | ⏸ Deferred (post-hackathon / stretch) |
-| Ready for the Seeker dApp Store | ✅ Mobile + MWA target |
+| MagicBlock (Idea 3)                                     | This repo                             |
+| ------------------------------------------------------- | ------------------------------------- |
+| Every pull uses VRF — verifiable rarity, no rigged odds | ✅ Core mechanic                      |
+| Pulls and inventory run on an ER — instant and gas free | ✅ Core mechanic                      |
+| Trade or list your drops straight from your phone       | ⏸ Deferred (post-hackathon / stretch) |
+| Ready for the Seeker dApp Store                         | ✅ Mobile + MWA target                |
 
 **Weekend MVP** matches the sponsor idea on VRF + ER + mobile; we intentionally skip trade/listing for v1 so the demo stays reliable and focused on pull → reveal → inventory.
 
@@ -43,12 +43,12 @@ MagicBlock describes it as: *"A collectible pull game where every draw is provab
 
 ## Technical architecture
 
-| Layer | Role |
-|-------|------|
-| **Randomness** | VRF — provably fair, verifiable after the fact |
-| **State** | MagicBlock Ephemeral Rollup — instant, gasless pulls + inventory writes |
+| Layer          | Role                                                                         |
+| -------------- | ---------------------------------------------------------------------------- |
+| **Randomness** | VRF — provably fair, verifiable after the fact                               |
+| **State**      | MagicBlock Ephemeral Rollup — instant, gasless pulls + inventory writes      |
 | **Settlement** | Inventory/ownership settles to Solana mainnet (real NFTs or SPL-based items) |
-| **Client** | React Native + Expo, Mobile Wallet Adapter, Seeker / dApp Store ready |
+| **Client**     | React Native + Expo, Mobile Wallet Adapter, Seeker / dApp Store ready        |
 
 ## What makes this submission stand out
 
@@ -60,18 +60,18 @@ MagicBlock describes it as: *"A collectible pull game where every draw is provab
 
 ## Build plan (weekend)
 
-| Phase | Goal |
-|-------|------|
+| Phase       | Goal                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------ |
 | **Phase 1** | Get ER session working — single pull transaction read/write on Ephemeral Rollup end to end |
-| **Phase 2** | Wire VRF for real randomness (rarity + item) |
-| **Phase 3** | Inventory read/display from on-chain state |
-| **Phase 4** | Mobile UI — pull button, reveal animation, inventory screen |
-| **Phase 5** | Polish reveal animation, test demo reliability, record backup demo video |
+| **Phase 2** | Wire VRF for real randomness (rarity + item)                                               |
+| **Phase 3** | Inventory read/display from on-chain state                                                 |
+| **Phase 4** | Mobile UI — pull button, reveal animation, inventory screen                                |
+| **Phase 5** | Polish reveal animation, test demo reliability, record backup demo video                   |
 
 ## Client stack
 
 - React Native + Expo (custom dev build — not Expo Go)
-- **Privy** embedded Solana wallets (`@privy-io/expo`) — email login + auto wallet
+- **Privy** embedded Solana wallets (`@privy-io/expo`) — Apple / Google (email optional) + auto wallet
 - `@solana/web3.js` for RPC / transactions
 
 > We intentionally use Privy embedded wallets (works on iOS + Android) instead of Mobile Wallet Adapter for the MVP login path. MWA/Seed Vault can be re-added later for Seeker external wallets.
@@ -80,15 +80,19 @@ MagicBlock describes it as: *"A collectible pull game where every draw is provab
 
 Scaffolded from [Solana Mobile's React Native + Expo template](https://docs.solanamobile.com/get-started/react-native/create-solana-mobile-app), then switched auth/wallets to [Privy Expo](https://docs.privy.io/basics/react-native/quickstart).
 
+Backend implementation and operator instructions live in
+[`docs/BACKEND.md`](docs/BACKEND.md). The ordered implementation status is tracked in
+[`docs/BACKEND_TODO.md`](docs/BACKEND_TODO.md).
+
 ### Privy setup
 
 1. Copy `.env.example` → `.env`
 2. Dashboard → **App ID** → `EXPO_PUBLIC_PRIVY_APP_ID`
 3. Dashboard → **Clients** → create mobile client → `EXPO_PUBLIC_PRIVY_CLIENT_ID`
 4. On that client, allow:
-   - App identifiers: `com.summon.app` (iOS + Android)
+   - App identifiers: `com.notcodesid.summon` (iOS + Android)
    - URL scheme: `summon` (from `app.json`)
-5. Enable **email** login and **Solana** embedded wallets in the Privy dashboard
+5. Enable **Google**, **Apple**, and optionally **email** login, plus **Solana** embedded wallets (create on login) in the Privy dashboard
 6. Keep `PRIVY_APP_SECRET` **server-only** — never use `EXPO_PUBLIC_` for the secret
 
 ```bash

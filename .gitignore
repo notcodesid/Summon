@@ -51,3 +51,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Rust / Anchor build artifacts and generated deploy keypairs
+**/target/
+/.anchor/

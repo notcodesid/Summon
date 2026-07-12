@@ -67,7 +67,7 @@ export function RevealModal({
           <View style={styles.verified}>
             <AppIcon name="checkmark.seal.fill" size={14} color={theme.colors.text} />
             <Text style={styles.verifiedText}>
-              Roll {pull?.roll.toLocaleString()} · Verified
+              Roll {pull?.roll.toLocaleString()} · {pull?.status === 'verified' ? 'Verified' : 'Demo'}
             </Text>
           </View>
         </Animated.View>

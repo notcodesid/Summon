@@ -1,0 +1,12 @@
+[package]
+name = "summon-idl-builder"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+anchor-lang-idl = { version = "0.1.4", features = ["build"] }
+anyhow = "1"
+serde_json = "1"

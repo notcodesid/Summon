@@ -9,14 +9,17 @@ import { theme } from '@/constants/theme'
 import { useConnection } from '@/features/network/use-connection'
 import { useNetwork } from '@/features/network/use-network'
 import { ellipsify } from '@/utils/ellipsify'
+import { authMethodLabel, emailFromPrivyUser } from '@/utils/privy-user'
 
 /**
- * Account screen — wallet, balance, network, logout.
+ * Account screen — identity, wallet, balance, network, logout.
  */
 export default function AccountScreen() {
   const { isReady, user, logout } = usePrivy()
   const solana = useEmbeddedSolanaWallet()
   const address = solana.wallets?.[0]?.address
+  const email = emailFromPrivyUser(user)
+  const method = authMethodLabel(user)
   const connection = useConnection()
   const { selectedNetwork, networks, setSelectedNetwork } = useNetwork()
 
@@ -42,15 +45,23 @@ export default function AccountScreen() {
         ) : !user ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Not signed in</Text>
-            <Text style={styles.muted}>Connect with Privy to summon and track ownership.</Text>
-            <Pressable style={styles.primary} onPress={() => router.push('/login')}>
-              <Text style={styles.primaryText}>Sign in</Text>
+            <Text style={styles.muted}>
+              Sign up with Google. We create a Privy Solana wallet for you automatically.
+            </Text>
+            <Pressable style={styles.primary} onPress={() => router.replace('/onboarding')}>
+              <Text style={styles.primaryText}>Sign up</Text>
             </Pressable>
           </View>
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.label}>WALLET</Text>
+              <Text style={styles.label}>ACCOUNT</Text>
+              <Text style={styles.value}>{email ?? 'Signed in'}</Text>
+              {method ? <Text style={styles.muted}>Via {method}</Text> : null}
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.label}>SOLANA WALLET</Text>
               <Text style={styles.value}>
                 {address ? ellipsify(address, 8) : 'Creating Solana wallet…'}
               </Text>
@@ -97,7 +108,7 @@ export default function AccountScreen() {
               style={styles.danger}
               onPress={async () => {
                 await logout()
-                router.replace('/(tabs)')
+                router.replace('/onboarding')
               }}
             >
               <Text style={styles.dangerText}>Log out</Text>
