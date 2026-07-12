@@ -11,7 +11,7 @@ import { theme } from '@/constants/theme'
 import { useConnection } from '@/features/network/use-connection'
 import { useNetwork } from '@/features/network/use-network'
 import { ellipsify } from '@/utils/ellipsify'
-import { authMethodLabel, emailFromPrivyUser } from '@/utils/privy-user'
+import { emailFromPrivyUser } from '@/utils/privy-user'
 
 /**
  * Account screen — identity, wallet, balance, network, logout.
@@ -21,7 +21,6 @@ export default function AccountScreen() {
   const solana = useEmbeddedSolanaWallet()
   const address = solana.wallets?.[0]?.address
   const email = emailFromPrivyUser(user)
-  const method = authMethodLabel(user)
   const connection = useConnection()
   const { selectedNetwork, networks, setSelectedNetwork } = useNetwork()
 
@@ -73,9 +72,7 @@ export default function AccountScreen() {
             <View style={styles.card}>
               <Text style={styles.label}>SOLANA WALLET</Text>
               <View style={styles.addressRow}>
-                <Text style={styles.value}>
-                  {address ? ellipsify(address, 8) : 'Creating Solana wallet…'}
-                </Text>
+                <Text style={styles.value}>{address ? ellipsify(address, 8) : 'Creating Solana wallet…'}</Text>
                 {address ? (
                   <Pressable
                     accessibilityRole="button"
@@ -94,10 +91,7 @@ export default function AccountScreen() {
               </View>
               {address ? (
                 <Text style={styles.muted}>
-                  Balance:{' '}
-                  {balance.isLoading
-                    ? '…'
-                    : `${((balance.data ?? 0) / LAMPORTS_PER_SOL).toFixed(4)} SOL`}
+                  Balance: {balance.isLoading ? '…' : `${((balance.data ?? 0) / LAMPORTS_PER_SOL).toFixed(4)} SOL`}
                 </Text>
               ) : solana.create ? (
                 <Pressable
@@ -121,9 +115,7 @@ export default function AccountScreen() {
                     onPress={() => setSelectedNetwork(n)}
                     style={[styles.chip, selectedNetwork.id === n.id && styles.chipActive]}
                   >
-                    <Text
-                      style={[styles.chipText, selectedNetwork.id === n.id && styles.chipTextActive]}
-                    >
+                    <Text style={[styles.chipText, selectedNetwork.id === n.id && styles.chipTextActive]}>
                       {n.label}
                     </Text>
                   </Pressable>

@@ -54,13 +54,7 @@ const slides: { key: string; icon: SFSymbol; title: string; copy: string }[] = [
 
 const AUTH_INDEX = slides.length - 1
 
-function OnboardingSlide({
-  slide,
-  isActive,
-}: {
-  slide: (typeof slides)[number]
-  isActive: boolean
-}) {
+function OnboardingSlide({ slide, isActive }: { slide: (typeof slides)[number]; isActive: boolean }) {
   const opacity = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(20)).current
   const scale = useRef(new Animated.Value(0.5)).current
@@ -120,11 +114,7 @@ function OnboardingSlide({
         ]}
       >
         {isLogo ? (
-          <Image
-            source={require('@/assets/images/logo-mark.png')}
-            style={styles.logo}
-            tintColor="#000000"
-          />
+          <Image source={require('@/assets/images/logo-mark.png')} style={styles.logo} tintColor="#000000" />
         ) : (
           <AppIcon name={slide.icon} size={40} color={theme.colors.text} weight="semibold" />
         )}
@@ -248,9 +238,7 @@ export default function OnboardingScreen() {
               onPress={next}
               style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
             >
-              <Text style={styles.ctaText}>
-                {index === slides.length - 2 ? 'Continue to sign up' : 'Continue'}
-              </Text>
+              <Text style={styles.ctaText}>{index === slides.length - 2 ? 'Continue to sign up' : 'Continue'}</Text>
             </Pressable>
           </View>
         ) : (

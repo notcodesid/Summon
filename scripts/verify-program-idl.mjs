@@ -34,10 +34,7 @@ if (!idl.address || idl.address === '11111111111111111111111111111111') {
 const connection = new Connection('http://127.0.0.1:8899')
 const payer = new PublicKey('7v91N7iZsL7ykCqCnEWEvHhQqPSRCr4dVdpqU1iK1Y6G')
 const program = new Program(idl, { connection, publicKey: payer })
-const [player] = PublicKey.findProgramAddressSync(
-  [Buffer.from('player'), payer.toBytes()],
-  program.programId,
-)
+const [player] = PublicKey.findProgramAddressSync([Buffer.from('player'), payer.toBytes()], program.programId)
 const queue = new PublicKey('5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc')
 const instructions = [
   await program.methods

@@ -1,11 +1,5 @@
 import { useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useLoginWithOAuth } from '@privy-io/expo'
 import { theme } from '@/constants/theme'
 
@@ -15,11 +9,7 @@ import { theme } from '@/constants/theme'
  *
  * Dashboard: enable Google under Login methods → Socials.
  */
-export function SocialLoginForm({
-  onSuccess,
-}: {
-  onSuccess?: () => void
-}) {
+export function SocialLoginForm({ onSuccess }: { onSuccess?: () => void }) {
   const { login } = useLoginWithOAuth()
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
@@ -50,12 +40,7 @@ export function SocialLoginForm({
         accessibilityLabel="Continue with Google"
         disabled={busy}
         onPress={() => void onGoogleSignIn()}
-        style={({ pressed }) => [
-          styles.btn,
-          styles.google,
-          pressed && styles.pressed,
-          busy && styles.disabled,
-        ]}
+        style={({ pressed }) => [styles.btn, styles.google, pressed && styles.pressed, busy && styles.disabled]}
       >
         {busy ? (
           <ActivityIndicator color={theme.colors.text} />

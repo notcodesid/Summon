@@ -9,9 +9,5 @@ export function AccountFeatureGetBalance({ address }: { address: string }) {
     return <Text>Balance: error</Text>
   }
 
-  return (
-    <Text>
-      Balance: {isLoading ? '...' : `${((data ?? 0) / LAMPORTS_PER_SOL).toFixed(4)} SOL`}
-    </Text>
-  )
+  return <Text>Balance: {isLoading ? '...' : `${((data ?? 0) / LAMPORTS_PER_SOL).toFixed(4)} SOL`}</Text>
 }

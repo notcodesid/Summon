@@ -19,11 +19,7 @@ export function ScreenShell({
         <View style={styles.header}>
           <View>
             {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-            {typeof title === 'string' ? (
-              <Text style={styles.title}>{title}</Text>
-            ) : (
-              title
-            )}
+            {typeof title === 'string' ? <Text style={styles.title}>{title}</Text> : title}
           </View>
           {action}
         </View>

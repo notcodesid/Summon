@@ -64,7 +64,7 @@ export default function Index() {
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-        ])
+        ]),
       )
       idleLoopRef.current.start()
     } else if (isReady && idleLoopRef.current) {

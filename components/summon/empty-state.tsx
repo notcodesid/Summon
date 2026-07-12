@@ -3,15 +3,7 @@ import { AppIcon } from '@/components/summon/app-icon'
 import { theme } from '@/constants/theme'
 import type { SFSymbol } from 'expo-symbols'
 
-export function EmptyState({
-  icon = 'tray',
-  title,
-  copy,
-}: {
-  icon?: SFSymbol
-  title: string
-  copy: string
-}) {
+export function EmptyState({ icon = 'tray', title, copy }: { icon?: SFSymbol; title: string; copy: string }) {
   return (
     <View style={styles.wrap}>
       <View style={styles.icon}>

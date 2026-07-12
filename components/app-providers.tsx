@@ -15,16 +15,12 @@ export function AppProviders({ children }: PropsWithChildren) {
     return (
       <View style={[appStyles.screen, { justifyContent: 'center', padding: 16 }]}>
         <Text style={appStyles.title}>Privy not configured</Text>
-        <Text style={{ marginTop: 8 }}>
-          Set EXPO_PUBLIC_PRIVY_APP_ID and EXPO_PUBLIC_PRIVY_CLIENT_ID in .env.
-        </Text>
+        <Text style={{ marginTop: 8 }}>Set EXPO_PUBLIC_PRIVY_APP_ID and EXPO_PUBLIC_PRIVY_CLIENT_ID in .env.</Text>
         <Text style={{ marginTop: 8, color: '#666' }}>
-          Create a mobile app client in the Privy Dashboard (Configuration → App settings →
-          Clients). Register package/bundle {AppConfig.bundleId} and URL scheme {AppConfig.scheme}.
+          Create a mobile app client in the Privy Dashboard (Configuration → App settings → Clients). Register
+          package/bundle {AppConfig.bundleId} and URL scheme {AppConfig.scheme}.
         </Text>
-        <Text style={{ marginTop: 8, color: '#666' }}>
-          Never put PRIVY_APP_SECRET in the mobile app — server only.
-        </Text>
+        <Text style={{ marginTop: 8, color: '#666' }}>Never put PRIVY_APP_SECRET in the mobile app — server only.</Text>
       </View>
     )
   }

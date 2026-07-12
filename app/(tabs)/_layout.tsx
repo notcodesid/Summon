@@ -9,10 +9,7 @@ import { theme } from '@/constants/theme'
  * Liquid Glass on iOS 26+ when backgroundColor/blurEffect are left to the system.
  */
 
-const tint =
-  Platform.OS === 'ios'
-    ? DynamicColorIOS({ light: '#111111', dark: '#F5F5F5' })
-    : '#111111'
+const tint = Platform.OS === 'ios' ? DynamicColorIOS({ light: '#111111', dark: '#F5F5F5' }) : '#111111'
 
 const muted =
   Platform.OS === 'ios'
@@ -53,18 +50,12 @@ export default function TabLayout() {
       disableIndicator
     >
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'sparkles', selected: 'sparkles' }}
-          md="auto_awesome"
-        />
+        <NativeTabs.Trigger.Icon sf={{ default: 'sparkles', selected: 'sparkles' }} md="auto_awesome" />
         <NativeTabs.Trigger.Label>Summon</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="collection">
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }}
-          md="grid_view"
-        />
+        <NativeTabs.Trigger.Icon sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }} md="grid_view" />
         <NativeTabs.Trigger.Label>Collection</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 

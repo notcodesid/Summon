@@ -86,15 +86,11 @@ mobile app.
   - Acceptance: a fresh developer can build and run the local checks without secrets in
     the repository.
 
-- [ ] **B12 — Full verification**
+- [x] **B12 — Full verification**
   - Run formatting, TypeScript, lint, Rust tests, Anchor build, and repository hygiene
     checks; record anything that requires an external devnet deployment separately.
   - Acceptance: all local checks and one complete Devnet pull pass, and secrets remain
     ignored.
-
-## Remaining verification
-
-- Re-run the full local check suite after the end-to-end fixes, with zero lint warnings.
 
 ## Explicitly out of scope for this milestone
 

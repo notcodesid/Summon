@@ -16,9 +16,7 @@ export function emailFromPrivyUser(user: User | null | undefined): string | null
   const linked = ((user as { linked_accounts?: Linked[] }).linked_accounts ?? []) as Linked[]
   for (const account of linked) {
     if (
-      (account.type === 'email' ||
-        account.type === 'google_oauth' ||
-        account.type === 'apple_oauth') &&
+      (account.type === 'email' || account.type === 'google_oauth' || account.type === 'apple_oauth') &&
       account.email
     ) {
       return account.email

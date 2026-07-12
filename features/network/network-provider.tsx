@@ -8,9 +8,7 @@ export interface NetworkProviderContextValue {
   setSelectedNetwork: (network: SolanaCluster) => void
 }
 
-export const NetworkProviderContext = createContext<NetworkProviderContextValue>(
-  {} as NetworkProviderContextValue,
-)
+export const NetworkProviderContext = createContext<NetworkProviderContextValue>({} as NetworkProviderContextValue)
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const [selectedNetwork, setSelectedNetwork] = useState<SolanaCluster>(AppConfig.networks[0])
@@ -19,8 +17,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       selectedNetwork,
       networks: [...AppConfig.networks].sort((a, b) => a.label.localeCompare(b.label)),
       setSelectedNetwork: (network: SolanaCluster) => setSelectedNetwork(network),
-      getExplorerUrl: (path: string) =>
-        `https://explorer.solana.com/${path}${getExplorerUrlParam(selectedNetwork)}`,
+      getExplorerUrl: (path: string) => `https://explorer.solana.com/${path}${getExplorerUrlParam(selectedNetwork)}`,
     }),
     [selectedNetwork],
   )

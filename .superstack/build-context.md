@@ -12,21 +12,21 @@ Build — Phase 1: ER session + pull transaction
 
 ## Mobile stack
 
-| Field | Value |
-|-------|-------|
-| `mobile.platform` | `react-native` |
-| `mobile.wallet_method` | `privy` (embedded Solana; email login) |
-| `mobile.scaffold_repo` | `create-solana-dapp` → `web3js-expo-minimal` (then Privy) |
-| `mobile.physical_device_tested` | `false` |
+| Field                           | Value                                                     |
+| ------------------------------- | --------------------------------------------------------- |
+| `mobile.platform`               | `react-native`                                            |
+| `mobile.wallet_method`          | `privy` (embedded Solana; email login)                    |
+| `mobile.scaffold_repo`          | `create-solana-dapp` → `web3js-expo-minimal` (then Privy) |
+| `mobile.physical_device_tested` | `false`                                                   |
 
 ## On-chain stack (hackathon)
 
-| Layer | Tech |
-|-------|------|
-| Randomness | VRF (provably fair) |
-| State / pulls | MagicBlock Ephemeral Rollup |
-| Settlement | Solana mainnet (NFTs or SPL items) |
-| Items | 10 unique, 4 rarity tiers |
+| Layer         | Tech                               |
+| ------------- | ---------------------------------- |
+| Randomness    | VRF (provably fair)                |
+| State / pulls | MagicBlock Ephemeral Rollup        |
+| Settlement    | Solana mainnet (NFTs or SPL items) |
+| Items         | 10 unique, 4 rarity tiers          |
 
 ## Weekend build phases
 

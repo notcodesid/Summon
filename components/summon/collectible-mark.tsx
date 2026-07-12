@@ -13,7 +13,7 @@ const RELIC_IMAGES: Record<string, any> = {
   'ember-wisp': require('@/assets/images/relic-wisp.jpg'),
   'prism-fang': require('@/assets/images/relic-fang.jpg'),
   'tide-orb': require('@/assets/images/relic-orb.jpg'),
-  'mossling': require('@/assets/images/relic-mossling.jpg'),
+  mossling: require('@/assets/images/relic-mossling.jpg'),
   'dusk-feather': require('@/assets/images/relic-feather.jpg'),
 }
 const LOCKED_IMAGE = require('@/assets/images/relic-locked.jpg')
@@ -37,10 +37,7 @@ export function CollectibleMark({ id, mark, accent, size = 52, locked }: Collect
       ]}
     >
       {image ? (
-        <Image
-          source={image}
-          style={{ width: size, height: size, resizeMode: 'cover' }}
-        />
+        <Image source={image} style={{ width: size, height: size, resizeMode: 'cover' }} />
       ) : (
         <Text
           style={{
