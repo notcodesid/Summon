@@ -14,6 +14,8 @@ const ASIA_ER_VALIDATOR = new PublicKey('MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECC
 const HISTORY_CAPACITY = 16
 const ER_PROPAGATION_TIMEOUT_MS = 180_000
 const VRF_CALLBACK_TIMEOUT_MS = 120_000
+const PLAYER_ACCOUNT_SIZE = 936
+const PLAYER_DISCRIMINATOR = [56, 3, 60, 86, 174, 16, 244, 195] as const
 
 type AnchorNumber = { toString(): string }
 type PullEntryAccount = {
@@ -123,9 +125,49 @@ function method(program: Program, name: string, args: unknown[] = []) {
 }
 
 async function fetchPlayer(program: Program, player: PublicKey): Promise<PlayerAccount> {
-  const client = (program.account as Record<string, { fetch(address: PublicKey): Promise<unknown> }>).playerState
-  if (!client) throw new Error('Summon IDL is missing the PlayerState account')
-  return (await client.fetch(player)) as PlayerAccount
+  const info = await program.provider.connection.getAccountInfo(player, 'confirmed')
+  if (!info) throw new Error(`Player account ${player.toBase58()} was not found`)
+  if (!info.owner.equals(program.programId)) {
+    throw new Error(`Player account ${player.toBase58()} has unexpected ER owner ${info.owner.toBase58()}`)
+  }
+
+  return decodePlayerAccount(new Uint8Array(info.data.buffer, info.data.byteOffset, info.data.byteLength))
+}
+
+function decodePlayerAccount(data: Uint8Array): PlayerAccount {
+  if (data.length !== PLAYER_ACCOUNT_SIZE) {
+    throw new Error(`Player account has invalid size ${data.length}; expected ${PLAYER_ACCOUNT_SIZE}`)
+  }
+  for (let index = 0; index < PLAYER_DISCRIMINATOR.length; index += 1) {
+    if (data[index] !== PLAYER_DISCRIMINATOR[index]) {
+      throw new Error('Player account discriminator does not match PlayerState')
+    }
+  }
+
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const inventory = Array.from({ length: 10 }, (_, index) => view.getUint16(40 + index * 2, true))
+  const history = Array.from({ length: HISTORY_CAPACITY }, (_, index): PullEntryAccount => {
+    const offset = 120 + index * 51
+    return {
+      nonce: view.getBigUint64(offset, true),
+      collectibleIndex: view.getUint8(offset + 8),
+      roll: view.getUint16(offset + 9, true),
+      resolvedAt: view.getBigInt64(offset + 11, true),
+      randomness: Array.from(data.subarray(offset + 19, offset + 51)),
+    }
+  })
+
+  return {
+    authority: new PublicKey(data.subarray(8, 40)),
+    inventory,
+    totalPulls: view.getBigUint64(60, true),
+    requestNonce: view.getBigUint64(68, true),
+    pending: view.getUint8(76) !== 0,
+    pendingNonce: view.getBigUint64(77, true),
+    historyLen: view.getUint8(117),
+    historyCursor: view.getUint8(118),
+    history,
+  }
 }
 
 async function ensureDelegated({
@@ -164,12 +206,8 @@ async function ensureDelegated({
 
   await waitFor(
     async () => {
-      try {
-        await fetchPlayer(ephemeralProgram, player)
-        return true
-      } catch {
-        return false
-      }
+      await fetchPlayer(ephemeralProgram, player)
+      return true
     },
     ER_PROPAGATION_TIMEOUT_MS,
     'Player delegation did not become visible on the Ephemeral Rollup',
@@ -179,13 +217,9 @@ async function ensureDelegated({
 async function waitForResolution(program: Program, player: PublicKey, previousNonce: bigint) {
   await waitFor(
     async () => {
-      try {
-        const account = await fetchPlayer(program, player)
-        if (!account.pending && BigInt(account.requestNonce.toString()) > previousNonce) {
-          return true
-        }
-      } catch {
-        // The ER can briefly return account-not-found while delegation is propagating.
+      const account = await fetchPlayer(program, player)
+      if (!account.pending && BigInt(account.requestNonce.toString()) > previousNonce) {
+        return true
       }
       return false
     },
@@ -197,11 +231,24 @@ async function waitForResolution(program: Program, player: PublicKey, previousNo
 
 async function waitFor(check: () => Promise<boolean>, timeoutMs: number, timeoutMessage: string) {
   const deadline = Date.now() + timeoutMs
+  let lastError: unknown
   while (Date.now() < deadline) {
-    if (await check()) return
+    try {
+      if (await check()) return
+    } catch (cause) {
+      lastError = cause
+      console.warn(`[Summon] ${timeoutMessage}`, cause)
+      if (!isTransientErError(cause)) throw cause
+    }
     await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
-  throw new Error(timeoutMessage)
+  const detail = lastError instanceof Error ? lastError.message : String(lastError ?? 'unknown error')
+  throw new Error(`${timeoutMessage}: ${detail}`)
+}
+
+function isTransientErError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause)
+  return /not found|failed to fetch|network request|timeout|timed out|connection|socket/i.test(message)
 }
 
 function snapshotFromAccount(account: PlayerAccount, signatures: ReadonlyMap<string, string>): SummonSnapshot {

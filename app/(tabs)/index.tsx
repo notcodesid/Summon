@@ -1,7 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated'
 import { ScreenShell } from '@/components/summon/screen-shell'
 import { WalletPill } from '@/components/summon/wallet-pill'
 import { AppIcon } from '@/components/summon/app-icon'
@@ -12,6 +21,45 @@ import { theme } from '@/constants/theme'
 import { collectibles } from '@/features/summon/mock-summon-repository'
 import { useSummon } from '@/features/summon/summon-provider'
 import { PullRecord } from '@/features/summon/types'
+
+function PortalRipple({ delay }: { delay: number }) {
+  const scale = useSharedValue(1)
+  const opacity = useSharedValue(0.4)
+
+  useEffect(() => {
+    scale.value = 1
+    opacity.value = 0.4
+    scale.value = withRepeat(
+      withDelay(
+        delay,
+        withTiming(2.2, { duration: 1200, easing: Easing.out(Easing.quad) })
+      ),
+      -1,
+      false
+    )
+    opacity.value = withRepeat(
+      withDelay(
+        delay,
+        withTiming(0, { duration: 1200, easing: Easing.out(Easing.quad) })
+      ),
+      -1,
+      false
+    )
+  }, [delay, scale, opacity])
+
+  const style = useAnimatedStyle(() => ({
+    position: 'absolute',
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 2,
+    borderColor: '#000000',
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }))
+
+  return <Animated.View style={style} pointerEvents="none" />
+}
 
 export default function SummonScreen() {
   const { isReady, user } = usePrivy()
@@ -44,6 +92,66 @@ export default function SummonScreen() {
     }
   }
 
+  const outerRotation = useSharedValue(0)
+  const innerRotation = useSharedValue(0)
+  const coreScale = useSharedValue(1)
+
+  useEffect(() => {
+    if (summoning || pending) {
+      // Spinning fast when summoning
+      outerRotation.value = withRepeat(
+        withTiming(360, { duration: 1200, easing: Easing.linear }),
+        -1,
+        false
+      )
+      innerRotation.value = withRepeat(
+        withTiming(-360, { duration: 800, easing: Easing.linear }),
+        -1,
+        false
+      )
+      coreScale.value = withRepeat(
+        withSequence(
+          withTiming(0.92, { duration: 80, easing: Easing.linear }),
+          withTiming(1.08, { duration: 80, easing: Easing.linear })
+        ),
+        -1,
+        true
+      )
+    } else {
+      // Idle slow spin
+      outerRotation.value = withRepeat(
+        withTiming(360, { duration: 25000, easing: Easing.linear }),
+        -1,
+        false
+      )
+      innerRotation.value = withRepeat(
+        withTiming(-360, { duration: 18000, easing: Easing.linear }),
+        -1,
+        false
+      )
+      coreScale.value = withRepeat(
+        withSequence(
+          withTiming(1.04, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      )
+    }
+  }, [summoning, pending, outerRotation, innerRotation, coreScale])
+
+  const outerStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${outerRotation.value}deg` }],
+  }))
+
+  const innerStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${innerRotation.value}deg` }],
+  }))
+
+  const coreStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: coreScale.value }],
+  }))
+
   if (loading) {
     return (
       <ScreenShell
@@ -73,15 +181,26 @@ export default function SummonScreen() {
       action={<WalletPill />}
     >
       <View style={styles.hero}>
-        <View style={styles.outerOrbit}>
-          <View style={styles.orbit}>
-            <View style={styles.core}>
-              <Image
-                source={require('@/assets/images/logo-mark.png')}
-                style={styles.coreLogo}
-              />
-            </View>
-          </View>
+        <View style={styles.portalWrap}>
+          {/* Outer Orbit spins clockwise */}
+          <Animated.View style={[styles.outerOrbit, outerStyle, { position: 'absolute' }]} />
+          {/* Inner Orbit spins counter-clockwise */}
+          <Animated.View style={[styles.orbit, innerStyle, { position: 'absolute' }]} />
+          {/* Expanding shockwave ripples during summoning */}
+          {(summoning || pending) && (
+            <>
+              <PortalRipple delay={0} />
+              <PortalRipple delay={400} />
+              <PortalRipple delay={800} />
+            </>
+          )}
+          {/* Central core breathes and jitters */}
+          <Animated.View style={[styles.core, coreStyle]}>
+            <Image
+              source={require('@/assets/images/logo-mark.png')}
+              style={styles.coreLogo}
+            />
+          </Animated.View>
         </View>
         <Text style={styles.heroTitle}>Something lovely{`\n`}is waiting.</Text>
         <Text style={styles.heroCopy}>Every summon is verifiably random and becomes part of your collection.</Text>
@@ -153,6 +272,13 @@ const styles = StyleSheet.create({
     tintColor: '#000000',
   },
   hero: { alignItems: 'center', paddingVertical: 18 },
+  portalWrap: {
+    width: 200,
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
   outerOrbit: {
     width: 200,
     height: 200,
@@ -162,7 +288,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
   },
   orbit: {
     width: 154,

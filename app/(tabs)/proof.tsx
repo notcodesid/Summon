@@ -14,7 +14,7 @@ export default function ProofScreen() {
   const { pulls, loading } = useSummon()
 
   return (
-    <ScreenShell title="Proof" eyebrow="Verifiable pull history" action={<WalletPill />}>
+    <ScreenShell title="Proof" action={<WalletPill />}>
       <View style={styles.info}>
         <View style={styles.infoIcon}>
           <AppIcon name="checkmark.shield.fill" size={22} color="#FFFFFF" />
