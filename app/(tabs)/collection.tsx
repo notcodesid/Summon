@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
 import { ScreenShell } from '@/components/summon/screen-shell'
 import { WalletPill } from '@/components/summon/wallet-pill'
 import { CollectibleMark } from '@/components/summon/collectible-mark'
+import { EmptyState } from '@/components/summon/empty-state'
+import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
 import { collectibles } from '@/features/summon/mock-summon-repository'
 import { useSummon } from '@/features/summon/summon-provider'
@@ -11,7 +14,7 @@ import { Rarity } from '@/features/summon/types'
 const filters: ('All' | Rarity)[] = ['All', 'Common', 'Rare', 'Epic', 'Legendary']
 
 export default function CollectionScreen() {
-  const { owned } = useSummon()
+  const { owned, loading } = useSummon()
   const [filter, setFilter] = useState<(typeof filters)[number]>('All')
   const visible = collectibles.filter((x) => filter === 'All' || x.rarity === filter)
 
@@ -21,45 +24,69 @@ export default function CollectionScreen() {
       eyebrow={`${owned.length} of ${collectibles.length} discovered`}
       action={<WalletPill />}
     >
-      <View style={styles.filters}>
-        {filters.map((x) => (
-          <Pressable
-            accessibilityRole="button"
-            key={x}
-            onPress={() => setFilter(x)}
-            style={[styles.filter, filter === x && styles.filterActive]}
-          >
-            <Text style={[styles.filterText, filter === x && styles.filterTextActive]}>{x}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {loading ? (
+        <LoadingState label="Loading collection…" />
+      ) : (
+        <>
+          <View style={styles.filters}>
+            {filters.map((x) => (
+              <Pressable
+                accessibilityRole="button"
+                key={x}
+                onPress={() => setFilter(x)}
+                style={[styles.filter, filter === x && styles.filterActive]}
+              >
+                <Text style={[styles.filterText, filter === x && styles.filterTextActive]}>{x}</Text>
+              </Pressable>
+            ))}
+          </View>
 
-      <View style={styles.grid}>
-        {visible.map((item) => {
-          const entry = owned.find((x) => x.collectibleId === item.id)
-          return (
-            <View key={item.id} style={[styles.card, !entry && styles.locked]}>
-              <View style={[styles.art, { backgroundColor: entry ? `${item.accent}55` : theme.colors.surface }]}>
-                <CollectibleMark
-                  mark={item.symbol}
-                  accent={item.accent}
-                  size={72}
-                  locked={!entry}
-                />
-              </View>
-              <Text style={styles.rarity}>{entry ? item.rarity : 'Undiscovered'}</Text>
-              <Text numberOfLines={1} style={styles.name}>
-                {entry ? item.name : 'Unknown relic'}
-              </Text>
-              {entry && entry.quantity > 1 ? (
-                <View style={styles.count}>
-                  <Text style={styles.countText}>×{entry.quantity}</Text>
-                </View>
-              ) : null}
+          {visible.length === 0 ? (
+            <EmptyState
+              icon="square.grid.2x2"
+              title="Nothing in this filter"
+              copy="Try another rarity tier or summon a new relic."
+            />
+          ) : (
+            <View style={styles.grid}>
+              {visible.map((item) => {
+                const entry = owned.find((x) => x.collectibleId === item.id)
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/collectible/${item.id}`)}
+                    style={[styles.card, !entry && styles.locked]}
+                  >
+                    <View
+                      style={[
+                        styles.art,
+                        { backgroundColor: entry ? `${item.accent}55` : theme.colors.surface },
+                      ]}
+                    >
+                      <CollectibleMark
+                        mark={item.symbol}
+                        accent={item.accent}
+                        size={72}
+                        locked={!entry}
+                      />
+                    </View>
+                    <Text style={styles.rarity}>{entry ? item.rarity : 'Undiscovered'}</Text>
+                    <Text numberOfLines={1} style={styles.name}>
+                      {entry ? item.name : 'Unknown relic'}
+                    </Text>
+                    {entry && entry.quantity > 1 ? (
+                      <View style={styles.count}>
+                        <Text style={styles.countText}>×{entry.quantity}</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                )
+              })}
             </View>
-          )
-        })}
-      </View>
+          )}
+        </>
+      )}
     </ScreenShell>
   )
 }

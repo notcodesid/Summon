@@ -1,19 +1,52 @@
 import { useState } from 'react'
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
+import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
 import { ScreenShell } from '@/components/summon/screen-shell'
 import { WalletPill } from '@/components/summon/wallet-pill'
 import { AppIcon } from '@/components/summon/app-icon'
 import { CollectibleMark } from '@/components/summon/collectible-mark'
+import { RevealModal } from '@/components/summon/reveal-modal'
+import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
 import { collectibles } from '@/features/summon/mock-summon-repository'
 import { useSummon } from '@/features/summon/summon-provider'
 import { PullRecord } from '@/features/summon/types'
 
 export default function SummonScreen() {
-  const { summon, summoning, pulls } = useSummon()
+  const { isReady, user } = usePrivy()
+  const solana = useEmbeddedSolanaWallet()
+  const address = solana.wallets?.[0]?.address
+  const { summon, summoning, pulls, loading } = useSummon()
   const [result, setResult] = useState<PullRecord | null>(null)
+  const [gateMessage, setGateMessage] = useState<string | null>(null)
   const item = result ? collectibles.find((x) => x.id === result.collectibleId) : null
   const latest = pulls[0] ? collectibles.find((x) => x.id === pulls[0].collectibleId) : null
+  const canSummon = Boolean(isReady && user && address)
+
+  async function onSummon() {
+    setGateMessage(null)
+    if (!isReady) return
+    if (!user) {
+      setGateMessage('Sign in to summon relics.')
+      router.push('/login')
+      return
+    }
+    if (!address) {
+      setGateMessage('Your Solana wallet is still being created. Try again in a moment.')
+      router.push('/account')
+      return
+    }
+    setResult(await summon())
+  }
+
+  if (loading) {
+    return (
+      <ScreenShell title="Summon" eyebrow="Season I · The First Light" action={<WalletPill />}>
+        <LoadingState label="Preparing your collection…" />
+      </ScreenShell>
+    )
+  }
 
   return (
     <ScreenShell title="Summon" eyebrow="Season I · The First Light" action={<WalletPill />}>
@@ -27,21 +60,29 @@ export default function SummonScreen() {
         <Text style={styles.heroCopy}>
           Every summon is verifiably random and becomes part of your collection.
         </Text>
+
         <Pressable
-          disabled={summoning}
+          disabled={summoning || !isReady}
           accessibilityRole="button"
-          onPress={async () => setResult(await summon())}
-          style={({ pressed }) => [styles.button, pressed && styles.pressed, summoning && styles.disabled]}
+          onPress={onSummon}
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.pressed,
+            (summoning || !isReady) && styles.disabled,
+            !canSummon && styles.buttonMuted,
+          ]}
         >
           {summoning ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.buttonText}>Summon now</Text>
-              <Text style={styles.buttonMeta}>1 pull</Text>
+              <Text style={styles.buttonText}>{canSummon ? 'Summon now' : 'Sign in to summon'}</Text>
+              <Text style={styles.buttonMeta}>{canSummon ? '1 pull' : 'Wallet'}</Text>
             </>
           )}
         </Pressable>
+
+        {gateMessage ? <Text style={styles.gate}>{gateMessage}</Text> : null}
         <Text style={styles.odds}>Common 60% · Rare 30% · Epic 9% · Legendary 1%</Text>
       </View>
 
@@ -50,41 +91,26 @@ export default function SummonScreen() {
         <Text style={styles.sectionMeta}>{pulls.length} pulls</Text>
       </View>
 
-      <View style={styles.latest}>
-        {latest && pulls[0] ? (
-          <>
-            <CollectibleMark mark={latest.symbol} accent={latest.accent} size={54} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.latestName}>{latest.name}</Text>
-              <Text style={styles.latestRarity}>{latest.rarity} · Verified</Text>
-            </View>
-            <AppIcon name="chevron.right" size={16} color={theme.colors.textMuted} />
-          </>
-        ) : (
-          <Text style={styles.heroCopy}>Your first discovery will appear here.</Text>
-        )}
-      </View>
-
-      <Modal visible={!!result} animationType="fade" transparent onRequestClose={() => setResult(null)}>
-        <View style={styles.modal}>
-          <Text style={styles.revealOverline}>YOU SUMMONED</Text>
-          {item ? <CollectibleMark mark={item.symbol} accent={item.accent} size={96} /> : null}
-          <Text style={styles.revealRarity}>{item?.rarity}</Text>
-          <Text style={styles.revealName}>{item?.name}</Text>
-          <Text style={styles.revealLore}>{item?.lore}</Text>
-          <View style={styles.verified}>
-            <AppIcon name="checkmark.seal.fill" size={14} color={theme.colors.text} />
-            <Text style={styles.verifiedText}>Roll {result?.roll.toLocaleString()} · Verified</Text>
+      {latest && pulls[0] ? (
+        <Pressable
+          style={styles.latest}
+          onPress={() => router.push(`/collectible/${latest.id}`)}
+          accessibilityRole="button"
+        >
+          <CollectibleMark mark={latest.symbol} accent={latest.accent} size={54} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.latestName}>{latest.name}</Text>
+            <Text style={styles.latestRarity}>{latest.rarity} · Verified</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setResult(null)}
-            style={styles.continueButton}
-          >
-            <Text style={styles.continueText}>Add to collection</Text>
-          </Pressable>
+          <AppIcon name="chevron.right" size={16} color={theme.colors.textMuted} />
+        </Pressable>
+      ) : (
+        <View style={styles.latest}>
+          <Text style={styles.heroCopy}>Your first discovery will appear here.</Text>
         </View>
-      </Modal>
+      )}
+
+      <RevealModal visible={!!result} item={item} pull={result} onClose={() => setResult(null)} />
     </ScreenShell>
   )
 }
@@ -138,6 +164,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  buttonMuted: { backgroundColor: '#2A2A28' },
   buttonText: {
     color: '#FFFFFF',
     fontFamily: theme.font.body,
@@ -147,6 +174,7 @@ const styles = StyleSheet.create({
   buttonMeta: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', opacity: 0.65 },
   pressed: { transform: [{ scale: 0.98 }] },
   disabled: { opacity: 0.7 },
+  gate: { color: theme.colors.textMuted, fontSize: 12, marginTop: 10, textAlign: 'center' },
   odds: { color: theme.colors.textMuted, fontSize: 11, marginTop: 12 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: {
@@ -167,59 +195,4 @@ const styles = StyleSheet.create({
   },
   latestName: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
   latestRarity: { color: theme.colors.textMuted, fontSize: 12, marginTop: 4 },
-  modal: {
-    flex: 1,
-    backgroundColor: 'rgba(252,252,251,0.96)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 28,
-    gap: 12,
-  },
-  revealOverline: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  revealRarity: {
-    color: theme.colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginTop: 8,
-  },
-  revealName: {
-    color: theme.colors.text,
-    fontFamily: theme.font.display,
-    fontSize: 30,
-    fontWeight: '800',
-  },
-  revealLore: {
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 300,
-  },
-  verified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.radius.pill,
-  },
-  verifiedText: { color: theme.colors.text, fontSize: 12, fontWeight: '700' },
-  continueButton: {
-    marginTop: 16,
-    minHeight: 54,
-    width: '100%',
-    borderRadius: theme.radius.button,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  continueText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 })

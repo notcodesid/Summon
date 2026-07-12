@@ -33,8 +33,8 @@ Build — Phase 1: ER session + pull transaction
 1. ⬜ ER session — pull read/write on Ephemeral Rollup
 2. ⬜ VRF — rarity + item selection
 3. ⬜ Inventory — on-chain read/display
-4. ⬜ Mobile UI — pull, reveal animation, collection
-5. ⬜ Polish + backup demo video
+4. ✅ Mobile UI shell — onboarding, login, account, summon, collection, proof, detail, reveal
+5. ⬜ Polish + backup demo video (real ER/VRF still open)
 
 ## Mobile init (done)
 

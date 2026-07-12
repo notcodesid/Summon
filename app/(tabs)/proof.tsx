@@ -1,14 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
 import { ScreenShell } from '@/components/summon/screen-shell'
 import { WalletPill } from '@/components/summon/wallet-pill'
 import { AppIcon } from '@/components/summon/app-icon'
 import { CollectibleMark } from '@/components/summon/collectible-mark'
+import { EmptyState } from '@/components/summon/empty-state'
+import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
 import { collectibles } from '@/features/summon/mock-summon-repository'
 import { useSummon } from '@/features/summon/summon-provider'
 
 export default function ProofScreen() {
-  const { pulls } = useSummon()
+  const { pulls, loading } = useSummon()
 
   return (
     <ScreenShell title="Proof" eyebrow="Verifiable pull history" action={<WalletPill />}>
@@ -23,47 +26,62 @@ export default function ProofScreen() {
         </Text>
       </View>
 
-      <View style={styles.list}>
-        {pulls.map((pull) => {
-          const item = collectibles.find((x) => x.id === pull.collectibleId)!
-          return (
-            <View key={pull.id} style={styles.card}>
-              <View style={styles.row}>
-                <CollectibleMark mark={item.symbol} accent={item.accent} size={50} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.date}>
-                    {new Date(pull.createdAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </Text>
+      {loading ? (
+        <LoadingState label="Loading proofs…" />
+      ) : pulls.length === 0 ? (
+        <EmptyState
+          icon="checkmark.shield"
+          title="No proofs yet"
+          copy="Summon a relic and every roll, seed, and signature will land here."
+        />
+      ) : (
+        <View style={styles.list}>
+          {pulls.map((pull) => {
+            const item = collectibles.find((x) => x.id === pull.collectibleId)!
+            return (
+              <Pressable
+                key={pull.id}
+                style={styles.card}
+                accessibilityRole="button"
+                onPress={() => router.push(`/collectible/${item.id}`)}
+              >
+                <View style={styles.row}>
+                  <CollectibleMark mark={item.symbol} accent={item.accent} size={50} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{item.name}</Text>
+                    <Text style={styles.date}>
+                      {new Date(pull.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  <View style={styles.status}>
+                    <AppIcon name="checkmark" size={12} color={theme.colors.text} weight="bold" />
+                    <Text style={styles.statusText}>Verified</Text>
+                  </View>
                 </View>
-                <View style={styles.status}>
-                  <AppIcon name="checkmark" size={12} color={theme.colors.text} weight="bold" />
-                  <Text style={styles.statusText}>Verified</Text>
+                <View style={styles.divider} />
+                <View style={styles.metrics}>
+                  <View>
+                    <Text style={styles.label}>ROLL</Text>
+                    <Text style={styles.value}>{pull.roll.toLocaleString()}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.label}>SEED</Text>
+                    <Text style={styles.value}>{pull.seed}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.label}>SIGNATURE</Text>
+                    <Text style={styles.value}>{pull.signature}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.metrics}>
-                <View>
-                  <Text style={styles.label}>ROLL</Text>
-                  <Text style={styles.value}>{pull.roll.toLocaleString()}</Text>
-                </View>
-                <View>
-                  <Text style={styles.label}>SEED</Text>
-                  <Text style={styles.value}>{pull.seed}</Text>
-                </View>
-                <View>
-                  <Text style={styles.label}>SIGNATURE</Text>
-                  <Text style={styles.value}>{pull.signature}</Text>
-                </View>
-              </View>
-            </View>
-          )
-        })}
-      </View>
+              </Pressable>
+            )
+          })}
+        </View>
+      )}
     </ScreenShell>
   )
 }

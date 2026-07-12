@@ -6,4 +6,28 @@ import { theme } from '@/constants/theme'
 export function ScreenShell({ title, eyebrow, action, children }: PropsWithChildren<{ title: string; eyebrow?: string; action?: ReactNode }>) {
   return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.header}><View>{eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}<Text style={styles.title}>{title}</Text></View>{action}</View>{children}</ScrollView></SafeAreaView>
 }
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: theme.colors.background }, content: { padding: 24, paddingBottom: 44, gap: 26 }, header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, eyebrow: { color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: .2, marginBottom: 5 }, title: { color: theme.colors.text, fontFamily: theme.font.display, fontSize: 32, lineHeight: 38, fontWeight: '800', letterSpacing: -.7 } })
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  content: { padding: 24, paddingBottom: 118, gap: 26 },
+  header: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  eyebrow: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    marginBottom: 5,
+  },
+  title: {
+    color: theme.colors.text,
+    fontFamily: theme.font.display,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+})
