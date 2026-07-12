@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
 import { ScreenShell } from '@/components/summon/screen-shell'
@@ -17,7 +17,7 @@ export default function SummonScreen() {
   const { isReady, user } = usePrivy()
   const solana = useEmbeddedSolanaWallet()
   const address = solana.wallets?.[0]?.address
-  const { summon, summoning, pulls, loading } = useSummon()
+  const { summon, summoning, pulls, loading, source, pending, error } = useSummon()
   const [result, setResult] = useState<PullRecord | null>(null)
   const [gateMessage, setGateMessage] = useState<string | null>(null)
   const item = result ? collectibles.find((x) => x.id === result.collectibleId) : null
@@ -29,7 +29,7 @@ export default function SummonScreen() {
     if (!isReady) return
     if (!user) {
       setGateMessage('Sign in to summon relics.')
-      router.push('/login')
+      router.replace('/onboarding')
       return
     }
     if (!address) {
@@ -37,19 +37,41 @@ export default function SummonScreen() {
       router.push('/account')
       return
     }
-    setResult(await summon())
+    try {
+      setResult(await summon())
+    } catch {
+      // The provider exposes the actionable error below the button.
+    }
   }
 
   if (loading) {
     return (
-      <ScreenShell title="Summon" eyebrow="Season I · The First Light" action={<WalletPill />}>
+      <ScreenShell
+        title={
+          <Image
+            source={require('@/assets/images/logo-mark.png')}
+            style={styles.logo}
+            tintColor="#000000"
+          />
+        }
+        action={<WalletPill />}
+      >
         <LoadingState label="Preparing your collection…" />
       </ScreenShell>
     )
   }
 
   return (
-    <ScreenShell title="Summon" eyebrow="Season I · The First Light" action={<WalletPill />}>
+    <ScreenShell
+      title={
+        <Image
+          source={require('@/assets/images/logo-mark.png')}
+          style={styles.logo}
+          tintColor="#000000"
+        />
+      }
+      action={<WalletPill />}
+    >
       <View style={styles.hero}>
         <View style={styles.orbit}>
           <View style={styles.core}>
@@ -57,22 +79,20 @@ export default function SummonScreen() {
           </View>
         </View>
         <Text style={styles.heroTitle}>Something lovely{`\n`}is waiting.</Text>
-        <Text style={styles.heroCopy}>
-          Every summon is verifiably random and becomes part of your collection.
-        </Text>
+        <Text style={styles.heroCopy}>Every summon is verifiably random and becomes part of your collection.</Text>
 
         <Pressable
-          disabled={summoning || !isReady}
+          disabled={summoning || pending || !isReady}
           accessibilityRole="button"
           onPress={onSummon}
           style={({ pressed }) => [
             styles.button,
             pressed && styles.pressed,
-            (summoning || !isReady) && styles.disabled,
+            (summoning || pending || !isReady) && styles.disabled,
             !canSummon && styles.buttonMuted,
           ]}
         >
-          {summoning ? (
+          {summoning || pending ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
@@ -83,6 +103,7 @@ export default function SummonScreen() {
         </Pressable>
 
         {gateMessage ? <Text style={styles.gate}>{gateMessage}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <Text style={styles.odds}>Common 60% · Rare 30% · Epic 9% · Legendary 1%</Text>
       </View>
 
@@ -100,7 +121,9 @@ export default function SummonScreen() {
           <CollectibleMark mark={latest.symbol} accent={latest.accent} size={54} />
           <View style={{ flex: 1 }}>
             <Text style={styles.latestName}>{latest.name}</Text>
-            <Text style={styles.latestRarity}>{latest.rarity} · Verified</Text>
+            <Text style={styles.latestRarity}>
+              {latest.rarity} · {pulls[0].status === 'verified' ? 'Verified' : 'Demo'}
+            </Text>
           </View>
           <AppIcon name="chevron.right" size={16} color={theme.colors.textMuted} />
         </Pressable>
@@ -111,11 +134,21 @@ export default function SummonScreen() {
       )}
 
       <RevealModal visible={!!result} item={item} pull={result} onClose={() => setResult(null)} />
+      {source === 'demo' ? <Text style={styles.demo}>Demo data · not on-chain</Text> : null}
     </ScreenShell>
   )
 }
 
 const styles = StyleSheet.create({
+  logo: {
+    width: 84,
+    height: 84,
+    resizeMode: 'contain',
+    marginLeft: -20,
+    marginTop: -16,
+    marginBottom: -16,
+    tintColor: '#000000',
+  },
   hero: { alignItems: 'center', paddingVertical: 18 },
   orbit: {
     width: 184,
@@ -175,6 +208,7 @@ const styles = StyleSheet.create({
   pressed: { transform: [{ scale: 0.98 }] },
   disabled: { opacity: 0.7 },
   gate: { color: theme.colors.textMuted, fontSize: 12, marginTop: 10, textAlign: 'center' },
+  error: { color: '#9F2D24', fontSize: 12, lineHeight: 18, marginTop: 10, textAlign: 'center' },
   odds: { color: theme.colors.textMuted, fontSize: 11, marginTop: 12 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   sectionTitle: {
@@ -195,4 +229,5 @@ const styles = StyleSheet.create({
   },
   latestName: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
   latestRarity: { color: theme.colors.textMuted, fontSize: 12, marginTop: 4 },
+  demo: { color: theme.colors.textMuted, fontSize: 11, textAlign: 'center' },
 })

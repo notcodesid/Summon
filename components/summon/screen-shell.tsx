@@ -3,8 +3,34 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { theme } from '@/constants/theme'
 
-export function ScreenShell({ title, eyebrow, action, children }: PropsWithChildren<{ title: string; eyebrow?: string; action?: ReactNode }>) {
-  return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.header}><View>{eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}<Text style={styles.title}>{title}</Text></View>{action}</View>{children}</ScrollView></SafeAreaView>
+export function ScreenShell({
+  title,
+  eyebrow,
+  action,
+  children,
+}: PropsWithChildren<{
+  title: ReactNode
+  eyebrow?: string
+  action?: ReactNode
+}>) {
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View>
+            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+            {typeof title === 'string' ? (
+              <Text style={styles.title}>{title}</Text>
+            ) : (
+              title
+            )}
+          </View>
+          {action}
+        </View>
+        {children}
+      </ScrollView>
+    </SafeAreaView>
+  )
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.background },
