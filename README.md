@@ -54,7 +54,7 @@ This project requires a custom Expo development build; Expo Go does not include 
 
 ```bash
 git clone <repository-url>
-cd Pulse
+cd summon
 npm ci
 cp .env.example .env
 ```
