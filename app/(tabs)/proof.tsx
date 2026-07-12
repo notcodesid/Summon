@@ -7,7 +7,7 @@ import { CollectibleMark } from '@/components/summon/collectible-mark'
 import { EmptyState } from '@/components/summon/empty-state'
 import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
-import { collectibles } from '@/features/summon/mock-summon-repository'
+import { collectibles } from '@/features/summon/catalog'
 import { useSummon } from '@/features/summon/summon-provider'
 
 export default function ProofScreen() {
@@ -59,7 +59,7 @@ export default function ProofScreen() {
                   </View>
                   <View style={styles.status}>
                     <AppIcon name="checkmark" size={12} color={theme.colors.text} weight="bold" />
-                    <Text style={styles.statusText}>{pull.status === 'verified' ? 'Verified' : 'Demo'}</Text>
+                    <Text style={styles.statusText}>Verified</Text>
                   </View>
                 </View>
                 <View style={styles.divider} />

@@ -1,15 +1,14 @@
 # Summon backend implementation checklist
 
-This checklist turns the current in-memory demo into the hackathon MVP described in
+This checklist defines the on-chain hackathon MVP described in
 `README.md`: one real, wallet-owned, verifiably random pull flow running through a
 MagicBlock Ephemeral Rollup (ER), with collection and proof history readable by the
 mobile app.
 
 ## Research findings
 
-- The current app has no backend or Solana program. `mock-summon-repository.ts` uses
-  process-global arrays and `Math.random()`, so data is shared between users, lost on
-  reload, and not verifiable.
+- Pulls, inventory, and proof history must come exclusively from program-owned state;
+  the production app contains no in-memory data substitute.
 - Privy already creates an embedded Solana wallet and exposes the wallet address and a
   signing provider. Devnet is the correct initial target.
 - MagicBlock VRF is asynchronous: the player requests randomness, then the verified
@@ -64,10 +63,10 @@ mobile app.
   - Acceptance: Rust tests and `anchor build` pass locally.
 
 - [ ] **B08 — Mobile repository boundary**
-  - Replace direct imports of the mock repository with a `SummonRepository` interface,
-    keep an explicit demo implementation, and add the real on-chain implementation.
+  - Route every screen through a `SummonRepository` interface backed by the real
+    on-chain implementation and canonical catalog.
   - Acceptance: collection, pulls, and pull requests are scoped to the connected wallet;
-    mock mode is opt-in and clearly labeled.
+    no seeded or randomly generated client data is available.
 
 - [ ] **B09 — Privy transaction adapter and dual RPC routing**
   - Build, simulate, sign, submit, and confirm base-layer and ER transactions through
@@ -79,11 +78,11 @@ mobile app.
   - Model `idle → requesting → awaiting_vrf → resolved/failed`, poll or subscribe to the
     player PDA, and hydrate the UI proof fields from on-chain state and transaction IDs.
   - Acceptance: a pull cannot be double-submitted, app reload resumes a pending pull,
-    and the UI never labels mock/random client data as verified.
+    and the UI labels only program-resolved state as verified.
 
 - [ ] **B11 — Configuration and operator documentation**
   - Document program ID, base/ER RPCs, queue selection, devnet initialization,
-    delegation, funding/sponsorship, deployment, and rollback/demo procedures.
+    delegation, funding/sponsorship, deployment, and rollback procedures.
   - Acceptance: a fresh developer can build and run the local checks without secrets in
     the repository.
 
@@ -98,4 +97,4 @@ mobile app.
 - Mainnet deployment or any transaction submission without user approval.
 - Trading, marketplace/listing, profiles, payments, or a large item catalog.
 - A centralized database as the ownership source of truth.
-- Pretending an undeployed or mock pull is on-chain verified.
+- Pretending an undeployed or client-generated pull is on-chain verified.

@@ -5,7 +5,6 @@ import { createContext, PropsWithChildren, useCallback, useContext, useEffect, u
 import { AppConfig, SUMMON_PLACEHOLDER_PROGRAM_ID } from '@/constants/app-config'
 import { useNetwork } from '@/features/network/use-network'
 import summonIdl from './idl/summon.json'
-import { mockSummonRepository } from './mock-summon-repository'
 import { createOnchainSummonRepository } from './onchain-summon-repository'
 import type { PrivySolanaWallet } from './privy-transaction-sender'
 import { OwnedCollectible, PullRecord } from './types'
@@ -15,7 +14,6 @@ type Value = {
   pulls: PullRecord[]
   loading: boolean
   summoning: boolean
-  source: 'demo' | 'onchain'
   pending: boolean
   error: string | null
   summon: () => Promise<PullRecord>
@@ -33,7 +31,7 @@ export function SummonProvider({ children }: PropsWithChildren) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const configurationError = useMemo(() => {
-    if (AppConfig.summon.dataSource === 'demo' || !wallet) return null
+    if (!wallet) return null
     if (selectedNetwork.id !== 'solana:devnet') {
       return 'Summon on-chain pulls currently require Solana Devnet.'
     }
@@ -46,7 +44,6 @@ export function SummonProvider({ children }: PropsWithChildren) {
     return null
   }, [selectedNetwork.id, wallet])
   const repository = useMemo(() => {
-    if (AppConfig.summon.dataSource === 'demo') return mockSummonRepository
     if (!wallet || configurationError) return null
     const baseConnection = new Connection(selectedNetwork.url, 'confirmed')
     const ephemeralConnection = new Connection(AppConfig.summon.ephemeralRpcUrl, {
@@ -62,7 +59,7 @@ export function SummonProvider({ children }: PropsWithChildren) {
       networkId: selectedNetwork.id,
     })
   }, [configurationError, selectedNetwork.id, selectedNetwork.url, wallet])
-  const owner = wallet?.address ?? (AppConfig.summon.dataSource === 'demo' ? 'guest-demo' : null)
+  const owner = wallet?.address ?? null
 
   const refresh = useCallback(async () => {
     if (!repository || !owner) {
@@ -116,12 +113,11 @@ export function SummonProvider({ children }: PropsWithChildren) {
       pulls,
       loading,
       summoning,
-      source: repository?.mode ?? AppConfig.summon.dataSource,
       pending,
       error,
       summon,
     }),
-    [owned, pulls, loading, summoning, repository?.mode, pending, error, summon],
+    [owned, pulls, loading, summoning, pending, error, summon],
   )
   return <SummonContext.Provider value={value}>{children}</SummonContext.Provider>
 }

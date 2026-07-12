@@ -7,7 +7,7 @@ import { CollectibleMark } from '@/components/summon/collectible-mark'
 import { EmptyState } from '@/components/summon/empty-state'
 import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
-import { collectibles } from '@/features/summon/mock-summon-repository'
+import { collectibles } from '@/features/summon/catalog'
 import { useSummon } from '@/features/summon/summon-provider'
 import { Rarity } from '@/features/summon/types'
 
@@ -20,10 +20,7 @@ export default function CollectionScreen() {
   const visible = collectibles.filter((x) => filter === 'All' || x.rarity === filter)
 
   return (
-    <ScreenShell
-      title="Collection"
-      action={<WalletPill />}
-    >
+    <ScreenShell title="Collection" action={<WalletPill />}>
       {loading ? (
         <LoadingState label="Loading collection…" />
       ) : (
@@ -58,19 +55,8 @@ export default function CollectionScreen() {
                     onPress={() => router.push(`/collectible/${item.id}`)}
                     style={[styles.card, !entry && styles.locked]}
                   >
-                    <View
-                      style={[
-                        styles.art,
-                        { backgroundColor: entry ? `${item.accent}55` : theme.colors.surface },
-                      ]}
-                    >
-                      <CollectibleMark
-                        id={item.id}
-                        mark={item.symbol}
-                        accent={item.accent}
-                        size={72}
-                        locked={!entry}
-                      />
+                    <View style={[styles.art, { backgroundColor: entry ? `${item.accent}55` : theme.colors.surface }]}>
+                      <CollectibleMark id={item.id} mark={item.symbol} accent={item.accent} size={72} locked={!entry} />
                     </View>
                     <Text style={styles.rarity}>{entry ? item.rarity : 'Undiscovered'}</Text>
                     <Text numberOfLines={1} style={styles.name}>

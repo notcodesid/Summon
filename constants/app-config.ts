@@ -22,7 +22,6 @@ export class AppConfig {
   }
 
   static summon = {
-    dataSource: process.env.EXPO_PUBLIC_SUMMON_DATA_SOURCE === 'demo' ? ('demo' as const) : ('onchain' as const),
     programId: process.env.EXPO_PUBLIC_SUMMON_PROGRAM_ID ?? SUMMON_DEVNET_PROGRAM_ID,
     ephemeralRpcUrl: process.env.EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL ?? 'https://devnet-as.magicblock.app',
     ephemeralWsUrl: process.env.EXPO_PUBLIC_MAGICBLOCK_ER_WS_URL ?? 'wss://devnet-as.magicblock.app',

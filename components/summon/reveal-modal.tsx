@@ -66,9 +66,7 @@ export function RevealModal({
           <Text style={styles.lore}>{item?.lore}</Text>
           <View style={styles.verified}>
             <AppIcon name="checkmark.seal.fill" size={14} color={theme.colors.text} />
-            <Text style={styles.verifiedText}>
-              Roll {pull?.roll.toLocaleString()} · {pull?.status === 'verified' ? 'Verified' : 'Demo'}
-            </Text>
+            <Text style={styles.verifiedText}>Roll {pull?.roll.toLocaleString()} · Verified</Text>
           </View>
         </Animated.View>
         <Pressable accessibilityRole="button" onPress={onClose} style={styles.continueButton}>

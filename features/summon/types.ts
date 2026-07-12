@@ -16,7 +16,7 @@ export type PullRecord = {
   roll: number
   seed: string
   signature: string
-  status: 'demo' | 'verified'
+  status: 'verified'
 }
 
 export type OwnedCollectible = { collectibleId: string; quantity: number; firstReceivedAt: string }
@@ -28,7 +28,7 @@ export type SummonSnapshot = {
 }
 
 export interface SummonRepository {
-  readonly mode: 'demo' | 'onchain'
+  readonly mode: 'onchain'
   getSnapshot(owner: string): Promise<SummonSnapshot>
   pull(owner: string): Promise<PullRecord>
 }

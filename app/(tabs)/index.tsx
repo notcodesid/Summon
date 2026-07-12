@@ -18,7 +18,7 @@ import { CollectibleMark } from '@/components/summon/collectible-mark'
 import { RevealModal } from '@/components/summon/reveal-modal'
 import { LoadingState } from '@/components/summon/loading-state'
 import { theme } from '@/constants/theme'
-import { collectibles } from '@/features/summon/mock-summon-repository'
+import { collectibles } from '@/features/summon/catalog'
 import { useSummon } from '@/features/summon/summon-provider'
 import { PullRecord } from '@/features/summon/types'
 
@@ -30,20 +30,14 @@ function PortalRipple({ delay }: { delay: number }) {
     scale.value = 1
     opacity.value = 0.4
     scale.value = withRepeat(
-      withDelay(
-        delay,
-        withTiming(2.2, { duration: 1200, easing: Easing.out(Easing.quad) })
-      ),
+      withDelay(delay, withTiming(2.2, { duration: 1200, easing: Easing.out(Easing.quad) })),
       -1,
-      false
+      false,
     )
     opacity.value = withRepeat(
-      withDelay(
-        delay,
-        withTiming(0, { duration: 1200, easing: Easing.out(Easing.quad) })
-      ),
+      withDelay(delay, withTiming(0, { duration: 1200, easing: Easing.out(Easing.quad) })),
       -1,
-      false
+      false,
     )
   }, [delay, scale, opacity])
 
@@ -65,7 +59,7 @@ export default function SummonScreen() {
   const { isReady, user } = usePrivy()
   const solana = useEmbeddedSolanaWallet()
   const address = solana.wallets?.[0]?.address
-  const { summon, summoning, pulls, loading, source, pending, error } = useSummon()
+  const { summon, summoning, pulls, loading, pending, error } = useSummon()
   const [result, setResult] = useState<PullRecord | null>(null)
   const [gateMessage, setGateMessage] = useState<string | null>(null)
   const item = result ? collectibles.find((x) => x.id === result.collectibleId) : null
@@ -99,43 +93,27 @@ export default function SummonScreen() {
   useEffect(() => {
     if (summoning || pending) {
       // Spinning fast when summoning
-      outerRotation.value = withRepeat(
-        withTiming(360, { duration: 1200, easing: Easing.linear }),
-        -1,
-        false
-      )
-      innerRotation.value = withRepeat(
-        withTiming(-360, { duration: 800, easing: Easing.linear }),
-        -1,
-        false
-      )
+      outerRotation.value = withRepeat(withTiming(360, { duration: 1200, easing: Easing.linear }), -1, false)
+      innerRotation.value = withRepeat(withTiming(-360, { duration: 800, easing: Easing.linear }), -1, false)
       coreScale.value = withRepeat(
         withSequence(
           withTiming(0.92, { duration: 80, easing: Easing.linear }),
-          withTiming(1.08, { duration: 80, easing: Easing.linear })
+          withTiming(1.08, { duration: 80, easing: Easing.linear }),
         ),
         -1,
-        true
+        true,
       )
     } else {
       // Idle slow spin
-      outerRotation.value = withRepeat(
-        withTiming(360, { duration: 25000, easing: Easing.linear }),
-        -1,
-        false
-      )
-      innerRotation.value = withRepeat(
-        withTiming(-360, { duration: 18000, easing: Easing.linear }),
-        -1,
-        false
-      )
+      outerRotation.value = withRepeat(withTiming(360, { duration: 25000, easing: Easing.linear }), -1, false)
+      innerRotation.value = withRepeat(withTiming(-360, { duration: 18000, easing: Easing.linear }), -1, false)
       coreScale.value = withRepeat(
         withSequence(
           withTiming(1.04, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.0, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
-        false
+        false,
       )
     }
   }, [summoning, pending, outerRotation, innerRotation, coreScale])
@@ -155,13 +133,7 @@ export default function SummonScreen() {
   if (loading) {
     return (
       <ScreenShell
-        title={
-          <Image
-            source={require('@/assets/images/logo-mark.png')}
-            style={styles.logo}
-            tintColor="#000000"
-          />
-        }
+        title={<Image source={require('@/assets/images/logo-mark.png')} style={styles.logo} tintColor="#000000" />}
         action={<WalletPill />}
       >
         <LoadingState label="Preparing your collection…" />
@@ -171,13 +143,7 @@ export default function SummonScreen() {
 
   return (
     <ScreenShell
-      title={
-        <Image
-          source={require('@/assets/images/logo-mark.png')}
-          style={styles.logo}
-          tintColor="#000000"
-        />
-      }
+      title={<Image source={require('@/assets/images/logo-mark.png')} style={styles.logo} tintColor="#000000" />}
       action={<WalletPill />}
     >
       <View style={styles.hero}>
@@ -196,10 +162,7 @@ export default function SummonScreen() {
           )}
           {/* Central core breathes and jitters */}
           <Animated.View style={[styles.core, coreStyle]}>
-            <Image
-              source={require('@/assets/images/logo-mark.png')}
-              style={styles.coreLogo}
-            />
+            <Image source={require('@/assets/images/logo-mark.png')} style={styles.coreLogo} />
           </Animated.View>
         </View>
         <Text style={styles.heroTitle}>Something lovely{`\n`}is waiting.</Text>
@@ -245,9 +208,7 @@ export default function SummonScreen() {
           <CollectibleMark id={latest.id} mark={latest.symbol} accent={latest.accent} size={54} />
           <View style={{ flex: 1 }}>
             <Text style={styles.latestName}>{latest.name}</Text>
-            <Text style={styles.latestRarity}>
-              {latest.rarity} · {pulls[0].status === 'verified' ? 'Verified' : 'Demo'}
-            </Text>
+            <Text style={styles.latestRarity}>{latest.rarity} · Verified</Text>
           </View>
           <AppIcon name="chevron.right" size={16} color={theme.colors.textMuted} />
         </Pressable>
@@ -258,7 +219,6 @@ export default function SummonScreen() {
       )}
 
       <RevealModal visible={!!result} item={item} pull={result} onClose={() => setResult(null)} />
-      {source === 'demo' ? <Text style={styles.demo}>Demo data · not on-chain</Text> : null}
     </ScreenShell>
   )
 }
@@ -375,5 +335,4 @@ const styles = StyleSheet.create({
   },
   latestName: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
   latestRarity: { color: theme.colors.textMuted, fontSize: 12, marginTop: 4 },
-  demo: { color: theme.colors.textMuted, fontSize: 11, textAlign: 'center' },
 })

@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/summon/app-icon'
 import { CollectibleMark } from '@/components/summon/collectible-mark'
 import { EmptyState } from '@/components/summon/empty-state'
 import { theme } from '@/constants/theme'
-import { collectibles } from '@/features/summon/mock-summon-repository'
+import { collectibles } from '@/features/summon/catalog'
 import { useSummon } from '@/features/summon/summon-provider'
 
 /**

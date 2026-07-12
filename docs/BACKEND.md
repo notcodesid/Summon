@@ -70,13 +70,9 @@ after changing instructions, accounts, events, or errors.
 
 Copy `.env.example` to `.env` and configure:
 
-- `EXPO_PUBLIC_SUMMON_DATA_SOURCE=onchain` for real state;
 - `EXPO_PUBLIC_SUMMON_PROGRAM_ID` after `anchor keys sync`;
 - base RPC through the app's selected Devnet network;
 - `EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL` and websocket URL for the selected ER region.
-
-`demo` mode is intentionally explicit and the UI labels every result as Demo. It must
-never be used for a judging claim that a pull is verified.
 
 ## Deployment gate
 
