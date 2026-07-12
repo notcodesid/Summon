@@ -1,113 +1,147 @@
 # Summon
 
-**Summon** is a mobile-first Solana gacha for **MagicBlock's Solana Blitz hackathon** (mobile theme, Ephemeral Rollups). Tap **Pull**, summon verifiable loot, watch the reveal, own it on-chain.
+Summon is a mobile collectible game built on Solana. Every pull uses MagicBlock VRF for verifiable randomness, executes against a delegated player account on a MagicBlock Ephemeral Rollup, and commits the result back to Solana.
 
-> Built from MagicBlock's sponsor idea [_Onchain gacha_](https://x.com/magicblock) — VRF fairness + Ephemeral Rollup speed. One word: you summon collectibles from the rollup layer before they settle to mainnet.
+The app is built with Expo and React Native, uses Privy embedded Solana wallets, and stores inventory and pull history in a wallet-owned program PDA. There is no mock inventory or client-generated pull data.
 
-## What we're building
+## Features
 
-A mobile-first Solana app where a user taps **Pull** and instantly receives a random collectible item (common / rare / epic / legendary). Every pull is provably fair (VRF-backed randomness) and feels instant and gasless because pulls + inventory run on a **MagicBlock Ephemeral Rollup (ER)**, settling to Solana mainnet only when needed.
+- Verifiably random collectible pulls using MagicBlock VRF
+- 60% Common, 30% Rare, 9% Epic, and 1% Legendary distribution
+- Wallet-owned inventory for ten collectibles
+- On-chain proof history with bounded storage
+- Fast execution through a MagicBlock Ephemeral Rollup
+- Privy authentication and embedded Solana wallets
+- Transaction simulation before every wallet signature
+- State recovery after app reload
 
-Built for MagicBlock's Solana Blitz hackathon. This is **[MagicBlock Idea 3: Onchain gacha](https://x.com/magicblock)** — their sponsor-suggested hackathon concept. Follow their Ephemeral Rollup SDK patterns and examples closely.
+## Architecture
 
-### Alignment with MagicBlock's idea
-
-MagicBlock describes it as: _"A collectible pull game where every draw is provably fair, pulls and inventory stay instant and gas free."_
-
-| MagicBlock (Idea 3)                                     | This repo                             |
-| ------------------------------------------------------- | ------------------------------------- |
-| Every pull uses VRF — verifiable rarity, no rigged odds | ✅ Core mechanic                      |
-| Pulls and inventory run on an ER — instant and gas free | ✅ Core mechanic                      |
-| Trade or list your drops straight from your phone       | ⏸ Deferred (post-hackathon / stretch) |
-| Ready for the Seeker dApp Store                         | ✅ Mobile + MWA target                |
-
-**Weekend MVP** matches the sponsor idea on VRF + ER + mobile; we intentionally skip trade/listing for v1 so the demo stays reliable and focused on pull → reveal → inventory.
-
-## Core user flow
-
-1. User opens the app on mobile, connects wallet (Mobile Wallet Adapter / Seed Vault on Seeker).
-2. User taps **Pull**.
-3. A VRF call generates verifiable randomness → determines rarity tier → determines specific item.
-4. Reveal animation plays (suspense beat, then rarity-colored reveal).
-5. Item is added to the user's on-chain inventory (stored via the ER for instant, gasless writes).
-6. User can view their inventory / collection.
-
-## Scope for the hackathon (keep tight)
-
-- 10 unique items total
-- 3–4 rarity tiers (e.g. Common 60%, Rare 30%, Epic 9%, Legendary 1%)
-- One working pull mechanic, end to end, on real ER + VRF (not faked/simulated)
-- Inventory screen showing owned items
-- Polished pull/reveal animation — prioritize this over item count or extra features
-- **Skip for now:** trading/marketplace, listing items for sale, account/profile systems, large item catalogs
-
-## Technical architecture
-
-| Layer          | Role                                                                         |
-| -------------- | ---------------------------------------------------------------------------- |
-| **Randomness** | VRF — provably fair, verifiable after the fact                               |
-| **State**      | MagicBlock Ephemeral Rollup — instant, gasless pulls + inventory writes      |
-| **Settlement** | Inventory/ownership settles to Solana mainnet (real NFTs or SPL-based items) |
-| **Client**     | React Native + Expo, Mobile Wallet Adapter, Seeker / dApp Store ready        |
-
-## What makes this submission stand out
-
-1. **Real ER usage**, not simulated speed — judges from MagicBlock will know the difference.
-2. **A genuinely satisfying reveal animation** — highest-leverage design element in the app.
-3. **Light theming/narrative** on the 10 items — memorable, not generic fantasy loot.
-4. **Rock-solid live demo reliability** — pull and reveal work every time in front of judges.
-5. **Visible proof of fairness** — surface VRF seed/proof in the UI next to each pull.
-
-## Build plan (weekend)
-
-| Phase       | Goal                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------ |
-| **Phase 1** | Get ER session working — single pull transaction read/write on Ephemeral Rollup end to end |
-| **Phase 2** | Wire VRF for real randomness (rarity + item)                                               |
-| **Phase 3** | Inventory read/display from on-chain state                                                 |
-| **Phase 4** | Mobile UI — pull button, reveal animation, inventory screen                                |
-| **Phase 5** | Polish reveal animation, test demo reliability, record backup demo video                   |
-
-## Client stack
-
-- React Native + Expo (custom dev build — not Expo Go)
-- **Privy** embedded Solana wallets (`@privy-io/expo`) — Apple / Google (email optional) + auto wallet
-- `@solana/web3.js` for RPC / transactions
-
-> We intentionally use Privy embedded wallets (works on iOS + Android) instead of Mobile Wallet Adapter for the MVP login path. MWA/Seed Vault can be re-added later for Seeker external wallets.
-
-## Development
-
-Scaffolded from [Solana Mobile's React Native + Expo template](https://docs.solanamobile.com/get-started/react-native/create-solana-mobile-app), then switched auth/wallets to [Privy Expo](https://docs.privy.io/basics/react-native/quickstart).
-
-Backend implementation and operator instructions live in
-[`docs/BACKEND.md`](docs/BACKEND.md). The ordered implementation status is tracked in
-[`docs/BACKEND_TODO.md`](docs/BACKEND_TODO.md).
-
-### Privy setup
-
-1. Copy `.env.example` → `.env`
-2. Dashboard → **App ID** → `EXPO_PUBLIC_PRIVY_APP_ID`
-3. Dashboard → **Clients** → create mobile client → `EXPO_PUBLIC_PRIVY_CLIENT_ID`
-4. On that client, allow:
-   - App identifiers: `com.notcodesid.summon` (iOS + Android)
-   - URL scheme: `summon` (from `app.json`)
-5. Enable **Google**, **Apple**, and optionally **email** login, plus **Solana** embedded wallets (create on login) in the Privy dashboard
-6. Keep `PRIVY_APP_SECRET` **server-only** — never use `EXPO_PUBLIC_` for the secret
-
-```bash
-npm install
-npm run ios          # or npm run android — custom dev client required for Privy native modules
-npm run dev          # Metro after the native client is installed
-npm run doctor
+```text
+Expo app + Privy wallet
+        │
+        ├─ initialize + delegate ──► Solana Devnet
+        │
+        └─ request pull ───────────► MagicBlock ER
+                                      │
+                                      ├─ MagicBlock VRF callback
+                                      ├─ update inventory + history
+                                      └─ commit ─────────► Solana Devnet
 ```
 
-### Backup demo video
+Each wallet owns one `PlayerState` PDA containing its inventory, request state, total pulls, and the newest 16 verified pull records. The collectible order in [`features/summon/catalog.ts`](features/summon/catalog.ts) is part of the protocol and must remain stable after deployment.
 
-Record a backup demo video before judging in case of live wallet/network hiccups. Store recordings under `demos/` or `recordings/` — those paths are gitignored (see `.gitignore`).
+## Deployed program
 
-## References
+| Network       | Program ID                                                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Solana Devnet | [`9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ`](https://explorer.solana.com/address/9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ?cluster=devnet) |
 
-- [Solana Mobile Docs](https://docs.solanamobile.com/get-started/overview)
-- [Blueshift — Solana Mobile Mastery](https://learn.blueshift.gg/en/paths/solana-mobile-mastery)
-- MagicBlock Ephemeral Rollups SDK + hackathon examples (primary integration reference)
+The client uses the MagicBlock Devnet Asia Ephemeral Rollup by default.
+
+## Requirements
+
+- Node.js 20 or newer
+- npm
+- Xcode and an iOS Simulator, or Android Studio and an Android emulator
+- Rust 1.89
+- Solana CLI with SBF build tools
+- A Privy app and native mobile client
+
+This project requires a custom Expo development build; Expo Go does not include the required native modules.
+
+## Setup
+
+```bash
+git clone <repository-url>
+cd Pulse
+npm ci
+cp .env.example .env
+```
+
+Configure the client-safe values in `.env`:
+
+```dotenv
+EXPO_PUBLIC_PRIVY_APP_ID=
+EXPO_PUBLIC_PRIVY_CLIENT_ID=
+EXPO_PUBLIC_SUMMON_PROGRAM_ID=9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ
+EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL=https://devnet-as.magicblock.app
+EXPO_PUBLIC_MAGICBLOCK_ER_WS_URL=wss://devnet-as.magicblock.app
+```
+
+In the Privy dashboard, register:
+
+- Native app identifier: `com.notcodesid.summon`
+- URL scheme: `summon`
+- Solana embedded wallets with wallet creation on login
+- The login methods you want to support
+
+Never expose `PRIVY_APP_SECRET` through an `EXPO_PUBLIC_` variable.
+
+## Run the app
+
+Build and install the native development app:
+
+```bash
+npm run ios
+# or
+npm run android
+```
+
+Start Metro for subsequent runs:
+
+```bash
+npm run dev
+```
+
+The embedded wallet needs Devnet SOL for account creation and transaction fees.
+
+## Program development
+
+```bash
+npm run program:build
+npm run program:test
+npm run program:verify-idl
+```
+
+`program:build` builds the SBF program, generates the Anchor IDL, synchronizes the IDL into the Expo bundle, and verifies client instruction resolution.
+
+The generated deployable program is written to `target/deploy/summon.so`. Deployment keypairs and private keys must remain outside this repository.
+
+## Verification
+
+```bash
+npx tsc --noEmit
+npm run lint:check
+npm run format:check
+cargo fmt --all -- --check
+git diff --check
+```
+
+The on-chain test suite covers rarity boundaries, unbiased selection, account sizing, inventory updates, bounded history, and duplicate callback rejection.
+
+## Repository structure
+
+```text
+app/                         Expo Router screens
+components/                  Shared React Native UI
+features/summon/             Catalog, repository, IDL, and wallet adapter
+programs/summon/             Anchor program
+scripts/                     IDL generation and verification
+docs/BACKEND.md              Architecture and operator notes
+docs/BACKEND_TODO.md         Verified implementation checklist
+```
+
+## Security
+
+- The app never reads or stores wallet private keys.
+- Privy signs wallet transactions after local simulation.
+- On-chain account owner, discriminator, size, and wallet authority are validated.
+- The client currently rejects non-Devnet pull requests.
+- Mainnet deployment and upgrade-authority changes require a separate review.
+
+For program flow, deployment guidance, and operational details, see [`docs/BACKEND.md`](docs/BACKEND.md).
+
+## Contributing
+
+Before opening a pull request, run the program tests and verification commands above. Keep protocol catalog changes, account-layout changes, and program-ID changes explicit because they can require an on-chain migration or redeployment.
