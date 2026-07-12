@@ -58,7 +58,7 @@ export function RevealModal({
       <View style={styles.modal}>
         <Animated.Text style={[styles.overline, metaStyle]}>YOU SUMMONED</Animated.Text>
         <Animated.View style={orbStyle}>
-          {item ? <CollectibleMark mark={item.symbol} accent={item.accent} size={108} /> : null}
+          {item ? <CollectibleMark id={item.id} mark={item.symbol} accent={item.accent} size={108} /> : null}
         </Animated.View>
         <Animated.View style={[styles.meta, metaStyle]}>
           <Text style={styles.rarity}>{item?.rarity}</Text>

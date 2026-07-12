@@ -46,7 +46,7 @@ export default function ProofScreen() {
                 onPress={() => router.push(`/collectible/${item.id}`)}
               >
                 <View style={styles.row}>
-                  <CollectibleMark mark={item.symbol} accent={item.accent} size={50} />
+                  <CollectibleMark id={item.id} mark={item.symbol} accent={item.accent} size={50} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.date}>

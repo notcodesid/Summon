@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-summon = "Fg6PaFpoGXkYsidMpWxTWqkZL6W2BeZ7FEfcYkgMQHGk"
+summon = "9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ"
 
 [programs.devnet]
-summon = "Fg6PaFpoGXkYsidMpWxTWqkZL6W2BeZ7FEfcYkgMQHGk"
+summon = "9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ"
 
 [provider]
 cluster = "localnet"

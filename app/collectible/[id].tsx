@@ -45,7 +45,7 @@ export default function CollectibleDetailScreen() {
 
       <View style={styles.body}>
         <View style={[styles.hero, { backgroundColor: `${item.accent}66` }]}>
-          <CollectibleMark mark={item.symbol} accent={item.accent} size={96} locked={!entry} />
+          <CollectibleMark id={item.id} mark={item.symbol} accent={item.accent} size={96} locked={!entry} />
         </View>
 
         <Text style={styles.rarity}>{entry ? item.rarity : 'Undiscovered'}</Text>

@@ -11,7 +11,7 @@ use ephemeral_vrf_sdk::instructions::{
 use ephemeral_vrf_sdk::types::SerializableAccountMeta;
 use solana_sha256_hasher::hashv;
 
-declare_id!("Fg6PaFpoGXkYsidMpWxTWqkZL6W2BeZ7FEfcYkgMQHGk");
+declare_id!("9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ");
 
 pub const PLAYER_STATE_SEED: &[u8] = b"player";
 pub const COLLECTIBLE_COUNT: usize = 10;

@@ -8,9 +8,12 @@ import type { PullRecord, SummonRepository, SummonSnapshot } from './types'
 
 const PLAYER_SEED = new TextEncoder().encode('player')
 const EPHEMERAL_VRF_QUEUE = new PublicKey('5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc')
+const ASIA_ER_VALIDATOR = new PublicKey('MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57')
 // Must match programs/summon/src/lib.rs. The SBF-safe account layout stores
 // the newest 16 resolved pulls on-chain.
 const HISTORY_CAPACITY = 16
+const ER_PROPAGATION_TIMEOUT_MS = 180_000
+const VRF_CALLBACK_TIMEOUT_MS = 120_000
 
 type AnchorNumber = { toString(): string }
 type PullEntryAccount = {
@@ -152,41 +155,51 @@ async function ensureDelegated({
   if (account.owner.equals(baseProgram.programId)) {
     const delegate = await method(baseProgram, 'delegatePlayer')
       .accountsPartial({ payer: authority, pda: player })
+      .remainingAccounts([{ pubkey: ASIA_ER_VALIDATOR, isSigner: false, isWritable: false }])
       .instruction()
     await sendSimulatedTransaction({ connection: baseConnection, wallet, instructions: [delegate] })
   } else if (!account.owner.equals(DELEGATION_PROGRAM_ID)) {
     throw new Error(`Player account has unexpected owner ${account.owner.toBase58()}`)
   }
 
-  await waitFor(async () => {
-    try {
-      await fetchPlayer(ephemeralProgram, player)
-      return true
-    } catch {
-      return false
-    }
-  }, 'Player delegation did not become visible on the Ephemeral Rollup')
+  await waitFor(
+    async () => {
+      try {
+        await fetchPlayer(ephemeralProgram, player)
+        return true
+      } catch {
+        return false
+      }
+    },
+    ER_PROPAGATION_TIMEOUT_MS,
+    'Player delegation did not become visible on the Ephemeral Rollup',
+  )
 }
 
 async function waitForResolution(program: Program, player: PublicKey, previousNonce: bigint) {
-  await waitFor(async () => {
-    try {
-      const account = await fetchPlayer(program, player)
-      if (!account.pending && BigInt(account.requestNonce.toString()) > previousNonce) {
-        return true
+  await waitFor(
+    async () => {
+      try {
+        const account = await fetchPlayer(program, player)
+        if (!account.pending && BigInt(account.requestNonce.toString()) > previousNonce) {
+          return true
+        }
+      } catch {
+        // The ER can briefly return account-not-found while delegation is propagating.
       }
-    } catch {
-      // The ER can briefly return account-not-found while delegation is propagating.
-    }
-    return false
-  }, 'Timed out waiting for the verified VRF callback')
+      return false
+    },
+    VRF_CALLBACK_TIMEOUT_MS,
+    'Timed out waiting for the verified VRF callback',
+  )
   return fetchPlayer(program, player)
 }
 
-async function waitFor(check: () => Promise<boolean>, timeoutMessage: string) {
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+async function waitFor(check: () => Promise<boolean>, timeoutMs: number, timeoutMessage: string) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
     if (await check()) return
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
   }
   throw new Error(timeoutMessage)
 }

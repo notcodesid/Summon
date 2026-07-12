@@ -16,12 +16,12 @@ const filters: ('All' | Rarity)[] = ['All', 'Common', 'Rare', 'Epic', 'Legendary
 export default function CollectionScreen() {
   const { owned, loading } = useSummon()
   const [filter, setFilter] = useState<(typeof filters)[number]>('All')
+
   const visible = collectibles.filter((x) => filter === 'All' || x.rarity === filter)
 
   return (
     <ScreenShell
       title="Collection"
-      eyebrow={`${owned.length} of ${collectibles.length} discovered`}
       action={<WalletPill />}
     >
       {loading ? (
@@ -65,6 +65,7 @@ export default function CollectionScreen() {
                       ]}
                     >
                       <CollectibleMark
+                        id={item.id}
                         mark={item.symbol}
                         accent={item.accent}
                         size={72}

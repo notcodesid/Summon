@@ -7,6 +7,7 @@ export type SolanaCluster = {
 }
 
 export const SUMMON_PLACEHOLDER_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxTWqkZL6W2BeZ7FEfcYkgMQHGk'
+export const SUMMON_DEVNET_PROGRAM_ID = '9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ'
 
 export class AppConfig {
   static name = 'Summon'
@@ -22,7 +23,7 @@ export class AppConfig {
 
   static summon = {
     dataSource: process.env.EXPO_PUBLIC_SUMMON_DATA_SOURCE === 'demo' ? ('demo' as const) : ('onchain' as const),
-    programId: process.env.EXPO_PUBLIC_SUMMON_PROGRAM_ID ?? SUMMON_PLACEHOLDER_PROGRAM_ID,
+    programId: process.env.EXPO_PUBLIC_SUMMON_PROGRAM_ID ?? SUMMON_DEVNET_PROGRAM_ID,
     ephemeralRpcUrl: process.env.EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL ?? 'https://devnet-as.magicblock.app',
     ephemeralWsUrl: process.env.EXPO_PUBLIC_MAGICBLOCK_ER_WS_URL ?? 'wss://devnet-as.magicblock.app',
   }

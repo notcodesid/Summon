@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
+import Clipboard from '@react-native-clipboard/clipboard'
 import { useEmbeddedSolanaWallet, usePrivy } from '@privy-io/expo'
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
@@ -22,6 +24,15 @@ export default function AccountScreen() {
   const method = authMethodLabel(user)
   const connection = useConnection()
   const { selectedNetwork, networks, setSelectedNetwork } = useNetwork()
+
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    if (!address) return
+    Clipboard.setString(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const balance = useQuery({
     queryKey: ['account-balance', selectedNetwork.id, address],
@@ -62,9 +73,26 @@ export default function AccountScreen() {
 
             <View style={styles.card}>
               <Text style={styles.label}>SOLANA WALLET</Text>
-              <Text style={styles.value}>
-                {address ? ellipsify(address, 8) : 'Creating Solana wallet…'}
-              </Text>
+              <View style={styles.addressRow}>
+                <Text style={styles.value}>
+                  {address ? ellipsify(address, 8) : 'Creating Solana wallet…'}
+                </Text>
+                {address ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy wallet address"
+                    onPress={handleCopy}
+                    style={({ pressed }) => [styles.copyButton, { opacity: pressed ? 0.6 : 1 }]}
+                  >
+                    <AppIcon
+                      name={copied ? 'checkmark' : 'doc.on.doc'}
+                      size={16}
+                      color={copied ? '#4D8C57' : theme.colors.textMuted}
+                      weight="medium"
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
               {address ? (
                 <Text style={styles.muted}>
                   Balance:{' '}
@@ -138,6 +166,18 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 8,
     boxShadow: '0 2px 16px rgba(0,0,0,0.04)',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  copyButton: {
+    padding: 8,
+    marginRight: -8,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   label: {
     color: theme.colors.textMuted,

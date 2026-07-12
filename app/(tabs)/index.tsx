@@ -123,7 +123,7 @@ export default function SummonScreen() {
           onPress={() => router.push(`/collectible/${latest.id}`)}
           accessibilityRole="button"
         >
-          <CollectibleMark mark={latest.symbol} accent={latest.accent} size={54} />
+          <CollectibleMark id={latest.id} mark={latest.symbol} accent={latest.accent} size={54} />
           <View style={{ flex: 1 }}>
             <Text style={styles.latestName}>{latest.name}</Text>
             <Text style={styles.latestRarity}>
@@ -146,12 +146,10 @@ export default function SummonScreen() {
 
 const styles = StyleSheet.create({
   logo: {
-    width: 84,
-    height: 84,
+    width: 72,
+    height: 72,
     resizeMode: 'contain',
-    marginLeft: -20,
-    marginTop: -16,
-    marginBottom: -16,
+    marginLeft: -14,
     tintColor: '#000000',
   },
   hero: { alignItems: 'center', paddingVertical: 18 },
