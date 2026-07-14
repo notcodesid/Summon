@@ -45,8 +45,17 @@ Launch preparation — Seeker and Solana dApp Store Android release
 5. ✅ Privy dashboard native app identifier (`com.notcodesid.summon`, scheme `summon`)
 6. ✅ iOS simulator login, wallet, and real Devnet pull smoke test
 7. ✅ `eas.json` dApp Store APK profile and dedicated Android signing flavor
-8. ⬜ Signed APK build and Android emulator smoke test
+8. ✅ Signed APK build and Android emulator smoke test
 9. ⬜ Physical Android device test with the exact release APK
+
+## Debug resolutions
+
+- **2026-07-14 — MagicBlock sponsored commit cap:** A delegated player PDA reached the public
+  validator's default limit of 10 sponsored commits. The mobile client now commits and undelegates
+  every tenth pull, falls back to the same recovery for already-capped accounts, waits for confirmed
+  Solana settlement, and re-delegates automatically on the next pull. Verified with the signed
+  Android release APK on the API 36 ARM64 emulator: the affected wallet recovered and advanced from
+  12 to 13 verified pulls without the prior `0xa0000000` error.
 
 ## Seeker release truth
 

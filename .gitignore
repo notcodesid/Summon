@@ -36,6 +36,7 @@ yarn-error.*
 android/keystore.properties
 android/keystores/
 credentials.json
+release-artifacts/
 
 # local env files
 .env

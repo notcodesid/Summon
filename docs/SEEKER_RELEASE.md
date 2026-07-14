@@ -6,7 +6,7 @@ Summon ships to the Solana dApp Store as a signed Android APK. The store does no
 
 - Android package: `com.notcodesid.summon`
 - Dedicated `dappStore` Android product flavor
-- ARM64-only native packaging for Solana Mobile devices
+- Universal Android packaging with ARM64 support for Solana Mobile devices
 - APK build command: `npm run android:apk`
 - APK signature check: `npm run android:verify-apk`
 - EAS profile: `dapp-store`

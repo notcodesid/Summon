@@ -12,7 +12,6 @@ const checks = [
   ['Android version code', Number.isInteger(app.android?.versionCode)],
   ['dApp Store flavor', /dappStore\s*\{/.test(gradle)],
   ['dedicated signing config', /signingConfig signingConfigs\.dappStoreRelease/.test(gradle)],
-  ['ARM64 release', /abiFilters "arm64-v8a"/.test(gradle)],
   ['signing environment', gradle.includes('SUMMON_DAPPSTORE_STORE_FILE')],
   ['EAS local credentials', eas.build?.['dapp-store']?.credentialsSource === 'local'],
   ['support configuration', appConfig.includes('EXPO_PUBLIC_SUPPORT_EMAIL')],

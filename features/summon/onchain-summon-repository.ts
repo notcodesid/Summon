@@ -14,6 +14,8 @@ const ASIA_ER_VALIDATOR = new PublicKey('MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECC
 const HISTORY_CAPACITY = 16
 const ER_PROPAGATION_TIMEOUT_MS = 180_000
 const VRF_CALLBACK_TIMEOUT_MS = 120_000
+const BASE_SETTLEMENT_TIMEOUT_MS = 180_000
+const SPONSORED_COMMIT_LIMIT = 10n
 const PLAYER_ACCOUNT_SIZE = 936
 const MINIMUM_DEVNET_BALANCE = 0.05 * LAMPORTS_PER_SOL
 const DEVNET_AIRDROP_AMOUNT = 0.1 * LAMPORTS_PER_SOL
@@ -97,23 +99,126 @@ export function createOnchainSummonRepository({
       })
 
       const resolved = await waitForResolution(ephemeralProgram, player, previousNonce)
-      const commitInstruction = await method(ephemeralProgram, 'commitPlayer')
-        .accountsPartial({ payer: authority, player, magicProgram: MAGIC_PROGRAM_ID })
-        .instruction()
-      await sendSimulatedTransaction({
-        connection: ephemeralConnection,
+      const signatures = await resolutionSignatures(ephemeralConnection, ephemeralProgram, player)
+      const nonce = BigInt(resolved.requestNonce.toString())
+      await settleResolvedPlayer({
+        baseConnection,
+        ephemeralConnection,
+        ephemeralProgram,
         wallet,
-        instructions: [commitInstruction],
+        authority,
+        player,
+        nonce,
       })
 
-      const signatures = await resolutionSignatures(ephemeralConnection, ephemeralProgram, player)
       const snapshot = snapshotFromAccount(resolved, signatures)
-      const nonce = BigInt(resolved.requestNonce.toString())
       const record = snapshot.pulls.find((pull) => pull.id === `pull-${nonce}`)
       if (!record) throw new Error('VRF callback resolved, but the pull was not found in history')
       return record
     },
   }
+}
+
+async function settleResolvedPlayer({
+  baseConnection,
+  ephemeralConnection,
+  ephemeralProgram,
+  wallet,
+  authority,
+  player,
+  nonce,
+}: {
+  baseConnection: Connection
+  ephemeralConnection: Connection
+  ephemeralProgram: Program
+  wallet: PrivySolanaWallet
+  authority: PublicKey
+  player: PublicKey
+  nonce: bigint
+}) {
+  const shouldRotate = nonce % SPONSORED_COMMIT_LIMIT === 0n
+
+  if (shouldRotate) {
+    await commitAndUndelegate({ ephemeralConnection, ephemeralProgram, wallet, authority, player })
+    await waitForBaseSettlement(baseConnection, ephemeralProgram.programId, player, nonce)
+    return
+  }
+
+  try {
+    const commitInstruction = await buildCommitInstruction(ephemeralProgram, 'commitPlayer', authority, player)
+    await sendSimulatedTransaction({
+      connection: ephemeralConnection,
+      wallet,
+      instructions: [commitInstruction],
+    })
+  } catch (cause) {
+    if (!isSponsoredCommitLimitError(cause)) throw cause
+
+    // Existing accounts may already have reached MagicBlock's default sponsored
+    // commit cap. Close that ER session so the next pull can delegate a fresh one.
+    await commitAndUndelegate({ ephemeralConnection, ephemeralProgram, wallet, authority, player })
+    await waitForBaseSettlement(baseConnection, ephemeralProgram.programId, player, nonce)
+  }
+}
+
+async function commitAndUndelegate({
+  ephemeralConnection,
+  ephemeralProgram,
+  wallet,
+  authority,
+  player,
+}: {
+  ephemeralConnection: Connection
+  ephemeralProgram: Program
+  wallet: PrivySolanaWallet
+  authority: PublicKey
+  player: PublicKey
+}) {
+  const instruction = await buildCommitInstruction(ephemeralProgram, 'commitAndUndelegatePlayer', authority, player)
+  await sendSimulatedTransaction({ connection: ephemeralConnection, wallet, instructions: [instruction] })
+}
+
+async function buildCommitInstruction(
+  program: Program,
+  instructionName: 'commitPlayer' | 'commitAndUndelegatePlayer',
+  authority: PublicKey,
+  player: PublicKey,
+) {
+  return method(program, instructionName)
+    .accountsPartial({ payer: authority, player, magicProgram: MAGIC_PROGRAM_ID })
+    .instruction()
+}
+
+async function waitForBaseSettlement(
+  connection: Connection,
+  programId: PublicKey,
+  player: PublicKey,
+  expectedNonce: bigint,
+) {
+  await waitFor(
+    async () => {
+      const account = await connection.getAccountInfo(player, 'confirmed')
+      if (!account || !account.owner.equals(programId)) return false
+      const state = decodePlayerAccount(
+        new Uint8Array(account.data.buffer, account.data.byteOffset, account.data.byteLength),
+      )
+      return BigInt(state.requestNonce.toString()) >= expectedNonce
+    },
+    BASE_SETTLEMENT_TIMEOUT_MS,
+    'Player state did not settle back to Solana after delegation rotation',
+  )
+}
+
+function isSponsoredCommitLimitError(cause: unknown) {
+  const message = cause instanceof Error ? messageWithCause(cause) : String(cause)
+  return /sponsored commit limit exceeded|current commit nonce .* reached the limit|0xa0000000|2684354560/i.test(
+    message,
+  )
+}
+
+function messageWithCause(error: Error): string {
+  const nested = 'cause' in error && error.cause instanceof Error ? messageWithCause(error.cause) : ''
+  return `${error.message} ${nested}`
 }
 
 function programFor(idl: Idl, connection: Connection, authority: PublicKey) {

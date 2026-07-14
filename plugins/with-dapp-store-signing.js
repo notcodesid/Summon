@@ -42,7 +42,6 @@ def dappStoreSigning = [
             if (System.getenv('EAS_BUILD') != 'true') {
                 signingConfig signingConfigs.dappStoreRelease
             }
-            ndk { abiFilters "arm64-v8a" }
         }
     }`,
     )
