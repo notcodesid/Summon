@@ -8,33 +8,33 @@ Hackathon: MagicBlock Solana Blitz (mobile theme, Ephemeral Rollups).
 
 ## Phase
 
-Build — Phase 1: ER session + pull transaction
+Launch preparation — Seeker and Solana dApp Store Android release
 
 ## Mobile stack
 
 | Field                           | Value                                                     |
 | ------------------------------- | --------------------------------------------------------- |
 | `mobile.platform`               | `react-native`                                            |
-| `mobile.wallet_method`          | `privy` (embedded Solana; email login)                    |
+| `mobile.wallet_method`          | `embedded` (Privy embedded Solana wallet)                 |
 | `mobile.scaffold_repo`          | `create-solana-dapp` → `web3js-expo-minimal` (then Privy) |
 | `mobile.physical_device_tested` | `false`                                                   |
 
 ## On-chain stack (hackathon)
 
-| Layer         | Tech                               |
-| ------------- | ---------------------------------- |
-| Randomness    | VRF (provably fair)                |
-| State / pulls | MagicBlock Ephemeral Rollup        |
-| Settlement    | Solana mainnet (NFTs or SPL items) |
-| Items         | 10 unique, 4 rarity tiers          |
+| Layer         | Tech                        |
+| ------------- | --------------------------- |
+| Randomness    | VRF (provably fair)         |
+| State / pulls | MagicBlock Ephemeral Rollup |
+| Settlement    | Solana Devnet               |
+| Items         | 10 unique, 4 rarity tiers   |
 
 ## Weekend build phases
 
-1. ⬜ ER session — pull read/write on Ephemeral Rollup
-2. ⬜ VRF — rarity + item selection
-3. ⬜ Inventory — on-chain read/display
+1. ✅ ER session — pull read/write on Ephemeral Rollup
+2. ✅ VRF — rarity + item selection
+3. ✅ Inventory — on-chain read/display
 4. ✅ Mobile UI shell — onboarding, login, account, summon, collection, proof, detail, reveal
-5. ⬜ Polish + backup demo video (real ER/VRF still open)
+5. ✅ Real Devnet ER/VRF pull and demo flow
 
 ## Mobile init (done)
 
@@ -42,9 +42,18 @@ Build — Phase 1: ER session + pull transaction
 2. ✅ Scaffold `web3js-expo-minimal` (React Native + Expo)
 3. ✅ Switched to Privy embedded Solana wallets (`@privy-io/expo`)
 4. ✅ Polyfills (text-encoding, get-random-values, Buffer, ethers shims, quick-crypto)
-5. ⬜ Set `EXPO_PUBLIC_PRIVY_CLIENT_ID` + Privy dashboard app client (bundle `com.summon.app`, scheme `summon`)
-6. ⬜ Rebuild native client (`npm run ios` / `npm run android`) and smoke-test email login + wallet
-7. ⬜ `eas.json` dApp Store APK profile
+5. ✅ Privy dashboard native app identifier (`com.notcodesid.summon`, scheme `summon`)
+6. ✅ iOS simulator login, wallet, and real Devnet pull smoke test
+7. ✅ `eas.json` dApp Store APK profile and dedicated Android signing flavor
+8. ⬜ Signed APK build and Android emulator smoke test
+9. ⬜ Physical Android device test with the exact release APK
+
+## Seeker release truth
+
+- A Seeker device is not required to build or submit the APK.
+- The current wallet path is Privy embedded wallet, not Mobile Wallet Adapter.
+- Seed Vault support must not be claimed until MWA is implemented and tested.
+- `mobile.physical_device_tested` remains `false` until a real Android release-device test passes.
 
 ## References
 

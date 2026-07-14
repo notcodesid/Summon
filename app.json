@@ -8,14 +8,22 @@
     "scheme": "summon",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.notcodesid.summon",
+      "usesAppleSignIn": true,
       "userInterfaceStyle": "light",
       "infoPlist": {
-        "UIUserInterfaceStyle": "Light"
+        "UIUserInterfaceStyle": "Light",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -30,6 +38,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/with-dapp-store-signing",
+      "expo-apple-authentication",
       "expo-font",
       "expo-router",
       [
@@ -47,6 +57,13 @@
     "experiments": {
       "reactCompiler": true,
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "baab1c18-1a5c-4a6a-8436-33f4b411f2b1"
+      }
+    },
+    "owner": "notcodesid-2"
   }
 }

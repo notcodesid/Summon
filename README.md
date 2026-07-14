@@ -64,6 +64,8 @@ Configure the client-safe values in `.env`:
 ```dotenv
 EXPO_PUBLIC_PRIVY_APP_ID=
 EXPO_PUBLIC_PRIVY_CLIENT_ID=
+EXPO_PUBLIC_SUPPORT_EMAIL=
+EXPO_PUBLIC_PRIVACY_URL=https://github.com/notcodesid/Summon/blob/main/PRIVACY.md
 EXPO_PUBLIC_SUMMON_PROGRAM_ID=9YnD3AaxVSAhigDfQemiKAAjbuieSBMA8cYUrpWLnZnZ
 EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL=https://devnet-as.magicblock.app
 EXPO_PUBLIC_MAGICBLOCK_ER_WS_URL=wss://devnet-as.magicblock.app

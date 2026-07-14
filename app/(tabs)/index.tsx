@@ -177,6 +177,7 @@ export default function SummonScreen() {
             pressed && styles.pressed,
             (summoning || pending || !isReady) && styles.disabled,
             !canSummon && styles.buttonMuted,
+            (summoning || pending) && { justifyContent: 'center' },
           ]}
         >
           {summoning || pending ? (

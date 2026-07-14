@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto'
 import { EventParser, Program, type Idl } from '@anchor-lang/core'
 import { DELEGATION_PROGRAM_ID, MAGIC_PROGRAM_ID } from '@magicblock-labs/ephemeral-rollups-sdk'
-import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
+import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from '@solana/web3.js'
 import { collectibleAt, collectibles } from './catalog'
 import { sendSimulatedTransaction, type PrivySolanaWallet } from './privy-transaction-sender'
 import type { PullRecord, SummonRepository, SummonSnapshot } from './types'
@@ -15,6 +15,8 @@ const HISTORY_CAPACITY = 16
 const ER_PROPAGATION_TIMEOUT_MS = 180_000
 const VRF_CALLBACK_TIMEOUT_MS = 120_000
 const PLAYER_ACCOUNT_SIZE = 936
+const MINIMUM_DEVNET_BALANCE = 0.05 * LAMPORTS_PER_SOL
+const DEVNET_AIRDROP_AMOUNT = 0.1 * LAMPORTS_PER_SOL
 const PLAYER_DISCRIMINATOR = [56, 3, 60, 86, 174, 16, 244, 195] as const
 
 type AnchorNumber = { toString(): string }
@@ -186,6 +188,7 @@ async function ensureDelegated({
   const authority = new PublicKey(wallet.address)
   let account = await baseConnection.getAccountInfo(player, 'confirmed')
   if (!account) {
+    await ensureFreshWalletFunding(baseConnection, authority)
     const initialize = await method(baseProgram, 'initialize')
       .accountsPartial({ authority, player, systemProgram: SystemProgram.programId })
       .instruction()
@@ -212,6 +215,27 @@ async function ensureDelegated({
     ER_PROPAGATION_TIMEOUT_MS,
     'Player delegation did not become visible on the Ephemeral Rollup',
   )
+}
+
+async function ensureFreshWalletFunding(connection: Connection, authority: PublicKey) {
+  const balance = await connection.getBalance(authority, 'confirmed')
+  if (balance >= MINIMUM_DEVNET_BALANCE) return
+
+  try {
+    const signature = await connection.requestAirdrop(authority, DEVNET_AIRDROP_AMOUNT)
+    const latestBlockhash = await connection.getLatestBlockhash('confirmed')
+    await connection.confirmTransaction({ signature, ...latestBlockhash }, 'confirmed')
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause)
+    throw new Error(
+      `This fresh Devnet wallet needs test SOL before its first summon. The automatic faucet was unavailable: ${detail}`,
+    )
+  }
+
+  const fundedBalance = await connection.getBalance(authority, 'confirmed')
+  if (fundedBalance < MINIMUM_DEVNET_BALANCE) {
+    throw new Error('The Devnet faucet responded, but the wallet did not receive enough test SOL. Try again shortly.')
+  }
 }
 
 async function waitForResolution(program: Program, player: PublicKey, previousNonce: bigint) {

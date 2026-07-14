@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.gradle-home/
 
 # Expo
 .expo/
@@ -13,6 +14,7 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -29,6 +31,11 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+
+# Android dApp Store signing credentials (never commit)
+android/keystore.properties
+android/keystores/
+credentials.json
 
 # local env files
 .env

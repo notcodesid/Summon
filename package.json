@@ -1,10 +1,13 @@
 {
   "name": "summon",
+  "packageManager": "npm@10.9.8",
   "scripts": {
     "android": "expo run:android",
     "android:build": "expo prebuild -p android",
+    "android:apk": "cd android && ./gradlew assembleDappStoreRelease",
+    "android:verify-apk": "node scripts/verify-android-apk.mjs",
     "build": "tsc --noEmit && npm run android:build",
-    "ci": "tsc --noEmit && npm run lint:check && npm run format:check && npm run android:build",
+    "ci": "tsc --noEmit && npm run lint:check && npm run format:check && npm run android:build && npm run seeker:verify-config",
     "dev": "expo start",
     "doctor": "npx -y expo-doctor@latest",
     "format": "prettier --write .",
@@ -20,7 +23,9 @@
     "program:test": "NO_DNA=1 cargo test -p summon",
     "backend:check": "npm run program:test && npm run program:build",
     "program:sync-idl": "node scripts/sync-program-idl.mjs",
-    "program:verify-idl": "node scripts/verify-program-idl.mjs"
+    "program:verify-idl": "node scripts/verify-program-idl.mjs",
+    "seeker:verify-config": "node scripts/verify-seeker-config.mjs",
+    "seeker:check-release": "node scripts/check-seeker-release.mjs"
   },
   "displayName": "Summon",
   "description": "Provably fair mobile gacha — summon collectibles through the Ephemeral Rollup.",

@@ -21,6 +21,11 @@ export class AppConfig {
     clientId: process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID ?? '',
   }
 
+  static support = {
+    email: process.env.EXPO_PUBLIC_SUPPORT_EMAIL ?? '',
+    privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL ?? 'https://github.com/notcodesid/Summon/blob/main/PRIVACY.md',
+  }
+
   static summon = {
     programId: process.env.EXPO_PUBLIC_SUMMON_PROGRAM_ID ?? SUMMON_DEVNET_PROGRAM_ID,
     ephemeralRpcUrl: process.env.EXPO_PUBLIC_MAGICBLOCK_ER_RPC_URL ?? 'https://devnet-as.magicblock.app',

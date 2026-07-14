@@ -4,21 +4,21 @@ import { useLoginWithOAuth } from '@privy-io/expo'
 import { theme } from '@/constants/theme'
 
 /**
- * Google signup via Privy OAuth.
+ * Apple and Google signup via Privy OAuth.
  * On success Privy creates an embedded Solana wallet (see AppProviders createOnLogin).
  *
- * Dashboard: enable Google under Login methods → Socials.
+ * Dashboard: enable Apple and Google under Login methods → Socials.
  */
 export function SocialLoginForm({ onSuccess }: { onSuccess?: () => void }) {
   const { login } = useLoginWithOAuth()
-  const [busy, setBusy] = useState(false)
+  const [busyProvider, setBusyProvider] = useState<'apple' | 'google' | null>(null)
   const [status, setStatus] = useState<string | null>(null)
 
-  async function onGoogleSignIn() {
+  async function onSocialSignIn(provider: 'apple' | 'google') {
     try {
-      setBusy(true)
+      setBusyProvider(provider)
       setStatus(null)
-      await login({ provider: 'google' })
+      await login({ provider })
       onSuccess?.()
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
@@ -29,20 +29,36 @@ export function SocialLoginForm({ onSuccess }: { onSuccess?: () => void }) {
         setStatus(`Sign-in failed: ${message}`)
       }
     } finally {
-      setBusy(false)
+      setBusyProvider(null)
     }
   }
+
+  const busy = busyProvider !== null
 
   return (
     <View style={styles.stack}>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="Continue with Apple"
+        disabled={busy}
+        onPress={() => void onSocialSignIn('apple')}
+        style={({ pressed }) => [styles.btn, styles.apple, pressed && styles.pressed, busy && styles.disabled]}
+      >
+        {busyProvider === 'apple' ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.appleText}>Continue with Apple</Text>
+        )}
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel="Continue with Google"
         disabled={busy}
-        onPress={() => void onGoogleSignIn()}
+        onPress={() => void onSocialSignIn('google')}
         style={({ pressed }) => [styles.btn, styles.google, pressed && styles.pressed, busy && styles.disabled]}
       >
-        {busy ? (
+        {busyProvider === 'google' ? (
           <ActivityIndicator color={theme.colors.text} />
         ) : (
           <Text style={styles.googleText}>Continue with Google</Text>
@@ -68,6 +84,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  apple: { backgroundColor: '#000000' },
+  appleText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   googleText: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
   pressed: { opacity: 0.88 },
   disabled: { opacity: 0.65 },

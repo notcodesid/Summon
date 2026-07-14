@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -8,6 +8,7 @@ import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
 import { AppIcon } from '@/components/summon/app-icon'
 import { theme } from '@/constants/theme'
+import { AppConfig } from '@/constants/app-config'
 import { useConnection } from '@/features/network/use-connection'
 import { useNetwork } from '@/features/network/use-network'
 import { ellipsify } from '@/utils/ellipsify'
@@ -33,6 +34,36 @@ export default function AccountScreen() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  async function openPrivacyPolicy() {
+    await Linking.openURL(AppConfig.support.privacyUrl)
+  }
+
+  function requestAccountDeletion() {
+    if (!AppConfig.support.email) {
+      Alert.alert('Deletion contact unavailable', 'The release support email has not been configured yet.')
+      return
+    }
+
+    Alert.alert(
+      'Request account deletion?',
+      'Deleting your login is permanent and may disconnect your embedded wallet. Public Solana transactions and player data cannot be erased.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            const subject = encodeURIComponent('Summon account deletion request')
+            const body = encodeURIComponent(
+              'Please delete my Summon account and associated off-chain user data. I understand that public blockchain data cannot be deleted.\n\nSign-in email:',
+            )
+            void Linking.openURL(`mailto:${AppConfig.support.email}?subject=${subject}&body=${body}`)
+          },
+        },
+      ],
+    )
+  }
+
   const balance = useQuery({
     queryKey: ['account-balance', selectedNetwork.id, address],
     enabled: Boolean(address),
@@ -49,7 +80,7 @@ export default function AccountScreen() {
         <Text style={styles.title}>Account</Text>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body}>
         {!isReady ? (
           <ActivityIndicator color={theme.colors.text} />
         ) : !user ? (
@@ -132,9 +163,19 @@ export default function AccountScreen() {
             >
               <Text style={styles.dangerText}>Log out</Text>
             </Pressable>
+
+            <View style={styles.legalRow}>
+              <Pressable accessibilityRole="link" onPress={openPrivacyPolicy} hitSlop={8}>
+                <Text style={styles.legalText}>Privacy policy</Text>
+              </Pressable>
+              <Text style={styles.legalDot}>·</Text>
+              <Pressable accessibilityRole="button" onPress={requestAccountDeletion} hitSlop={8}>
+                <Text style={styles.legalText}>Request account deletion</Text>
+              </Pressable>
+            </View>
           </>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   )
 }
@@ -216,4 +257,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dangerText: { color: theme.colors.text, fontWeight: '800' },
+  legalRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  legalText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
+  legalDot: { color: theme.colors.textMuted, fontSize: 13 },
 })
