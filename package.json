@@ -28,14 +28,13 @@
     "seeker:check-release": "node scripts/check-seeker-release.mjs"
   },
   "displayName": "Summon",
-  "description": "Provably fair mobile gacha — summon collectibles through the Ephemeral Rollup.",
+  "description": "Real-world animal collection and battles on Solana — initial mobile shell.",
   "usecase": "Mobile",
   "keywords": [
     "expo",
-    "privy",
     "react-native",
-    "solana-web3js",
-    "embedded-wallet"
+    "solana",
+    "mobile"
   ],
   "main": "./index.js",
   "version": "1.0.0",
