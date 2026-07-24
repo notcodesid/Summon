@@ -19,9 +19,10 @@ build the **app** first so the product is clear. no auth yet.
 
 ### next: scan
 
-- [ ] home screen with a clear **scan** / open camera button (first thing user sees)
-- [ ] open the **inbuilt / native camera** (not a plain system picker — we need custom UI on top)
-- [ ] simple camera UI (exact design to follow when shared)
+- [x] home screen with a clear **scan** / open camera button (first thing user sees)
+- [x] open the **inbuilt / native camera** (expo-camera preview — custom UI on top)
+- [ ] simple camera UI polish (exact design when shared)
+- [ ] after capture → collect / identify animal
 
 ### later
 

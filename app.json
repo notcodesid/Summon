@@ -14,7 +14,8 @@
       "userInterfaceStyle": "light",
       "infoPlist": {
         "UIUserInterfaceStyle": "Light",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Summon uses the camera to scan real animals you encounter."
       }
     },
     "android": {
@@ -52,7 +53,14 @@
         }
       ],
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Summon uses the camera to scan real animals you encounter.",
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true,

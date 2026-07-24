@@ -34,6 +34,13 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" />
+          <Stack.Screen
+            name="camera"
+            options={{
+              animation: 'slide_from_bottom',
+              contentStyle: { backgroundColor: '#000000' },
+            }}
+          />
         </Stack>
       </ThemeProvider>
       <StatusBar style="dark" />
