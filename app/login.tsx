@@ -1,0 +1,209 @@
+import { useCallback, useEffect, useState } from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
+import { Ionicons } from '@expo/vector-icons'
+import { Redirect, router } from 'expo-router'
+import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
+import { AppConfig } from '@/constants/app-config'
+import { theme } from '@/constants/theme'
+import { SpecimenOrbs } from '@/components/specimen-orbs'
+import { isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
+
+/**
+ * Sign in with Google via Privy. The Privy user id keys everything the player
+ * collects, and the embedded Solana wallet is created just after.
+ */
+export default function LoginScreen() {
+  if (isAuthBypassed) {
+    return <Redirect href="/" />
+  }
+  if (!isPrivyConfigured) {
+    return <PrivyConfigMissing />
+  }
+  return <LoginWithPrivy />
+}
+
+function PrivyConfigMissing() {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.fallback}>
+        <Text style={styles.headline}>{AppConfig.name}</Text>
+        <Text style={styles.error}>
+          Privy is not configured. Set EXPO_PUBLIC_PRIVY_APP_ID and
+          EXPO_PUBLIC_PRIVY_CLIENT_ID in .env, then restart Expo with --clear.
+        </Text>
+      </View>
+    </SafeAreaView>
+  )
+}
+
+function LoginWithPrivy() {
+  const { user, isReady } = usePrivy()
+  const { login, state } = useLoginWithOAuth()
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const loading = state.status === 'loading'
+
+  useEffect(() => {
+    if (isReady && user) {
+      router.replace('/')
+    }
+  }, [isReady, user])
+
+  const onGoogle = useCallback(async () => {
+    setErrorMessage(null)
+    try {
+      await login({ provider: 'google' })
+      router.replace('/')
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Google sign-in failed')
+    }
+  }, [login])
+
+  if (!isReady) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loading}>
+          <ActivityIndicator color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (user) {
+    return <Redirect href="/" />
+  }
+
+  const oauthError =
+    state.status === 'error' && state.error?.message ? state.error.message : null
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        <SpecimenOrbs />
+
+        {/* Lands after the orbs have settled. */}
+        <Animated.View
+          entering={FadeInDown.delay(620).duration(520)}
+          style={styles.headlineBlock}
+        >
+          <Text style={styles.headline}>
+            Meet {AppConfig.name}.{'\n'}Pokémon with{'\n'}real animals.
+          </Text>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(780).duration(520)}
+          style={styles.actions}
+        >
+          <Pressable
+            onPress={() => void onGoogle()}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            style={({ pressed }) => [
+              styles.googleButton,
+              pressed && styles.googleButtonPressed,
+              loading && styles.googleButtonDisabled,
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator color={theme.colors.onDark} />
+            ) : (
+              <>
+                <Ionicons
+                  name="logo-google"
+                  size={19}
+                  color={theme.colors.onDark}
+                />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+
+          {errorMessage || oauthError ? (
+            <Animated.Text entering={FadeIn} style={styles.error}>
+              {errorMessage ?? oauthError}
+            </Animated.Text>
+          ) : (
+            <Text style={styles.legal}>
+              a solana wallet is created for you on sign in.
+            </Text>
+          )}
+        </Animated.View>
+      </View>
+    </SafeAreaView>
+  )
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: theme.space.xl,
+    paddingBottom: theme.space.xxl,
+  },
+  fallback: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.xl,
+    gap: theme.space.lg,
+  },
+  headlineBlock: {
+    marginTop: theme.space.xl,
+  },
+  headline: {
+    fontSize: 34,
+    lineHeight: 41,
+    fontWeight: '800',
+    letterSpacing: -1,
+    textAlign: 'center',
+    color: theme.colors.text,
+  },
+  actions: {
+    marginTop: 'auto',
+    gap: theme.space.lg,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.space.md,
+    alignSelf: 'stretch',
+    minHeight: 56,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.space.xxl,
+  },
+  googleButtonPressed: {
+    opacity: 0.86,
+  },
+  googleButtonDisabled: {
+    opacity: 0.5,
+  },
+  googleButtonText: {
+    color: theme.colors.onDark,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  legal: {
+    fontSize: 12,
+    color: theme.colors.textFaint,
+    textAlign: 'center',
+  },
+  error: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
+})
