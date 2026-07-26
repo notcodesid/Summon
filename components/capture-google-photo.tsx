@@ -10,6 +10,12 @@ import { savePlayerPhoto } from '@/lib/player-photo'
  * and it cannot be fetched again later — so the photo URL is resolved here
  * and persisted. Renders nothing.
  *
+ * NOTE: verified inert as of 2026-07-26. With Privy's shared Google OAuth
+ * client (`google_oauth: true`, no `custom_oauth_providers`), the grant
+ * callback never fires, so no photo is ever captured. Registering your own
+ * Google OAuth credentials in the Privy dashboard is what would make tokens
+ * flow; until then the avatar falls back to initials.
+ *
  * The token grant can land before Privy has finished populating the user, so
  * a resolved URL is held until the user id is known.
  */
@@ -28,7 +34,9 @@ export function CaptureGooglePhoto() {
 
   useOAuthTokens({
     onOAuthTokenGrant: (tokens) => {
-      if (tokens.provider !== 'google' || !tokens.access_token) return
+      // Provider id may be "google" or "google_oauth" depending on SDK version.
+      const isGoogle = String(tokens?.provider ?? '').startsWith('google')
+      if (!isGoogle || !tokens.access_token) return
 
       void fetchGoogleProfile(tokens.access_token).then((profile) => {
         if (!profile?.picture) return
