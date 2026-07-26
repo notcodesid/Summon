@@ -122,15 +122,12 @@ function LoginWithPrivy() {
             )}
           </Pressable>
 
+          {/* Errors still surface here — only the standing caption is gone. */}
           {errorMessage || oauthError ? (
             <Animated.Text entering={FadeIn} style={styles.error}>
               {errorMessage ?? oauthError}
             </Animated.Text>
-          ) : (
-            <Text style={styles.legal}>
-              a solana wallet is created for you on sign in.
-            </Text>
-          )}
+          ) : null}
         </Animated.View>
       </View>
     </SafeAreaView>
@@ -213,11 +210,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  legal: {
-    fontSize: 12,
-    color: theme.colors.textFaint,
-    textAlign: 'center',
   },
   error: {
     fontSize: 13,
