@@ -87,9 +87,7 @@ function LoginWithPrivy() {
           entering={FadeInDown.delay(620).duration(520)}
           style={styles.headlineBlock}
         >
-          <Text style={styles.headline}>
-            {AppConfig.name}.{'\n'}Pokémon, but real.
-          </Text>
+          <Text style={styles.headline}>Pokémon, but real.</Text>
         </Animated.View>
 
         <Animated.View
