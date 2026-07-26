@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
-import { Ionicons } from '@expo/vector-icons'
 import { Redirect, router } from 'expo-router'
 import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
 import { AppConfig } from '@/constants/app-config'
 import { theme } from '@/constants/theme'
-import { SpecimenOrbs } from '@/components/specimen-orbs'
 import { isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
 
 /**
@@ -80,18 +85,15 @@ function LoginWithPrivy() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <SpecimenOrbs />
-
-        {/* Lands after the orbs have settled. */}
         <Animated.View
-          entering={FadeInDown.delay(620).duration(520)}
+          entering={FadeInDown.delay(120).duration(520)}
           style={styles.headlineBlock}
         >
           <Text style={styles.headline}>Pokémon, but real.</Text>
         </Animated.View>
 
         <Animated.View
-          entering={FadeInDown.delay(780).duration(520)}
+          entering={FadeInDown.delay(280).duration(520)}
           style={styles.actions}
         >
           <Pressable
@@ -106,13 +108,14 @@ function LoginWithPrivy() {
             ]}
           >
             {loading ? (
-              <ActivityIndicator color={theme.colors.onDark} />
+              <ActivityIndicator color={theme.colors.text} />
             ) : (
               <>
-                <Ionicons
-                  name="logo-google"
-                  size={19}
-                  color={theme.colors.onDark}
+                {/* Left-anchored mark with a centred label — Google's own
+                    button layout. */}
+                <Image
+                  source={require('../assets/brand/google-g.png')}
+                  style={styles.googleMark}
                 />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
@@ -156,7 +159,8 @@ const styles = StyleSheet.create({
     gap: theme.space.lg,
   },
   headlineBlock: {
-    marginTop: theme.space.xl,
+    flex: 1,
+    justifyContent: 'center',
   },
   headline: {
     // Matched to the reference: ~32pt at 1.28 leading, Bold rather than
@@ -176,21 +180,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.space.md,
     alignSelf: 'stretch',
     minHeight: 56,
     borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: theme.space.xxl,
+    // The page ground is warm off-white, so white alone would not separate.
+    // A soft shadow lifts it; the hairline keeps the edge legible.
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  googleMark: {
+    position: 'absolute',
+    left: theme.space.xl,
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
   },
   googleButtonPressed: {
-    opacity: 0.86,
+    backgroundColor: theme.colors.surface,
   },
   googleButtonDisabled: {
     opacity: 0.5,
   },
   googleButtonText: {
-    color: theme.colors.onDark,
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
