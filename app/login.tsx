@@ -88,7 +88,7 @@ function LoginWithPrivy() {
           style={styles.headlineBlock}
         >
           <Text style={styles.headline}>
-            Meet {AppConfig.name}.{'\n'}Pokémon with{'\n'}real animals.
+            {AppConfig.name}.{'\n'}Pokémon, but real.
           </Text>
         </Animated.View>
 
@@ -161,10 +161,12 @@ const styles = StyleSheet.create({
     marginTop: theme.space.xl,
   },
   headline: {
-    fontSize: 34,
+    // Matched to the reference: ~32pt at 1.28 leading, Bold rather than
+    // Heavy. 800 read as chunky at this size, and -1 tracking was cramped.
+    fontSize: 32,
     lineHeight: 41,
-    fontWeight: '800',
-    letterSpacing: -1,
+    fontWeight: '700',
+    letterSpacing: -0.5,
     textAlign: 'center',
     color: theme.colors.text,
   },
