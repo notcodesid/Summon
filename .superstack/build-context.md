@@ -2,70 +2,105 @@
 
 ## Product
 
-**Summon** — Mobile-first provably fair gacha on MagicBlock Ephemeral Rollups + VRF. (Hackathon concept: MagicBlock "Onchain gacha" Idea 3.)
+**Summon** — Pokémon with real animals. You explore the real world, scan animals
+you come across with your phone camera, and add them to your collection. Every
+animal has its own rarity and stats. Later, you battle other players with the
+animals you've discovered.
 
-Hackathon: MagicBlock Solana Blitz (mobile theme, Ephemeral Rollups).
+Explore. Scan. Collect. Battle.
+
+> **Pivot note:** Summon was previously a provably-fair gacha built on MagicBlock
+> Ephemeral Rollups + VRF (a MagicBlock Solana Blitz hackathon concept). That
+> product is gone. The Anchor program, Rust toolchain, and IDL build pipeline
+> were deleted; the gacha SDK dependencies were removed. Do not reintroduce
+> random-pull mechanics — in Summon, what you get is decided by what you
+> actually found outdoors, not by VRF.
 
 ## Phase
 
-Launch preparation — Seeker and Solana dApp Store Android release
+Demo build — get the full loop working end to end so it can be recorded and
+submitted. Deliberately no backend and no smart contract.
+
+## What is real vs. mocked
+
+| Layer          | Status                                                        |
+| -------------- | ------------------------------------------------------------- |
+| Auth           | **Real, required** — Google sign-in via Privy. No bypass.     |
+| Wallet         | **Real** — Privy embedded Solana wallet, created after login  |
+| Camera         | **Real** — expo-camera capture                                |
+| Identification | **Real when `EXPO_PUBLIC_ANTHROPIC_API_KEY` is set** (Claude vision); deterministic demo creature otherwise |
+| Collection     | **Real** — Supabase `creatures`, keyed by Privy user id; AsyncStorage is an offline mirror |
+| On-chain       | Nothing. Web2 only for now — the wallet is recorded, not used |
+| Battle         | Not built yet                                                 |
+
+The Privy user id is the database key, and the embedded wallet only exists
+behind a real login, so auth is not optional: a bypassed session has no user id
+and therefore saves nothing. `EXPO_PUBLIC_AUTH_BYPASS=1` remains only as an
+escape hatch for automated UI tests that cannot complete an OAuth flow.
+
+## Database
+
+Schema lives in `supabase/migrations/` and is applied with psql using
+`DATABASE_URL` from `.env`:
+
+```bash
+psql "$DATABASE_URL" -f supabase/migrations/0001_players_and_creatures.sql
+```
+
+- `players` — one row per Privy user, carrying `wallet_address` and `email`.
+  Written by `components/ensure-player-record.tsx` on login, and again once
+  Privy has created the wallet.
+- `creatures` — one row per catch, `privy_user_id` foreign-keyed to `players`.
+
+> ⚠️ **RLS is permissive.** Auth is Privy, not Supabase Auth, so the anon key
+> can read and write every row. Demo-grade only. The fix is to register Privy
+> as a third-party auth provider in the Supabase dashboard so requests carry a
+> Privy JWT, then scope each policy to the caller's own `privy_user_id`.
 
 ## Mobile stack
 
-| Field                           | Value                                                     |
-| ------------------------------- | --------------------------------------------------------- |
-| `mobile.platform`               | `react-native`                                            |
-| `mobile.wallet_method`          | `embedded` (Privy embedded Solana wallet)                 |
-| `mobile.scaffold_repo`          | `create-solana-dapp` → `web3js-expo-minimal` (then Privy) |
-| `mobile.physical_device_tested` | `false`                                                   |
+| Field                           | Value                                     |
+| ------------------------------- | ----------------------------------------- |
+| `mobile.platform`               | `react-native` (Expo 55, Expo Router)     |
+| `mobile.wallet_method`          | `embedded` (Privy embedded Solana wallet) |
+| `mobile.physical_device_tested` | `false`                                   |
 
-## On-chain stack (hackathon)
+## The loop, in code
 
-| Layer         | Tech                        |
-| ------------- | --------------------------- |
-| Randomness    | VRF (provably fair)         |
-| State / pulls | MagicBlock Ephemeral Rollup |
-| Settlement    | Solana Devnet               |
-| Items         | 10 unique, 4 rarity tiers   |
+1. `app/(app)/index.tsx` — home; `scan` button and a link to the collection.
+2. `app/(app)/camera.tsx` — capture with base64, hand off via `lib/pending-capture.ts`.
+3. `app/(app)/reveal.tsx` — identify, show the creature card, `add to collection`.
+4. `app/(app)/collection.tsx` — grid of everything caught, newest first.
 
-## Weekend build phases
+Supporting modules:
 
-1. ✅ ER session — pull read/write on Ephemeral Rollup
-2. ✅ VRF — rarity + item selection
-3. ✅ Inventory — on-chain read/display
-4. ✅ Mobile UI shell — onboarding, login, account, summon, collection, proof, detail, reveal
-5. ✅ Real Devnet ER/VRF pull and demo flow
+- `lib/identify.ts` — Claude vision call, with a demo fallback on missing key,
+  refusal, or any error, so a recording never stalls.
+- `lib/creatures.ts` — rarity tiers and **deterministic** stats derived from the
+  species name, so the same animal always yields the same creature.
+- `lib/collection.ts` — Supabase reads/writes with an AsyncStorage mirror.
+- `lib/players.ts` / `lib/use-player.ts` — the signed-in player and their wallet.
 
-## Mobile init (done)
+## Known gaps
 
-1. ✅ Solana.new skills setup
-2. ✅ Scaffold `web3js-expo-minimal` (React Native + Expo)
-3. ✅ Switched to Privy embedded Solana wallets (`@privy-io/expo`)
-4. ✅ Polyfills (text-encoding, get-random-values, Buffer, ethers shims, quick-crypto)
-5. ✅ Privy dashboard native app identifier (`com.notcodesid.summon`, scheme `summon`)
-6. ✅ iOS simulator login, wallet, and real Devnet pull smoke test
-7. ✅ `eas.json` dApp Store APK profile and dedicated Android signing flavor
-8. ✅ Signed APK build and Android emulator smoke test
-9. ⬜ Physical Android device test with the exact release APK
+- **Battle is not built.** It is the last piece of the pitched loop.
+- **Photos are not uploaded.** `photo_uri` stores a local `file://` path, so a
+  collection opened on a second device shows rows without images. Supabase
+  Storage is the fix.
+- **RLS is permissive** — see the warning above.
+- **The Anthropic API key ships in the app bundle.** Acceptable for a demo build
+  that is not distributed; move the call behind a server before any release.
+- Camera preview does not work in the iOS Simulator (no camera hardware) — the
+  shutter stays disabled there. Test capture on a physical device or via Revyl.
+- `mobile.physical_device_tested` stays `false` until a real device test passes.
 
-## Debug resolutions
-
-- **2026-07-14 — MagicBlock sponsored commit cap:** A delegated player PDA reached the public
-  validator's default limit of 10 sponsored commits. The mobile client now commits and undelegates
-  every tenth pull, falls back to the same recovery for already-capped accounts, waits for confirmed
-  Solana settlement, and re-delegates automatically on the next pull. Verified with the signed
-  Android release APK on the API 36 ARM64 emulator: the affected wallet recovered and advanced from
-  12 to 13 verified pulls without the prior `0xa0000000` error.
-
-## Seeker release truth
+## Seeker / dApp Store release truth
 
 - A Seeker device is not required to build or submit the APK.
-- The current wallet path is Privy embedded wallet, not Mobile Wallet Adapter.
+- The wallet path is the Privy embedded wallet, not Mobile Wallet Adapter.
 - Seed Vault support must not be claimed until MWA is implemented and tested.
-- `mobile.physical_device_tested` remains `false` until a real Android release-device test passes.
 
 ## References
 
 - [Solana Mobile Docs](https://docs.solanamobile.com/get-started/overview)
 - [Blueshift — Solana Mobile Mastery](https://learn.blueshift.gg/en/paths/solana-mobile-mastery)
-- MagicBlock ER SDK + Blitz hackathon examples

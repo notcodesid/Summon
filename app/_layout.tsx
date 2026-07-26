@@ -33,14 +33,8 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: theme.colors.background },
           }}
         >
-          <Stack.Screen name="index" />
-          <Stack.Screen
-            name="camera"
-            options={{
-              animation: 'slide_from_bottom',
-              contentStyle: { backgroundColor: '#000000' },
-            }}
-          />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="(app)" />
         </Stack>
       </ThemeProvider>
       <StatusBar style="dark" />

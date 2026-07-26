@@ -1,0 +1,15 @@
+test:
+  metadata:
+    name: smoke-home-scan
+    platform: ios
+    tags:
+      - smoke
+  build:
+    name: ios-test
+  blocks:
+    - type: validation
+      step_description: "The home screen shows Summon and a scan button."
+    - type: instructions
+      step_description: "Tap the scan button."
+    - type: validation
+      step_description: "The camera screen is open, showing either a live camera preview or a camera permission prompt."

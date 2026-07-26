@@ -8,7 +8,9 @@ project:
     org_id: d8e3ccc2-72f6-40f8-8dc8-98caa9cad1e0
 build:
     system: Expo
-    command: npx --yes eas-cli build --platform ios --profile development --local --output build/app.tar.gz
+    # Prefer --remote (revyl build --remote / revyl dev --remote) so iOS runs on
+    # Revyl cloud runners. Local fallback still works when credentials exist.
+    command: npx --yes eas-cli build --platform ios --profile revyl-build --local --output build/app.tar.gz
     output: build/app.tar.gz
     platforms:
         android:

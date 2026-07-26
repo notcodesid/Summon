@@ -39,4 +39,31 @@ constants/           Theme and app config
 assets/              App icons and splash
 ```
 
-Legacy gacha / MagicBlock program code may still exist under `programs/` until the new onchain design replaces it. It is not wired into the client.
+The legacy gacha / MagicBlock program has been removed — Summon is not a random-pull game. A new onchain design will follow once the core loop is settled.
+
+## Identification
+
+After a capture, Summon asks Claude to name the animal and rate its rarity. Set
+`EXPO_PUBLIC_ANTHROPIC_API_KEY` in `.env` to enable it; without a key the app
+falls back to a demo creature so the scan → collect loop still works.
+
+The key ships in the app bundle, which is fine for a local demo build but not
+for distribution — move the call behind a server before releasing.
+
+## Database
+
+Players and their creatures are stored in Supabase, keyed by the Privy user id.
+Apply the schema once:
+
+```bash
+psql "$DATABASE_URL" -f supabase/migrations/0001_players_and_creatures.sql
+```
+
+AsyncStorage is kept as an offline mirror, so the app still shows a collection
+without a network. Sign-in is required — a bypassed session has no Privy user
+id and saves nothing.
+
+Note that row-level security is currently permissive: auth is Privy rather than
+Supabase Auth, so the anon key can read and write every row. Before this is
+public, register Privy as a third-party auth provider in Supabase and scope the
+policies to the caller.

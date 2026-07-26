@@ -5,6 +5,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { setPendingCapture } from '@/lib/pending-capture'
+import { theme } from '@/constants/theme'
 
 /**
  * In-app camera for scanning real animals.
@@ -33,22 +35,29 @@ export default function CameraScreen() {
 
     setCapturing(true)
     try {
-      await cameraRef.current.takePictureAsync({
-        quality: 0.85,
+      const photo = await cameraRef.current.takePictureAsync({
+        // Modest quality keeps the base64 payload small enough to send.
+        quality: 0.5,
+        base64: true,
         shutterSound: true,
       })
-      // Next: feed capture into collect / identification.
-      // For now, take the shot and return home.
-      handleClose()
+
+      if (!photo?.base64) {
+        setCapturing(false)
+        return
+      }
+
+      setPendingCapture({ uri: photo.uri, base64: photo.base64 })
+      router.replace('/reveal')
     } catch {
       setCapturing(false)
     }
-  }, [capturing, handleClose, ready])
+  }, [capturing, ready])
 
   if (!permission) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#FCFCFB" />
+        <ActivityIndicator color={theme.colors.onDark} />
       </View>
     )
   }
@@ -108,7 +117,7 @@ export default function CameraScreen() {
           accessibilityLabel="Close camera"
           hitSlop={12}
         >
-          <Ionicons name="chevron-back" size={24} color="#FCFCFB" />
+          <Ionicons name="chevron-back" size={24} color={theme.colors.onDark} />
         </Pressable>
         <View style={styles.scanTitle}>
           <Text style={styles.scanTitleText}>summon</Text>
@@ -134,18 +143,18 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.viewfinder,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.viewfinder,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
     gap: 16,
   },
   permissionTitle: {
-    color: '#FCFCFB',
+    color: theme.colors.onDark,
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: -0.3,
@@ -158,13 +167,13 @@ const styles = StyleSheet.create({
   },
   permissionButton: {
     marginTop: 8,
-    backgroundColor: '#FCFCFB',
+    backgroundColor: theme.colors.onDark,
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 999,
   },
   permissionButtonText: {
-    color: '#111210',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -199,7 +208,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   scanTitleText: {
-    color: '#FCFCFB',
+    color: theme.colors.onDark,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.2,
@@ -263,7 +272,7 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: 38,
     borderWidth: 4,
-    borderColor: '#FCFCFB',
+    borderColor: theme.colors.onDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -271,7 +280,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FCFCFB',
+    backgroundColor: theme.colors.onDark,
   },
   shutterDisabled: {
     opacity: 0.45,
