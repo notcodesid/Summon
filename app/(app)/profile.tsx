@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -21,10 +21,13 @@ import { loadCollection } from '@/lib/collection'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
 
-/**
- * Account screen. Explains what the wallet is, since it appears without the
- * player ever asking for one, and holds sign out.
- */
+function shortAddress(address?: string | null) {
+  if (!address) return 'creating wallet…'
+  if (address.length <= 14) return address
+  return `${address.slice(0, 6)}…${address.slice(-6)}`
+}
+
+/** Account screen: identity, collection progress, wallet, and sign out. */
 export default function ProfileScreen() {
   const { logout } = usePrivy()
   const player = usePlayer()
@@ -34,6 +37,10 @@ export default function ProfileScreen() {
   const [copied, setCopied] = useState(false)
   const [savingPhoto, setSavingPhoto] = useState(false)
   const liquid = isLiquidGlassAvailable()
+  const walletDisplay = useMemo(
+    () => shortAddress(player.walletAddress),
+    [player.walletAddress],
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -110,26 +117,26 @@ export default function ProfileScreen() {
     void logout().then(() => router.replace('/login'))
   }, [logout])
 
-  const heroContent = (
-    <View style={styles.identity}>
+  const profileCard = (
+    <View style={styles.profileContent}>
       <View style={styles.avatarPicker}>
         <Avatar
           initials={initialsFor(player)}
           uri={avatarUrl}
-          size={78}
+          size={92}
           onPress={onChoosePhoto}
           accessibilityLabel="Change profile picture"
         />
         <View style={styles.avatarBadge} pointerEvents="none">
           {savingPhoto ? (
-            <ActivityIndicator size="small" color={theme.colors.onDark} />
+            <ActivityIndicator size="small" color={theme.colors.onPrimary} />
           ) : (
-            <Ionicons name="camera" size={14} color={theme.colors.onDark} />
+            <Ionicons name="camera" size={14} color={theme.colors.onPrimary} />
           )}
         </View>
       </View>
+
       <View style={styles.identityText}>
-        <MicroLabel color={theme.colors.textFaint}>signed in with google</MicroLabel>
         {player.name ? <Text style={styles.name}>{player.name}</Text> : null}
         {player.email ? (
           <Text style={[styles.email, !player.name && styles.emailAlone]}>
@@ -137,48 +144,43 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
       </View>
-    </View>
-  )
 
-  const statsContent = (
-    <View style={styles.statsRow}>
-      <View>
-        <MicroLabel>species collected</MicroLabel>
-        <Text style={styles.bigValue}>{caught ?? '—'}</Text>
-      </View>
-      <View style={styles.statIcon}>
-        <Ionicons name="paw" size={22} color={theme.colors.text} />
+      <View style={styles.metaRow}>
+        <View style={styles.metaPill}>
+          <Ionicons name="paw" size={14} color={theme.colors.textMuted} />
+          <Text style={styles.metaText}>{caught ?? '—'} species</Text>
+        </View>
       </View>
     </View>
   )
 
-  const walletContent = (
+  const walletCard = (
     <View style={styles.walletContent}>
       <View style={styles.cardHeaderRow}>
-        <MicroLabel>solana wallet</MicroLabel>
+        <MicroLabel>wallet</MicroLabel>
         <Ionicons name="wallet-outline" size={18} color={theme.colors.textFaint} />
       </View>
-      <Text style={styles.address} selectable>
-        {player.walletAddress ?? 'creating your wallet…'}
-      </Text>
-      <Text style={styles.explainer}>
-        This wallet is created for your animals. You do not need to manage it yet.
-      </Text>
-      {player.walletAddress ? (
-        <Pressable
-          onPress={onCopy}
-          style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Copy wallet address"
-        >
-          <Ionicons
-            name={copied ? 'checkmark' : 'copy-outline'}
-            size={15}
-            color={theme.colors.text}
-          />
-          <Text style={styles.copyText}>{copied ? 'copied' : 'copy address'}</Text>
-        </Pressable>
-      ) : null}
+
+      <View style={styles.walletAddressRow}>
+        <Text style={styles.address} selectable>
+          {walletDisplay}
+        </Text>
+        {player.walletAddress ? (
+          <Pressable
+            onPress={onCopy}
+            style={({ pressed }) => [styles.copyIconButton, pressed && styles.copyButtonPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Copy wallet address"
+          >
+            <Ionicons
+              name={copied ? 'checkmark' : 'copy-outline'}
+              size={17}
+              color={theme.colors.text}
+            />
+          </Pressable>
+        ) : null}
+      </View>
+
     </View>
   )
 
@@ -191,21 +193,17 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {liquid ? (
           <GlassContainer spacing={18} style={styles.stack}>
-            <GlassView style={styles.heroCard} glassEffectStyle="regular">
-              {heroContent}
-            </GlassView>
-            <GlassView style={styles.statCard} glassEffectStyle="regular">
-              {statsContent}
+            <GlassView style={styles.profileCard} glassEffectStyle="regular">
+              {profileCard}
             </GlassView>
             <GlassView style={styles.walletCard} glassEffectStyle="regular">
-              {walletContent}
+              {walletCard}
             </GlassView>
           </GlassContainer>
         ) : (
           <View style={styles.stack}>
-            <View style={[styles.heroCard, styles.fallbackCard]}>{heroContent}</View>
-            <View style={[styles.statCard, styles.fallbackCard]}>{statsContent}</View>
-            <View style={[styles.walletCard, styles.fallbackCard]}>{walletContent}</View>
+            <View style={[styles.profileCard, styles.fallbackCard]}>{profileCard}</View>
+            <View style={[styles.walletCard, styles.fallbackCard]}>{walletCard}</View>
           </View>
         )}
 
@@ -235,39 +233,39 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: theme.space.xl,
-    paddingBottom: 148,
+    paddingBottom: 132,
   },
   stack: {
     gap: theme.space.md,
   },
-  heroCard: {
-    borderRadius: theme.radius.card,
+  profileCard: {
+    borderRadius: 32,
     overflow: 'hidden',
-    padding: theme.space.lg,
+    paddingVertical: theme.space.xl,
+    paddingHorizontal: theme.space.lg,
   },
   fallbackCard: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.background,
   },
-  identity: {
-    flexDirection: 'row',
+  profileContent: {
     alignItems: 'center',
-    gap: theme.space.lg,
   },
   avatarPicker: {
     position: 'relative',
-    width: 84,
-    height: 84,
+    width: 98,
+    height: 98,
     justifyContent: 'center',
+    marginBottom: theme.space.lg,
   },
   avatarBadge: {
     position: 'absolute',
-    right: 0,
+    right: 2,
     bottom: 2,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.text,
@@ -275,52 +273,47 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.background,
   },
   identityText: {
-    flex: 1,
+    alignItems: 'center',
     gap: 4,
   },
   name: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: -0.6,
+    letterSpacing: -0.7,
     color: theme.colors.text,
+    textAlign: 'center',
   },
   email: {
     fontSize: 14,
     color: theme.colors.textMuted,
+    textAlign: 'center',
   },
   emailAlone: {
     fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text,
   },
-  statCard: {
-    borderRadius: theme.radius.card,
-    overflow: 'hidden',
-    padding: theme.space.lg,
+  metaRow: {
+    flexDirection: 'row',
+    gap: theme.space.sm,
+    marginTop: theme.space.lg,
   },
-  statsRow: {
+  metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  bigValue: {
-    marginTop: theme.space.xs,
-    fontSize: 42,
-    fontWeight: '800',
-    letterSpacing: -1.4,
-    color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  statIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: theme.space.md,
+    borderRadius: theme.radius.pill,
     backgroundColor: theme.colors.surface,
   },
+  metaText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+  },
   walletCard: {
-    borderRadius: theme.radius.card,
+    borderRadius: 28,
     overflow: 'hidden',
     padding: theme.space.lg,
   },
@@ -332,36 +325,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  address: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-    lineHeight: 22,
-  },
-  explainer: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: theme.colors.textMuted,
-  },
-  copyButton: {
-    alignSelf: 'flex-start',
+  walletAddressRow: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.space.sm,
-    paddingVertical: theme.space.sm,
-    paddingHorizontal: theme.space.lg,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'space-between',
+    gap: theme.space.md,
+  },
+  address: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: theme.colors.text,
+  },
+  copyIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: theme.colors.surface,
   },
   copyButtonPressed: {
     opacity: 0.7,
-  },
-  copyText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
   },
   signOut: {
     marginTop: theme.space.lg,
