@@ -1,3 +1,5 @@
+import type { OAuthProviderID } from '@privy-io/expo'
+
 /**
  * Public Privy config for the Expo client.
  * Never put PRIVY_APP_SECRET here.
@@ -14,5 +16,11 @@ export const isPrivyConfigured = privyAppId.length > 0 && privyClientId.length >
  * embedded wallet only exists behind a real login.
  */
 export const isAuthBypassed =
-  process.env.EXPO_PUBLIC_AUTH_BYPASS === '1' ||
-  process.env.EXPO_PUBLIC_AUTH_BYPASS === 'true'
+  process.env.EXPO_PUBLIC_AUTH_BYPASS === '1' || process.env.EXPO_PUBLIC_AUTH_BYPASS === 'true'
+
+/**
+ * Use Privy's built-in Google provider by default. Set this to a
+ * dashboard custom OAuth provider id, for example `custom:google`, when
+ * you need Google profile fields like the account picture.
+ */
+export const googleOAuthProvider = (process.env.EXPO_PUBLIC_PRIVY_GOOGLE_PROVIDER_ID ?? 'google') as OAuthProviderID

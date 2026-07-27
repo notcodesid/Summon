@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { Redirect, router } from 'expo-router'
 import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
 import { AppConfig } from '@/constants/app-config'
 import { theme } from '@/constants/theme'
-import { isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
+import { googleOAuthProvider, isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
 
 /**
  * Sign in with Google via Privy. The Privy user id keys everything the player
@@ -35,8 +28,8 @@ function PrivyConfigMissing() {
       <View style={styles.fallback}>
         <Text style={styles.headline}>{AppConfig.name}</Text>
         <Text style={styles.error}>
-          Privy is not configured. Set EXPO_PUBLIC_PRIVY_APP_ID and
-          EXPO_PUBLIC_PRIVY_CLIENT_ID in .env, then restart Expo with --clear.
+          Privy is not configured. Set EXPO_PUBLIC_PRIVY_APP_ID and EXPO_PUBLIC_PRIVY_CLIENT_ID in .env, then restart
+          Expo with --clear.
         </Text>
       </View>
     </SafeAreaView>
@@ -58,7 +51,7 @@ function LoginWithPrivy() {
   const onGoogle = useCallback(async () => {
     setErrorMessage(null)
     try {
-      await login({ provider: 'google' })
+      await login({ provider: googleOAuthProvider })
       router.replace('/')
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : 'Google sign-in failed')
@@ -79,23 +72,16 @@ function LoginWithPrivy() {
     return <Redirect href="/" />
   }
 
-  const oauthError =
-    state.status === 'error' && state.error?.message ? state.error.message : null
+  const oauthError = state.status === 'error' && state.error?.message ? state.error.message : null
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Animated.View
-          entering={FadeInDown.delay(120).duration(520)}
-          style={styles.headlineBlock}
-        >
+        <Animated.View entering={FadeInDown.delay(120).duration(520)} style={styles.headlineBlock}>
           <Text style={styles.headline}>Pokémon, but real.</Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(280).duration(520)}
-          style={styles.actions}
-        >
+        <Animated.View entering={FadeInDown.delay(280).duration(520)} style={styles.actions}>
           <Pressable
             onPress={() => void onGoogle()}
             disabled={loading}
@@ -113,10 +99,7 @@ function LoginWithPrivy() {
               <>
                 {/* Left-anchored mark with a centred label — Google's own
                     button layout. */}
-                <Image
-                  source={require('../assets/brand/google-g.png')}
-                  style={styles.googleMark}
-                />
+                <Image source={require('../assets/brand/google-g.png')} style={styles.googleMark} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
             )}

@@ -15,7 +15,8 @@
       "infoPlist": {
         "UIUserInterfaceStyle": "Light",
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Summon uses the camera to scan real animals you encounter."
+        "NSCameraUsageDescription": "Summon uses the camera to scan real animals you encounter.",
+        "NSPhotoLibraryUsageDescription": "Summon lets you choose a profile picture from your photo library."
       }
     },
     "android": {
@@ -59,6 +60,12 @@
         {
           "cameraPermission": "Summon uses the camera to scan real animals you encounter.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Summon lets you choose a profile picture from your photo library."
         }
       ]
     ],

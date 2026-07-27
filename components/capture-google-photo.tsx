@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useOAuthTokens, usePrivy } from '@privy-io/expo'
 import { fetchGoogleProfile, upscaleGooglePhoto } from '@/lib/google-profile'
+import { googleOAuthProvider } from '@/lib/privy-config'
 import { savePlayerPhoto } from '@/lib/player-photo'
 
 /**
@@ -10,11 +11,10 @@ import { savePlayerPhoto } from '@/lib/player-photo'
  * and it cannot be fetched again later — so the photo URL is resolved here
  * and persisted. Renders nothing.
  *
- * NOTE: verified inert as of 2026-07-26. With Privy's shared Google OAuth
- * client (`google_oauth: true`, no `custom_oauth_providers`), the grant
- * callback never fires, so no photo is ever captured. Registering your own
- * Google OAuth credentials in the Privy dashboard is what would make tokens
- * flow; until then the avatar falls back to initials.
+ * With Privy's built-in Google OAuth client the linked account has no photo
+ * field and the token callback may not fire. Set
+ * EXPO_PUBLIC_PRIVY_GOOGLE_PROVIDER_ID to a custom Google OAuth provider id
+ * from the Privy dashboard to receive the token needed for the picture.
  *
  * The token grant can land before Privy has finished populating the user, so
  * a resolved URL is held until the user id is known.
@@ -34,8 +34,8 @@ export function CaptureGooglePhoto() {
 
   useOAuthTokens({
     onOAuthTokenGrant: (tokens) => {
-      // Provider id may be "google" or "google_oauth" depending on SDK version.
-      const isGoogle = String(tokens?.provider ?? '').startsWith('google')
+      const provider = String(tokens?.provider ?? '')
+      const isGoogle = provider === 'google' || provider === 'google_oauth' || provider === googleOAuthProvider
       if (!isGoogle || !tokens.access_token) return
 
       void fetchGoogleProfile(tokens.access_token).then((profile) => {
