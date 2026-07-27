@@ -9,22 +9,15 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { router, useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
-import {
-  MicroLabel,
-  PrimaryButton,
-  RarityDot,
-  Rule,
-  ScreenHeader,
-} from '@/components/ui'
+import { MicroLabel, PrimaryButton, Rule, ScreenHeader } from '@/components/ui'
 import { loadCollection } from '@/lib/collection'
-import { RARITY_COLOR, powerOf, type Creature } from '@/lib/creatures'
+import type { Creature } from '@/lib/creatures'
 import { usePlayer } from '@/lib/use-player'
 
-/**
- * The index of everything caught, newest first.
- */
+/** The index of everything saved, newest first. */
 export default function CollectionScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
   const { privyUserId } = usePlayer()
@@ -60,20 +53,16 @@ export default function CollectionScreen() {
         </View>
       ) : creatures.length === 0 ? (
         <View style={styles.centered}>
-          <Ionicons
-            name="scan-outline"
-            size={30}
-            color={theme.colors.textFaint}
-          />
-          <Text style={styles.emptyTitle}>no specimens yet</Text>
+          <Ionicons name="scan-outline" size={30} color={theme.colors.textFaint} />
+          <Text style={styles.emptyTitle}>nothing saved yet</Text>
           <Text style={styles.emptyBody}>
-            every animal you scan is catalogued here with its rarity and stats.
+            Take a picture, name it, and add it to your collection.
           </Text>
           <View style={styles.emptyAction}>
             <PrimaryButton
               label="scan"
               onPress={() => router.replace('/camera')}
-              accessibilityLabel="Open camera to scan an animal"
+              accessibilityLabel="Open camera"
             />
           </View>
         </View>
@@ -87,7 +76,7 @@ export default function CollectionScreen() {
           ListHeaderComponent={
             <View style={styles.listHeader}>
               <MicroLabel>
-                {creatures.length} {creatures.length === 1 ? 'entry' : 'entries'}
+                {creatures.length} {creatures.length === 1 ? 'animal' : 'animals'}
               </MicroLabel>
             </View>
           }
@@ -99,28 +88,27 @@ export default function CollectionScreen() {
 }
 
 function CreatureTile({ creature }: { creature: Creature }) {
-  const accent = RARITY_COLOR[creature.rarity]
-  return (
-    <View style={styles.tile}>
+  const liquid = isLiquidGlassAvailable()
+  const content = (
+    <View style={styles.tileContent}>
       <Image source={{ uri: creature.photoUri }} style={styles.tilePhoto} />
-      <View style={styles.tileBody}>
-        <View style={styles.tileRarity}>
-          <RarityDot color={accent} />
-          <MicroLabel color={accent}>{creature.rarity}</MicroLabel>
-        </View>
-        <Text style={styles.tileName} numberOfLines={1}>
-          {creature.commonName}
-        </Text>
-        <Text style={styles.tileSpecies} numberOfLines={1}>
-          {creature.species}
-        </Text>
-        <View style={styles.tileFooter}>
-          <MicroLabel>power</MicroLabel>
-          <Text style={styles.tilePower}>{powerOf(creature.stats)}</Text>
-        </View>
-      </View>
+      <Text style={styles.tileName} numberOfLines={2}>
+        {creature.commonName}
+      </Text>
     </View>
   )
+
+  if (liquid) {
+    return (
+      <GlassContainer spacing={18} style={styles.tileShell}>
+        <GlassView style={styles.tile} glassEffectStyle="regular">
+          {content}
+        </GlassView>
+      </GlassContainer>
+    )
+  }
+
+  return <View style={[styles.tile, styles.fallbackCard]}>{content}</View>
 }
 
 const styles = StyleSheet.create({
@@ -165,55 +153,35 @@ const styles = StyleSheet.create({
     gap: theme.space.md,
     marginBottom: theme.space.md,
   },
+  tileShell: {
+    flex: 1,
+    maxWidth: '48.5%',
+  },
   tile: {
     flex: 1,
-    // Without a ceiling, a lone tile in the last row stretches full width.
     maxWidth: '48.5%',
     borderRadius: theme.radius.tile,
+    overflow: 'hidden',
+  },
+  tileContent: {
+    flex: 1,
+  },
+  fallbackCard: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
-    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
   },
   tilePhoto: {
     width: '100%',
     aspectRatio: 1,
     backgroundColor: theme.colors.surfaceRaised,
   },
-  tileBody: {
-    padding: theme.space.md,
-    gap: 3,
-  },
-  tileRarity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
   tileName: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+    padding: theme.space.md,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '800',
+    letterSpacing: -0.35,
     color: theme.colors.text,
-  },
-  tileSpecies: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: theme.colors.textFaint,
-  },
-  tileFooter: {
-    marginTop: theme.space.sm,
-    paddingTop: theme.space.sm,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.rule,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tilePower: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
   },
 })

@@ -2,43 +2,40 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { theme } from '@/constants/theme'
-import {
-  MicroLabel,
-  PrimaryButton,
-  QuietButton,
-  RarityDot,
-  Rule,
-} from '@/components/ui'
+import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { addToCollection } from '@/lib/collection'
-import { RARITY_COLOR, powerOf, type Creature } from '@/lib/creatures'
-import { identifyAnimal, isIdentifyLive, toCreature } from '@/lib/identify'
+import type { Creature } from '@/lib/creatures'
 import { takePendingCapture } from '@/lib/pending-capture'
 import { usePlayer } from '@/lib/use-player'
 
 type Phase =
-  | { status: 'identifying' }
-  | { status: 'found'; creature: Creature; live: boolean }
-  | { status: 'no-animal'; photoUri: string }
+  | { status: 'loading' }
+  | { status: 'ready'; photoUri: string }
   | { status: 'no-capture' }
 
-/**
- * Post-capture: identify the animal, then let the player keep it.
- */
+/** Post-capture: name the photo manually, then add it to the collection. */
 export default function RevealScreen() {
-  const [phase, setPhase] = useState<Phase>({ status: 'identifying' })
+  const [phase, setPhase] = useState<Phase>({ status: 'loading' })
+  const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const startedRef = useRef(false)
   const { privyUserId } = usePlayer()
+  const liquid = isLiquidGlassAvailable()
 
   useEffect(() => {
     if (startedRef.current) return
@@ -50,50 +47,41 @@ export default function RevealScreen() {
       return
     }
 
-    let cancelled = false
-    void identifyAnimal(capture.base64).then((identification) => {
-      if (cancelled) return
-      if (!identification.isAnimal) {
-        setPhase({ status: 'no-animal', photoUri: capture.uri })
-        return
-      }
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      setPhase({
-        status: 'found',
-        creature: toCreature(identification, capture.uri),
-        live: identification.live,
-      })
-    })
-
-    return () => {
-      cancelled = true
-    }
+    setPhase({ status: 'ready', photoUri: capture.uri })
   }, [])
 
   const goHome = useCallback(() => {
     router.replace('/')
   }, [])
 
-  const onKeep = useCallback(
-    async (creature: Creature) => {
-      if (saving) return
-      setSaving(true)
-      await addToCollection(creature, privyUserId)
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      router.replace('/collection')
-    },
-    [saving, privyUserId],
-  )
+  const onKeep = useCallback(async () => {
+    if (phase.status !== 'ready' || saving) return
 
-  if (phase.status === 'identifying') {
+    const cleanName = name.trim()
+    if (!cleanName) return
+
+    setSaving(true)
+    const creature: Creature = {
+      id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+      species: cleanName,
+      commonName: cleanName,
+      rarity: 'common',
+      stats: { hp: 0, attack: 0, defense: 0, speed: 0 },
+      note: '',
+      photoUri: phase.photoUri,
+      capturedAt: Date.now(),
+    }
+
+    await addToCollection(creature, privyUserId)
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    router.replace('/collection')
+  }, [name, phase, privyUserId, saving])
+
+  if (phase.status === 'loading') {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.centered}>
           <ActivityIndicator color={theme.colors.primary} />
-          <MicroLabel color={theme.colors.text}>identifying</MicroLabel>
-          {!isIdentifyLive ? (
-            <Text style={styles.footnote}>demo mode — no API key set</Text>
-          ) : null}
         </View>
       </SafeAreaView>
     )
@@ -108,8 +96,8 @@ export default function RevealScreen() {
             size={30}
             color={theme.colors.textFaint}
           />
-          <Text style={styles.stateTitle}>nothing to identify</Text>
-          <Text style={styles.stateBody}>that scan didn&apos;t come through.</Text>
+          <Text style={styles.stateTitle}>nothing to add</Text>
+          <Text style={styles.stateBody}>that photo didn&apos;t come through.</Text>
           <View style={styles.stateAction}>
             <PrimaryButton label="back home" onPress={goHome} />
           </View>
@@ -118,110 +106,109 @@ export default function RevealScreen() {
     )
   }
 
-  if (phase.status === 'no-animal') {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.centered}>
-          <Image source={{ uri: phase.photoUri }} style={styles.missPhoto} />
-          <Text style={styles.stateTitle}>no animal found</Text>
-          <Text style={styles.stateBody}>
-            get closer and fill more of the frame — summon needs to see the
-            animal clearly.
-          </Text>
-          <View style={styles.stateAction}>
-            <PrimaryButton
-              label="scan again"
-              onPress={() => router.replace('/camera')}
-            />
-          </View>
-          <QuietButton label="back home" onPress={goHome} />
-        </View>
-      </SafeAreaView>
-    )
-  }
+  const form = (
+    <View style={styles.formContent}>
+      <View style={styles.formHeader}>
+        <MicroLabel color={theme.colors.textMuted}>new animal</MicroLabel>
+        <Text style={styles.title}>Name this animal</Text>
+      </View>
 
-  const { creature, live } = phase
-  const accent = RARITY_COLOR[creature.rarity]
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="Animal name"
+        placeholderTextColor={theme.colors.textFaint}
+        autoCapitalize="words"
+        autoCorrect={false}
+        returnKeyType="done"
+        onSubmitEditing={() => void onKeep()}
+        style={styles.nameInput}
+        accessibilityLabel="Animal name"
+      />
+    </View>
+  )
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.tagRow}>
-          <MicroLabel color={theme.colors.textMuted}>caught</MicroLabel>
-        </View>
-
-        <Image source={{ uri: creature.photoUri }} style={styles.photo} />
-
-        <View style={styles.identity}>
-          <View style={styles.rarityRow}>
-            <RarityDot color={accent} />
-            <MicroLabel color={accent}>{creature.rarity}</MicroLabel>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboard}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.heroWrap}>
+            {liquid ? (
+              <GlassContainer spacing={18} style={styles.heroGlassContainer}>
+                <GlassView style={styles.photoGlass} glassEffectStyle="regular">
+                  <Image source={{ uri: phase.photoUri }} style={styles.photo} />
+                </GlassView>
+              </GlassContainer>
+            ) : (
+              <View style={[styles.photoGlass, styles.fallbackCard]}>
+                <Image source={{ uri: phase.photoUri }} style={styles.photo} />
+              </View>
+            )}
           </View>
-          <Text style={styles.name}>{creature.commonName}</Text>
-          <Text style={styles.species}>{creature.species}</Text>
-          {creature.note ? (
-            <Text style={styles.note}>{creature.note}</Text>
-          ) : null}
-        </View>
 
-        <Rule />
+          {liquid ? (
+            <GlassContainer spacing={18} style={styles.stack}>
+              <GlassView style={styles.formCard} glassEffectStyle="regular">
+                {form}
+              </GlassView>
+              <GlassView style={styles.keepGlass} glassEffectStyle="regular" isInteractive>
+                <KeepButton saving={saving} disabled={!name.trim()} onPress={onKeep} />
+              </GlassView>
+            </GlassContainer>
+          ) : (
+            <View style={styles.stack}>
+              <View style={[styles.formCard, styles.fallbackCard]}>{form}</View>
+              <View style={[styles.keepGlass, styles.fallbackCard]}>
+                <KeepButton saving={saving} disabled={!name.trim()} onPress={onKeep} />
+              </View>
+            </View>
+          )}
 
-        <View style={styles.stats}>
-          <StatRow label="hp" value={creature.stats.hp} accent={accent} />
-          <StatRow label="atk" value={creature.stats.attack} accent={accent} />
-          <StatRow label="def" value={creature.stats.defense} accent={accent} />
-          <StatRow label="spd" value={creature.stats.speed} accent={accent} />
-        </View>
-
-        <Rule />
-
-        <View style={styles.powerRow}>
-          <MicroLabel>total power</MicroLabel>
-          <Text style={styles.powerValue}>{powerOf(creature.stats)}</Text>
-        </View>
-
-        {!live ? (
-          <Text style={styles.footnote}>
-            demo creature — set an API key for real scans
-          </Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <PrimaryButton
-            label={saving ? 'adding…' : 'add to collection'}
-            onPress={() => void onKeep(creature)}
-            disabled={saving}
-            accessibilityLabel="Add to collection"
-          />
-          <QuietButton label="let it go" onPress={goHome} />
-        </View>
-      </ScrollView>
+          <Pressable
+            onPress={goHome}
+            style={({ pressed }) => [styles.cancelButton, pressed && styles.buttonPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel and return home"
+          >
+            <Text style={styles.cancelText}>cancel</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
 
-const MAX_STAT = 100
-
-function StatRow({
-  label,
-  value,
-  accent,
+function KeepButton({
+  saving,
+  disabled,
+  onPress,
 }: {
-  label: string
-  value: number
-  accent: string
+  saving: boolean
+  disabled: boolean
+  onPress: () => void
 }) {
-  const width = `${Math.min(100, (value / MAX_STAT) * 100)}%` as const
   return (
-    <View style={styles.statRow}>
-      <View style={styles.statLabel}>
-        <MicroLabel>{label}</MicroLabel>
-      </View>
-      <View style={styles.statTrack}>
-        <View style={[styles.statFill, { width, backgroundColor: accent }]} />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
+    <Pressable
+      onPress={onPress}
+      disabled={saving || disabled}
+      style={({ pressed }) => [
+        styles.keepButton,
+        (saving || disabled) && styles.buttonDisabled,
+        pressed && styles.buttonPressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel="Add to collection"
+    >
+      {saving ? (
+        <ActivityIndicator color={theme.colors.text} />
+      ) : (
+        <Ionicons name="add" size={22} color={theme.colors.text} />
+      )}
+      <Text style={styles.keepText}>{saving ? 'adding' : 'add to collection'}</Text>
+    </Pressable>
   )
 }
 
@@ -229,6 +216,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  keyboard: {
+    flex: 1,
   },
   scroll: {
     paddingHorizontal: theme.space.xl,
@@ -242,97 +232,94 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.xxl,
     gap: theme.space.md,
   },
-  tagRow: {
+  heroWrap: {
     alignItems: 'center',
-    paddingBottom: theme.space.lg,
+    marginBottom: theme.space.lg,
+  },
+  heroGlassContainer: {
+    width: '100%',
+  },
+  photoGlass: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 34,
+    overflow: 'hidden',
+    padding: 5,
   },
   photo: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: theme.radius.card,
+    height: '100%',
+    borderRadius: 29,
     backgroundColor: theme.colors.surfaceRaised,
   },
-  identity: {
-    paddingTop: theme.space.xl,
-    paddingBottom: theme.space.xl,
+  stack: {
+    gap: theme.space.md,
+  },
+  formCard: {
+    borderRadius: 34,
+    overflow: 'hidden',
+    padding: theme.space.lg,
+  },
+  fallbackCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  formContent: {
+    gap: theme.space.lg,
+  },
+  formHeader: {
     gap: theme.space.xs,
   },
-  rarityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    marginBottom: theme.space.sm,
-  },
-  name: {
+  title: {
     fontSize: 30,
     fontWeight: '800',
-    letterSpacing: -0.7,
+    letterSpacing: -0.8,
     color: theme.colors.text,
   },
-  species: {
-    fontSize: 15,
-    fontStyle: 'italic',
-    color: theme.colors.textMuted,
-  },
-  note: {
-    marginTop: theme.space.md,
-    fontSize: 16,
-    lineHeight: 24,
+  nameInput: {
+    minHeight: 58,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.space.lg,
+    backgroundColor: theme.colors.surface,
     color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '700',
   },
-  stats: {
-    paddingVertical: theme.space.sm,
-  },
-  statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.space.md,
-    paddingVertical: theme.space.md,
-  },
-  statLabel: {
-    width: 34,
-  },
-  statTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: theme.colors.surfaceRaised,
+  keepGlass: {
+    borderRadius: theme.radius.pill,
     overflow: 'hidden',
   },
-  statFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  statValue: {
-    width: 30,
-    textAlign: 'right',
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  powerRow: {
+  keepButton: {
+    minHeight: 58,
+    borderRadius: theme.radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: theme.space.lg,
+    justifyContent: 'center',
+    gap: theme.space.sm,
+    paddingHorizontal: theme.space.lg,
   },
-  powerValue: {
-    fontSize: 20,
+  keepText: {
+    fontSize: 16,
     fontWeight: '800',
-    letterSpacing: -0.4,
     color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
   },
-  footnote: {
-    fontSize: 12,
-    color: theme.colors.textFaint,
-    textAlign: 'center',
+  cancelButton: {
+    alignSelf: 'center',
+    marginTop: theme.space.lg,
+    paddingVertical: theme.space.md,
+    paddingHorizontal: theme.space.xl,
   },
-  actions: {
-    marginTop: theme.space.xl,
-    gap: theme.space.lg,
-    alignItems: 'center',
+  cancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
   stateTitle: {
     marginTop: theme.space.xs,
@@ -352,11 +339,5 @@ const styles = StyleSheet.create({
     marginTop: theme.space.lg,
     alignSelf: 'stretch',
     paddingHorizontal: theme.space.xxl,
-  },
-  missPhoto: {
-    width: 132,
-    height: 132,
-    borderRadius: theme.radius.card,
-    backgroundColor: theme.colors.surfaceRaised,
   },
 })

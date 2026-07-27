@@ -1,153 +1,147 @@
+import { useCallback, useState } from 'react'
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   StyleSheet,
   Text,
   View,
-  useColorScheme,
   useWindowDimensions,
-  type ImageSourcePropType,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
-import { router } from 'expo-router'
+import { useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
-import { animalImageAt } from '@/lib/animal-images'
+import { MicroLabel } from '@/components/ui'
+import { loadCollection } from '@/lib/collection'
+import type { Creature } from '@/lib/creatures'
+import { usePlayer } from '@/lib/use-player'
 
-/**
- * Home reads as the front page of a field guide: what you've collected, your
- * rarest find, your latest catches, and one way forward.
- */
+/** Home shows the user's real collection, newest first. */
 export default function HomeScreen() {
-  return <Home />
-}
-
-type MockAnimal = {
-  name: string
-  handle: string
-  color: string
-  darkColor: string
-  image?: ImageSourcePropType
-}
-
-const MOCK_ANIMALS: MockAnimal[] = [
-  {
-    name: 'Scout dog',
-    handle: 'common',
-    color: '#7C5A3B',
-    darkColor: '#C69A6D',
-    image: animalImageAt(0),
-  },
-  {
-    name: 'Moon cat',
-    handle: 'rare',
-    color: '#256C8E',
-    darkColor: '#6DB9D8',
-    image: animalImageAt(1),
-  },
-  {
-    name: 'River fish',
-    handle: 'aquatic',
-    color: '#17446D',
-    darkColor: '#78AEE2',
-    image: animalImageAt(2),
-  },
-]
-
-function Home() {
+  const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const { privyUserId } = usePlayer()
   const { width } = useWindowDimensions()
-  const colorScheme = useColorScheme()
+  const liquid = isLiquidGlassAvailable()
   const cardGap = theme.space.md
   const cardWidth = Math.min(
     180,
     Math.floor((width - theme.space.xl * 2 - cardGap) / 2),
   )
-  const liquid = isLiquidGlassAvailable()
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      void loadCollection(privyUserId).then((next) => {
+        if (active) setCreatures(next)
+      })
+      return () => {
+        active = false
+      }
+    }, [privyUserId]),
+  )
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>Home</Text>
+          {creatures?.length ? (
+            <MicroLabel color={theme.colors.textMuted}>
+              {creatures.length} saved
+            </MicroLabel>
+          ) : null}
         </View>
 
-        <GlassContainer
-          spacing={liquid ? 22 : undefined}
-          style={styles.mockGrid}
-        >
-          {MOCK_ANIMALS.map((animal) => {
-            const accent = colorScheme === 'dark' ? animal.darkColor : animal.color
-            const cardSizeStyle = {
-              width: cardWidth,
-              minHeight: cardWidth * 1.14,
-            }
-            const cardContent = (
-              <Pressable
-                onPress={() => router.push('/collection')}
-                style={({ pressed }) => [
-                  styles.mockCardContent,
-                  pressed && styles.mockCardPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={animal.name}
-              >
-                <View
-                  style={[
-                    styles.animalOrb,
-                    {
-                      width: cardWidth * 0.62,
-                      height: cardWidth * 0.62,
-                      borderRadius: cardWidth * 0.31,
-                      backgroundColor: accent,
-                    },
-                  ]}
-                >
-                  {animal.image ? (
-                    <Image source={animal.image} style={styles.animalImage} />
-                  ) : null}
-                  {liquid ? (
-                    <GlassView
-                      pointerEvents="none"
-                      style={styles.animalOrbGlass}
-                      glassEffectStyle="clear"
-                      tintColor="rgba(255,255,255,0.18)"
-                    />
-                  ) : null}
-                  <View pointerEvents="none" style={styles.animalOrbShade} />
-                  <View pointerEvents="none" style={styles.animalOrbRim} />
-                  <View pointerEvents="none" style={styles.animalOrbHighlight} />
-                  <View pointerEvents="none" style={styles.animalOrbGlint} />
-                </View>
-                <Text style={[styles.mockCardTitle, { color: accent }]}>
-                  {animal.name}
-                </Text>
-              </Pressable>
-            )
-
-            if (liquid) {
-              return (
-                <GlassView
-                  key={animal.name}
-                  style={[styles.mockCard, cardSizeStyle]}
-                  glassEffectStyle="regular"
-                  tintColor="rgba(255,255,255,0.10)"
-                  isInteractive
-                >
-                  {cardContent}
+        {creatures === null ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        ) : creatures.length === 0 ? (
+          <View style={styles.emptyState}>
+            {liquid ? (
+              <GlassContainer spacing={18} style={styles.emptyGlassContainer}>
+                <GlassView style={styles.emptyIconGlass} glassEffectStyle="regular">
+                  <Ionicons name="scan" size={32} color={theme.colors.text} />
                 </GlassView>
-              )
-            }
-
-            return (
-              <View
-                key={animal.name}
-                style={[styles.mockCard, styles.mockCardFallback, cardSizeStyle]}
-              >
-                {cardContent}
+              </GlassContainer>
+            ) : (
+              <View style={[styles.emptyIconGlass, styles.fallbackCard]}>
+                <Ionicons name="scan" size={32} color={theme.colors.text} />
               </View>
-            )
-          })}
-        </GlassContainer>
+            )}
+            <Text style={styles.emptyTitle}>Start your collection</Text>
+            <Text style={styles.emptyBody}>
+              Take a picture, give it a name, and save it here.
+            </Text>
+          </View>
+        ) : (
+          <GlassContainer spacing={liquid ? 22 : undefined} style={styles.grid}>
+            {creatures.map((creature) => {
+              const cardSizeStyle = {
+                width: cardWidth,
+                minHeight: cardWidth * 1.14,
+              }
+              const cardContent = (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.cardContent,
+                    pressed && styles.cardPressed,
+                  ]}
+                  accessibilityRole="imagebutton"
+                  accessibilityLabel={creature.commonName}
+                >
+                  <View
+                    style={[
+                      styles.photoOrb,
+                      {
+                        width: cardWidth * 0.66,
+                        height: cardWidth * 0.66,
+                        borderRadius: cardWidth * 0.33,
+                      },
+                    ]}
+                  >
+                    <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
+                    {liquid ? (
+                      <GlassView
+                        pointerEvents="none"
+                        style={styles.photoOrbGlass}
+                        glassEffectStyle="clear"
+                        tintColor="rgba(255,255,255,0.18)"
+                      />
+                    ) : null}
+                    <View pointerEvents="none" style={styles.photoOrbRim} />
+                    <View pointerEvents="none" style={styles.photoOrbGlint} />
+                  </View>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {creature.commonName}
+                  </Text>
+                </Pressable>
+              )
+
+              if (liquid) {
+                return (
+                  <GlassView
+                    key={creature.id}
+                    style={[styles.card, cardSizeStyle]}
+                    glassEffectStyle="regular"
+                    tintColor="rgba(255,255,255,0.10)"
+                    isInteractive
+                  >
+                    {cardContent}
+                  </GlassView>
+                )
+              }
+
+              return (
+                <View key={creature.id} style={[styles.card, styles.fallbackCard, cardSizeStyle]}>
+                  {cardContent}
+                </View>
+              )
+            })}
+          </GlassContainer>
+        )}
       </View>
     </SafeAreaView>
   )
@@ -166,7 +160,8 @@ const styles = StyleSheet.create({
   },
   masthead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
   },
   wordmark: {
     fontSize: 32,
@@ -174,32 +169,69 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     color: theme.colors.text,
   },
-
-  mockGrid: {
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 96,
+    gap: theme.space.md,
+  },
+  emptyGlassContainer: {
+    alignItems: 'center',
+  },
+  emptyIconGlass: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  emptyTitle: {
+    marginTop: theme.space.md,
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  emptyBody: {
+    maxWidth: 260,
+    fontSize: 16,
+    lineHeight: 23,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.space.md,
     paddingTop: theme.space.xl,
   },
-  mockCard: {
+  card: {
     borderRadius: theme.radius.card,
     overflow: 'hidden',
   },
-  mockCardFallback: {
+  fallbackCard: {
     borderWidth: 1,
     borderColor: theme.colors.rule,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
   },
-  mockCardContent: {
+  cardContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.space.md,
   },
-  mockCardPressed: {
+  cardPressed: {
     opacity: 0.72,
   },
-  animalOrb: {
+  photoOrb: {
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -213,56 +245,32 @@ const styles = StyleSheet.create({
     height: '100%',
     transform: [{ scale: 1.04 }],
   },
-  animalOrbGlass: {
+  photoOrbGlass: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: theme.radius.pill,
   },
-  animalOrbShade: {
+  photoOrbRim: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: theme.radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.58)',
   },
-  animalOrbRim: {
+  photoOrbGlint: {
     position: 'absolute',
-    top: 3,
-    left: 4,
-    right: 4,
-    height: '42%',
-    borderTopWidth: 2,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(255,255,255,0.62)',
-    borderRadius: theme.radius.pill,
-    opacity: 0.82,
-  },
-  animalOrbHighlight: {
-    position: 'absolute',
-    top: 8,
-    left: 10,
-    width: '45%',
-    height: '20%',
-    borderTopWidth: 3,
-    borderColor: 'rgba(255,255,255,0.72)',
-    borderRadius: theme.radius.pill,
-    transform: [{ rotate: '-20deg' }],
-  },
-  animalOrbGlint: {
-    position: 'absolute',
-    top: 16,
-    left: 19,
-    width: 11,
-    height: 11,
+    top: 14,
+    left: 18,
+    width: 12,
+    height: 12,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.70)',
+    backgroundColor: 'rgba(255,255,255,0.72)',
   },
-  mockCardTitle: {
+  cardTitle: {
     marginTop: theme.space.lg,
     textAlign: 'center',
     fontSize: 19,
     lineHeight: 22,
     fontWeight: '800',
     letterSpacing: -0.35,
+    color: theme.colors.text,
   },
 })
