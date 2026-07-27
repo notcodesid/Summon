@@ -1,28 +1,29 @@
-import { useEffect } from 'react'
-import { Appearance } from 'react-native'
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native'
+import { useMemo } from 'react'
+import { useColorScheme } from 'react-native'
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import 'react-native-reanimated'
 import { AppProviders } from '@/components/app-providers'
 import { theme } from '@/constants/theme'
 
-const navigationTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: theme.colors.background,
-    card: theme.colors.background,
-    text: theme.colors.text,
-    border: theme.colors.border,
-    primary: theme.colors.text,
-  },
-}
-
 export default function RootLayout() {
-  useEffect(() => {
-    Appearance.setColorScheme('light')
-  }, [])
+  const colorScheme = useColorScheme()
+  const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme
+  const navigationTheme = useMemo(
+    () => ({
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        background: theme.colors.background,
+        card: theme.colors.background,
+        text: theme.colors.text,
+        border: theme.colors.border,
+        primary: theme.colors.text,
+      },
+    }),
+    [baseTheme],
+  )
 
   return (
     <AppProviders>
@@ -37,7 +38,7 @@ export default function RootLayout() {
           <Stack.Screen name="(app)" />
         </Stack>
       </ThemeProvider>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
     </AppProviders>
   )
 }

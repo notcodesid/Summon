@@ -94,7 +94,7 @@ function LoginWithPrivy() {
             ]}
           >
             {loading ? (
-              <ActivityIndicator color={theme.colors.text} />
+              <ActivityIndicator color="#111210" />
             ) : (
               <>
                 {/* Left-anchored mark with a centred label — Google's own
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   googleButtonText: {
-    color: theme.colors.text,
+    color: '#111210',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,

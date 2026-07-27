@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   primaryText: {
-    color: theme.colors.onDark,
+    color: theme.colors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceRaised,
   },
   avatarText: {
-    color: theme.colors.onDark,
+    color: theme.colors.onPrimary,
     fontWeight: '700',
     letterSpacing: 0.5,
   },

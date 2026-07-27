@@ -1,12 +1,4 @@
-import { useEffect, useRef } from 'react'
-import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import {
@@ -17,24 +9,17 @@ import {
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { theme } from '@/constants/theme'
 
-const AnimatedGlassView = Animated.createAnimatedComponent(GlassView)
-
 const BAR_MAX_WIDTH = 240
-const BAR_PADDING = 8
-const TAB_COUNT = 2
 
 /**
- * Floating tab bar using Apple's Liquid Glass material.
+ * Native iOS Liquid Glass tab bar.
  *
- * `isLiquidGlassAvailable()` is false below iOS 26, where GlassView renders as
- * a plain view — so the fallback branch supplies a solid surface rather than
- * letting the bar turn invisible over scrolled content.
+ * On iOS 26+, this uses Expo's native wrapper around Apple's UIGlassEffect and
+ * UIGlassContainerEffect. There is intentionally no custom selected-background
+ * fill, blur, or animated fake glass layer here.
  */
-const LEFT_TABS = [
+const TABS = [
   { name: 'index', label: 'Home', icon: 'home-outline', activeIcon: 'home-sharp' },
-] as const
-
-const RIGHT_TABS = [
   {
     name: 'profile',
     label: 'Profile',
@@ -43,55 +28,33 @@ const RIGHT_TABS = [
   },
 ] as const
 
-const NAV_TABS = [...LEFT_TABS, ...RIGHT_TABS] as const
-
 /** Routes that take over the whole screen and hide the bar. */
 const FULL_SCREEN = ['camera', 'reveal']
 
-type NavTab = (typeof NAV_TABS)[number]
+type NavTab = (typeof TABS)[number]
 
 export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const activeName = state.routes[state.index]?.name
 
-  const liquid = isLiquidGlassAvailable()
-  const barWidth = Math.min(width - theme.space.lg * 2, BAR_MAX_WIDTH)
-  const tabWidth = (barWidth - BAR_PADDING * 2) / TAB_COUNT
-  const activeIndex = Math.max(
-    0,
-    NAV_TABS.findIndex((tab) => tab.name === activeName),
-  )
-  const activeLeft = BAR_PADDING + activeIndex * tabWidth
-  const activeX = useRef(new Animated.Value(activeLeft)).current
-
-  useEffect(() => {
-    Animated.spring(activeX, {
-      toValue: activeLeft,
-      useNativeDriver: false,
-      damping: 18,
-      stiffness: 190,
-      mass: 0.65,
-    }).start()
-  }, [activeLeft, activeX])
-
   if (FULL_SCREEN.includes(activeName)) return null
 
+  const liquid = isLiquidGlassAvailable()
   const showScan = activeName !== 'profile'
+  const barWidth = Math.min(width - theme.space.lg * 2, BAR_MAX_WIDTH)
 
   const renderTab = (tab: NavTab) => {
     const focused = activeName === tab.name
     const color = focused ? theme.colors.text : theme.colors.textMuted
-
-    return (
+    const content = (
       <Pressable
-        key={tab.name}
         onPress={() => {
           if (!focused) navigation.navigate(tab.name)
         }}
         style={({ pressed }) => [
           styles.tab,
-          { width: tabWidth },
+          focused && !liquid && styles.tabFallbackActive,
           pressed && styles.tabPressed,
         ]}
         accessibilityRole="button"
@@ -108,37 +71,24 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
         </Text>
       </Pressable>
     )
+
+    if (!liquid || !focused) {
+      return <View key={tab.name}>{content}</View>
+    }
+
+    return (
+      <GlassView
+        key={tab.name}
+        style={styles.activeTabGlass}
+        glassEffectStyle="clear"
+        isInteractive
+      >
+        {content}
+      </GlassView>
+    )
   }
 
-  const activeIndicator = liquid ? (
-    <AnimatedGlassView
-      pointerEvents="none"
-      style={[
-        styles.activeGlass,
-        { width: tabWidth, transform: [{ translateX: activeX }] },
-      ]}
-      glassEffectStyle="regular"
-      tintColor="rgba(255,255,255,0.30)"
-      isInteractive
-    />
-  ) : (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.activeGlass,
-        styles.activeFallback,
-        { width: tabWidth, transform: [{ translateX: activeX }] },
-      ]}
-    />
-  )
-
-  const tabs = (
-    <>
-      {activeIndicator}
-      <View style={styles.tabCluster}>{LEFT_TABS.map(renderTab)}</View>
-      <View style={styles.tabCluster}>{RIGHT_TABS.map(renderTab)}</View>
-    </>
-  )
+  const tabs = TABS.map(renderTab)
 
   const scanButton = (
     <Pressable
@@ -160,17 +110,12 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
         {showScan ? (
           liquid ? (
             <GlassContainer spacing={18} style={styles.controlsGlassContainer}>
-              <GlassView
-                style={styles.scanGlass}
-                glassEffectStyle="regular"
-                tintColor="rgba(255,255,255,0.18)"
-                isInteractive
-              >
+              <GlassView style={styles.scanGlass} glassEffectStyle="regular" isInteractive>
                 {scanButton}
               </GlassView>
             </GlassContainer>
           ) : (
-            <View style={[styles.scanGlass, styles.barFallback]}>{scanButton}</View>
+            <View style={[styles.scanGlass, styles.fallbackSurface]}>{scanButton}</View>
           )
         ) : null}
 
@@ -182,7 +127,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
           </GlassContainer>
         ) : (
           <View style={[styles.glassStack, { width: barWidth }]}>
-            <View style={[styles.bar, styles.barFallback]}>{tabs}</View>
+            <View style={[styles.bar, styles.fallbackSurface]}>{tabs}</View>
           </View>
         )}
       </View>
@@ -205,58 +150,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   glassStack: {
-    position: 'relative',
     height: 58,
     alignItems: 'center',
   },
   bar: {
-    position: 'absolute',
-    bottom: 0,
     width: '100%',
     height: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 5,
-    paddingHorizontal: BAR_PADDING,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     borderRadius: theme.radius.pill,
     overflow: 'hidden',
   },
-  /** Pre-iOS 26: GlassView is inert, so give the bar a real surface. */
-  barFallback: {
+  fallbackSurface: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  tabCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  activeTabGlass: {
+    borderRadius: theme.radius.pill,
+    overflow: 'hidden',
+  },
+  tabFallbackActive: {
+    backgroundColor: theme.colors.background,
   },
   tab: {
+    minWidth: 104,
     minHeight: 46,
     paddingVertical: 6,
-    paddingHorizontal: 2,
+    paddingHorizontal: theme.space.md,
     borderRadius: theme.radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    zIndex: 1,
   },
   tabPressed: {
     opacity: 0.6,
-  },
-  activeGlass: {
-    position: 'absolute',
-    left: 0,
-    top: 7,
-    bottom: 7,
-    borderRadius: theme.radius.pill,
-    overflow: 'hidden',
-  },
-  activeFallback: {
-    backgroundColor: theme.colors.background,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   label: {
     fontSize: 11,

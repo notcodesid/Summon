@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
   useWindowDimensions,
   type ImageSourcePropType,
 } from 'react-native'
@@ -25,6 +26,7 @@ type MockAnimal = {
   name: string
   handle: string
   color: string
+  darkColor: string
   image?: ImageSourcePropType
 }
 
@@ -33,24 +35,28 @@ const MOCK_ANIMALS: MockAnimal[] = [
     name: 'Scout dog',
     handle: 'common',
     color: '#7C5A3B',
+    darkColor: '#C69A6D',
     image: animalImageAt(0),
   },
   {
     name: 'Moon cat',
     handle: 'rare',
     color: '#256C8E',
+    darkColor: '#6DB9D8',
     image: animalImageAt(1),
   },
   {
     name: 'River fish',
     handle: 'aquatic',
     color: '#17446D',
+    darkColor: '#78AEE2',
     image: animalImageAt(2),
   },
 ]
 
 function Home() {
   const { width } = useWindowDimensions()
+  const colorScheme = useColorScheme()
   const cardGap = theme.space.md
   const cardWidth = Math.min(
     180,
@@ -70,6 +76,7 @@ function Home() {
           style={styles.mockGrid}
         >
           {MOCK_ANIMALS.map((animal) => {
+            const accent = colorScheme === 'dark' ? animal.darkColor : animal.color
             const cardSizeStyle = {
               width: cardWidth,
               minHeight: cardWidth * 1.14,
@@ -91,7 +98,7 @@ function Home() {
                       width: cardWidth * 0.62,
                       height: cardWidth * 0.62,
                       borderRadius: cardWidth * 0.31,
-                      backgroundColor: animal.color,
+                      backgroundColor: accent,
                     },
                   ]}
                 >
@@ -111,7 +118,7 @@ function Home() {
                   <View pointerEvents="none" style={styles.animalOrbHighlight} />
                   <View pointerEvents="none" style={styles.animalOrbGlint} />
                 </View>
-                <Text style={[styles.mockCardTitle, { color: animal.color }]}>
+                <Text style={[styles.mockCardTitle, { color: accent }]}>
                   {animal.name}
                 </Text>
               </Pressable>

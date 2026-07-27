@@ -1,24 +1,35 @@
+import { DynamicColorIOS, Platform } from 'react-native'
+
+function adaptiveColor(light: string, dark: string): string {
+  if (Platform.OS === 'ios') {
+    return DynamicColorIOS({ light, dark }) as unknown as string
+  }
+
+  return light
+}
+
 /**
  * Field-guide editorial: warm paper ground, near-black ink, rarity as the only
- * hue. Structure comes from hairline rules and spacing rather than boxes.
+ * hue. Colors follow the system appearance; users do not choose an app theme.
  */
 export const theme = {
   colors: {
-    background: '#FCFCFB',
-    surface: '#F4F4F2',
-    surfaceRaised: '#ECECE9',
-    border: '#E5E5E1',
+    background: adaptiveColor('#FCFCFB', '#10110F'),
+    surface: adaptiveColor('#F4F4F2', '#1A1B18'),
+    surfaceRaised: adaptiveColor('#ECECE9', '#23241F'),
+    border: adaptiveColor('#E5E5E1', '#32342E'),
     /** Hairline rules between rows — lighter than a border. */
-    rule: '#EAEAE6',
-    text: '#111210',
-    textMuted: '#767773',
+    rule: adaptiveColor('#EAEAE6', '#272923'),
+    text: adaptiveColor('#111210', '#F5F5EF'),
+    textMuted: adaptiveColor('#767773', '#B5B6AD'),
     /** Micro-labels and captions; one step quieter than textMuted. */
-    textFaint: '#9B9C97',
-    primary: '#111210',
-    primaryStrong: '#000000',
+    textFaint: adaptiveColor('#9B9C97', '#85877E'),
+    primary: adaptiveColor('#111210', '#F5F5EF'),
+    primaryStrong: adaptiveColor('#000000', '#FFFFFF'),
     /** Camera viewfinder only — deliberate true black behind a live preview. */
     viewfinder: '#000000',
     onDark: '#FCFCFB',
+    onPrimary: adaptiveColor('#FCFCFB', '#10110F'),
   },
 
   /** Radius varies by role on purpose: pills for actions, softer for specimens. */
