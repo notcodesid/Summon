@@ -137,10 +137,15 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   slot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     paddingTop: theme.space.sm,
     paddingHorizontal: theme.space.lg,
     backgroundColor: 'transparent',
+    zIndex: 20,
   },
   controlsStack: {
     alignItems: 'center',
