@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { router, useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton, Rule, ScreenHeader } from '@/components/ui'
@@ -89,26 +89,26 @@ export default function CollectionScreen() {
 
 function CreatureTile({ creature }: { creature: Creature }) {
   const liquid = isLiquidGlassAvailable()
-  const content = (
-    <View style={styles.tileContent}>
-      <Image source={{ uri: creature.photoUri }} style={styles.tilePhoto} />
-      <Text style={styles.tileName} numberOfLines={2}>
-        {creature.commonName}
-      </Text>
+
+  // Avoid GlassContainer around list cells — it can monopolize hit testing
+  // across siblings so only one tile stays tappable.
+  return (
+    <View style={[styles.tile, !liquid && styles.fallbackCard]}>
+      {liquid ? (
+        <GlassView
+          style={StyleSheet.absoluteFill}
+          glassEffectStyle="regular"
+          pointerEvents="none"
+        />
+      ) : null}
+      <View style={styles.tileContent} pointerEvents="none">
+        <Image source={{ uri: creature.photoUri }} style={styles.tilePhoto} />
+        <Text style={styles.tileName} numberOfLines={2}>
+          {creature.commonName}
+        </Text>
+      </View>
     </View>
   )
-
-  if (liquid) {
-    return (
-      <GlassContainer spacing={18} style={styles.tileShell}>
-        <GlassView style={styles.tile} glassEffectStyle="regular">
-          {content}
-        </GlassView>
-      </GlassContainer>
-    )
-  }
-
-  return <View style={[styles.tile, styles.fallbackCard]}>{content}</View>
 }
 
 const styles = StyleSheet.create({
@@ -152,10 +152,6 @@ const styles = StyleSheet.create({
   row: {
     gap: theme.space.md,
     marginBottom: theme.space.md,
-  },
-  tileShell: {
-    flex: 1,
-    maxWidth: '48.5%',
   },
   tile: {
     flex: 1,

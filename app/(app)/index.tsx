@@ -2,7 +2,9 @@ import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,6 +23,7 @@ import { usePlayer } from '@/lib/use-player'
 /** Home shows the user's real collection, newest first. */
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const [selected, setSelected] = useState<Creature | null>(null)
   const { privyUserId } = usePlayer()
   const { width } = useWindowDimensions()
   const liquid = isLiquidGlassAvailable()
@@ -77,73 +80,129 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          <GlassContainer spacing={liquid ? 22 : undefined} style={styles.grid}>
-            {creatures.map((creature) => {
-              const cardSizeStyle = {
-                width: cardWidth,
-                minHeight: cardWidth * 1.14,
-              }
-              const cardContent = (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.cardContent,
-                    pressed && styles.cardPressed,
-                  ]}
-                  accessibilityRole="imagebutton"
-                  accessibilityLabel={creature.commonName}
-                >
-                  <View
-                    style={[
-                      styles.photoOrb,
-                      {
-                        width: cardWidth * 0.66,
-                        height: cardWidth * 0.66,
-                        borderRadius: cardWidth * 0.33,
-                      },
-                    ]}
-                  >
-                    <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
-                    {liquid ? (
-                      <GlassView
-                        pointerEvents="none"
-                        style={styles.photoOrbGlass}
-                        glassEffectStyle="clear"
-                        tintColor="rgba(255,255,255,0.18)"
-                      />
-                    ) : null}
-                    <View pointerEvents="none" style={styles.photoOrbRim} />
-                    <View pointerEvents="none" style={styles.photoOrbGlint} />
-                  </View>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {creature.commonName}
-                  </Text>
-                </Pressable>
-              )
-
-              if (liquid) {
-                return (
-                  <GlassView
-                    key={creature.id}
-                    style={[styles.card, cardSizeStyle]}
-                    glassEffectStyle="regular"
-                    tintColor="rgba(255,255,255,0.10)"
-                    isInteractive
-                  >
-                    {cardContent}
-                  </GlassView>
-                )
-              }
-
-              return (
-                <View key={creature.id} style={[styles.card, styles.fallbackCard, cardSizeStyle]}>
-                  {cardContent}
-                </View>
-              )
-            })}
-          </GlassContainer>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.grid}
+            showsVerticalScrollIndicator={false}
+            // Nested glass containers steal multi-touch hit targets; plain
+            // ScrollView + Pressable keeps every card independently tappable.
+            keyboardShouldPersistTaps="handled"
+          >
+            {creatures.map((creature) => (
+              <CreatureCard
+                key={creature.id}
+                creature={creature}
+                cardWidth={cardWidth}
+                liquid={liquid}
+                onPress={() => setSelected(creature)}
+              />
+            ))}
+          </ScrollView>
         )}
       </View>
+
+      <Modal
+        visible={selected !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelected(null)}
+      >
+        <Pressable
+          style={styles.previewBackdrop}
+          onPress={() => setSelected(null)}
+          accessibilityRole="button"
+          accessibilityLabel="Close preview"
+        >
+          <View style={styles.previewCard} pointerEvents="box-none">
+            {selected ? (
+              <>
+                <Image
+                  source={{ uri: selected.photoUri }}
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.previewTitle}>{selected.commonName}</Text>
+              </>
+            ) : null}
+            <Pressable
+              onPress={() => setSelected(null)}
+              style={({ pressed }) => [styles.previewClose, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Text style={styles.previewCloseText}>close</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
+  )
+}
+
+function CreatureCard({
+  creature,
+  cardWidth,
+  liquid,
+  onPress,
+}: {
+  creature: Creature
+  cardWidth: number
+  liquid: boolean
+  onPress: () => void
+}) {
+  const orbSize = cardWidth * 0.66
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        { width: cardWidth, minHeight: cardWidth * 1.14 },
+        !liquid && styles.fallbackCard,
+        pressed && styles.cardPressed,
+      ]}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={creature.commonName}
+    >
+      {/* Visual shell only — never isInteractive / GlassContainer here, or
+          iOS liquid glass can lock hit-testing to a single sibling. */}
+      {liquid ? (
+        <GlassView
+          style={StyleSheet.absoluteFill}
+          glassEffectStyle="regular"
+          tintColor="rgba(255,255,255,0.10)"
+          pointerEvents="none"
+        />
+      ) : null}
+
+      <View style={styles.cardContent} pointerEvents="none">
+        <View
+          style={[
+            styles.photoOrb,
+            {
+              width: orbSize,
+              height: orbSize,
+              borderRadius: orbSize / 2,
+            },
+          ]}
+        >
+          <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
+          {liquid ? (
+            <GlassView
+              pointerEvents="none"
+              style={styles.photoOrbGlass}
+              glassEffectStyle="clear"
+              tintColor="rgba(255,255,255,0.18)"
+            />
+          ) : null}
+          <View pointerEvents="none" style={styles.photoOrbRim} />
+          <View pointerEvents="none" style={styles.photoOrbGlint} />
+        </View>
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {creature.commonName}
+        </Text>
+      </View>
+    </Pressable>
   )
 }
 
@@ -168,6 +227,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.4,
     color: theme.colors.text,
+  },
+  scroll: {
+    flex: 1,
   },
   centered: {
     flex: 1,
@@ -212,6 +274,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.space.md,
     paddingTop: theme.space.xl,
+    paddingBottom: 120,
   },
   card: {
     borderRadius: theme.radius.card,
@@ -272,5 +335,45 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.35,
     color: theme.colors.text,
+  },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.xl,
+  },
+  previewCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: theme.radius.card,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+    paddingBottom: theme.space.lg,
+  },
+  previewImage: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: theme.colors.surfaceRaised,
+  },
+  previewTitle: {
+    marginTop: theme.space.lg,
+    marginHorizontal: theme.space.lg,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  previewClose: {
+    alignSelf: 'center',
+    marginTop: theme.space.md,
+    paddingVertical: theme.space.sm,
+    paddingHorizontal: theme.space.xl,
+  },
+  previewCloseText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
   },
 })
