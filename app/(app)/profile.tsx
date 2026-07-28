@@ -113,6 +113,10 @@ export default function ProfileScreen() {
     }
   }, [player.privyUserId, refresh, savingPhoto])
 
+  const onOpenCollection = useCallback(() => {
+    router.push('/collection')
+  }, [])
+
   const onSignOut = useCallback(() => {
     void logout().then(() => router.replace('/login'))
   }, [logout])
@@ -138,17 +142,12 @@ export default function ProfileScreen() {
 
       <View style={styles.identityText}>
         {player.name ? <Text style={styles.name}>{player.name}</Text> : null}
-        {player.email ? (
-          <Text style={[styles.email, !player.name && styles.emailAlone]}>
-            {player.email}
-          </Text>
-        ) : null}
       </View>
 
       <View style={styles.metaRow}>
         <View style={styles.metaPill}>
           <Ionicons name="paw" size={14} color={theme.colors.textMuted} />
-          <Text style={styles.metaText}>{caught ?? '—'} species</Text>
+          <Text style={styles.metaText}>{caught ?? '—'}</Text>
         </View>
       </View>
     </View>
@@ -156,12 +155,10 @@ export default function ProfileScreen() {
 
   const walletCard = (
     <View style={styles.walletContent}>
-      <View style={styles.cardHeaderRow}>
-        <MicroLabel>wallet</MicroLabel>
-        <Ionicons name="wallet-outline" size={18} color={theme.colors.textFaint} />
-      </View>
-
       <View style={styles.walletAddressRow}>
+        <View style={styles.walletIcon}>
+          <Ionicons name="wallet-outline" size={18} color={theme.colors.text} />
+        </View>
         <Text style={styles.address} selectable>
           {walletDisplay}
         </Text>
@@ -187,7 +184,8 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <MicroLabel color={theme.colors.text}>profile</MicroLabel>
+        <Text style={styles.wordmark}>Profile</Text>
+        <MicroLabel color={theme.colors.textMuted}>{caught ?? '—'} saved</MicroLabel>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -208,6 +206,19 @@ export default function ProfileScreen() {
         )}
 
         <Pressable
+          onPress={onOpenCollection}
+          style={({ pressed }) => [styles.collectionButton, pressed && styles.buttonPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open collection"
+        >
+          <View style={styles.collectionIcon}>
+            <Ionicons name="images-outline" size={18} color={theme.colors.text} />
+          </View>
+          <Text style={styles.collectionTitle}>collection</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+        </Pressable>
+
+        <Pressable
           onPress={onSignOut}
           style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
           accessibilityRole="button"
@@ -226,10 +237,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: theme.space.md,
-    paddingBottom: theme.space.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.space.xl,
+    paddingTop: theme.space.xl,
+    paddingBottom: theme.space.xl,
+  },
+  wordmark: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    color: theme.colors.text,
   },
   scroll: {
     paddingHorizontal: theme.space.xl,
@@ -241,7 +260,7 @@ const styles = StyleSheet.create({
   profileCard: {
     borderRadius: 32,
     overflow: 'hidden',
-    paddingVertical: theme.space.xl,
+    paddingVertical: 34,
     paddingHorizontal: theme.space.lg,
   },
   fallbackCard: {
@@ -283,16 +302,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: 'center',
   },
-  email: {
-    fontSize: 14,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-  emailAlone: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
   metaRow: {
     flexDirection: 'row',
     gap: theme.space.sm,
@@ -315,10 +324,10 @@ const styles = StyleSheet.create({
   walletCard: {
     borderRadius: 28,
     overflow: 'hidden',
-    padding: theme.space.lg,
+    padding: theme.space.md,
   },
   walletContent: {
-    gap: theme.space.md,
+    gap: theme.space.sm,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -326,15 +335,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   walletAddressRow: {
-    minHeight: 48,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: theme.space.md,
   },
+  walletIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+  },
   address: {
     flex: 1,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.5,
     color: theme.colors.text,
@@ -349,6 +366,35 @@ const styles = StyleSheet.create({
   },
   copyButtonPressed: {
     opacity: 0.7,
+  },
+  collectionButton: {
+    marginTop: theme.space.lg,
+    minHeight: 64,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.md,
+    paddingHorizontal: theme.space.md,
+  },
+  collectionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  collectionTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  buttonPressed: {
+    opacity: 0.72,
   },
   signOut: {
     marginTop: theme.space.lg,

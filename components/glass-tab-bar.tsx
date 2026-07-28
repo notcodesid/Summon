@@ -41,7 +41,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   if (FULL_SCREEN.includes(activeName)) return null
 
   const liquid = isLiquidGlassAvailable()
-  const showScan = activeName !== 'profile'
+  const showScan = activeName !== 'profile' && activeName !== 'collection'
   const barWidth = Math.min(width - theme.space.lg * 2, BAR_MAX_WIDTH)
 
   const renderTab = (tab: NavTab) => {
