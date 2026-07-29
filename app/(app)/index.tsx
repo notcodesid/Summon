@@ -9,21 +9,37 @@ import {
   Text,
   View,
   useWindowDimensions,
+  type ImageSourcePropType,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
-import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
 import { MicroLabel } from '@/components/ui'
 import { loadCollection } from '@/lib/collection'
+import { animalImageAt } from '@/lib/animal-images'
 import type { Creature } from '@/lib/creatures'
 import { usePlayer } from '@/lib/use-player'
+
+type HomeAnimal = {
+  id: string
+  name: string
+  image: ImageSourcePropType
+}
+
+const HOME_ANIMALS: HomeAnimal[] = [
+  { id: 'scout', name: 'Scout', image: animalImageAt(0)! },
+  { id: 'miso', name: 'Miso', image: animalImageAt(1)! },
+  { id: 'ember', name: 'Ember', image: animalImageAt(2)! },
+  { id: 'orion', name: 'Orion', image: animalImageAt(3)! },
+  { id: 'clover', name: 'Clover', image: animalImageAt(4)! },
+  { id: 'willow', name: 'Willow', image: animalImageAt(5)! },
+]
 
 /** Home shows the user's real collection, newest first. */
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
-  const [selected, setSelected] = useState<Creature | null>(null)
+  const [selected, setSelected] = useState<HomeAnimal | null>(null)
   const { privyUserId } = usePlayer()
   const { width } = useWindowDimensions()
   const liquid = isLiquidGlassAvailable()
@@ -50,34 +66,14 @@ export default function HomeScreen() {
       <View style={styles.container}>
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>Home</Text>
-          {creatures?.length ? (
-            <MicroLabel color={theme.colors.textMuted}>
-              {creatures.length} saved
-            </MicroLabel>
-          ) : null}
+          <MicroLabel color={theme.colors.textMuted}>
+            {HOME_ANIMALS.length} saved
+          </MicroLabel>
         </View>
 
         {creatures === null ? (
           <View style={styles.centered}>
             <ActivityIndicator color={theme.colors.primary} />
-          </View>
-        ) : creatures.length === 0 ? (
-          <View style={styles.emptyState}>
-            {liquid ? (
-              <GlassContainer spacing={18} style={styles.emptyGlassContainer}>
-                <GlassView style={styles.emptyIconGlass} glassEffectStyle="regular">
-                  <Ionicons name="scan" size={32} color={theme.colors.text} />
-                </GlassView>
-              </GlassContainer>
-            ) : (
-              <View style={[styles.emptyIconGlass, styles.fallbackCard]}>
-                <Ionicons name="scan" size={32} color={theme.colors.text} />
-              </View>
-            )}
-            <Text style={styles.emptyTitle}>Start your collection</Text>
-            <Text style={styles.emptyBody}>
-              Take a picture, give it a name, and save it here.
-            </Text>
           </View>
         ) : (
           <ScrollView
@@ -88,13 +84,13 @@ export default function HomeScreen() {
             // ScrollView + Pressable keeps every card independently tappable.
             keyboardShouldPersistTaps="handled"
           >
-            {creatures.map((creature) => (
+            {HOME_ANIMALS.map((animal) => (
               <CreatureCard
-                key={creature.id}
-                creature={creature}
+                key={animal.id}
+                animal={animal}
                 cardWidth={cardWidth}
                 liquid={liquid}
-                onPress={() => setSelected(creature)}
+                onPress={() => setSelected(animal)}
               />
             ))}
           </ScrollView>
@@ -114,14 +110,27 @@ export default function HomeScreen() {
           accessibilityLabel="Close preview"
         >
           <View style={styles.previewCard} pointerEvents="box-none">
+            {liquid ? (
+              <GlassView
+                pointerEvents="none"
+                style={StyleSheet.absoluteFill}
+                glassEffectStyle="regular"
+                tintColor="rgba(255,255,255,0.12)"
+              />
+            ) : null}
             {selected ? (
               <>
-                <Image
-                  source={{ uri: selected.photoUri }}
-                  style={styles.previewImage}
-                  resizeMode="cover"
-                />
-                <Text style={styles.previewTitle}>{selected.commonName}</Text>
+                <View style={styles.previewImageFrame}>
+                  <Image
+                    source={selected.image}
+                    style={styles.previewImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View style={styles.previewBody}>
+                  <Text style={styles.previewTitle}>{selected.name}</Text>
+                  <Text style={styles.previewSubtitle}>added to your collection</Text>
+                </View>
               </>
             ) : null}
             <Pressable
@@ -130,7 +139,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Text style={styles.previewCloseText}>close</Text>
+              <Text style={styles.previewCloseText}>done</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -140,12 +149,12 @@ export default function HomeScreen() {
 }
 
 function CreatureCard({
-  creature,
+  animal,
   cardWidth,
   liquid,
   onPress,
 }: {
-  creature: Creature
+  animal: HomeAnimal
   cardWidth: number
   liquid: boolean
   onPress: () => void
@@ -162,7 +171,7 @@ function CreatureCard({
         pressed && styles.cardPressed,
       ]}
       accessibilityRole="imagebutton"
-      accessibilityLabel={creature.commonName}
+      accessibilityLabel={animal.name}
     >
       {/* Visual shell only — never isInteractive / GlassContainer here, or
           iOS liquid glass can lock hit-testing to a single sibling. */}
@@ -186,7 +195,10 @@ function CreatureCard({
             },
           ]}
         >
-          <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
+          <Image
+            source={animal.image}
+            style={styles.animalImage}
+          />
           {liquid ? (
             <GlassView
               pointerEvents="none"
@@ -199,7 +211,7 @@ function CreatureCard({
           <View pointerEvents="none" style={styles.photoOrbGlint} />
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>
-          {creature.commonName}
+          {animal.name}
         </Text>
       </View>
     </Pressable>
@@ -274,7 +286,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.space.md,
     paddingTop: theme.space.xl,
-    paddingBottom: 120,
+    paddingBottom: 220,
   },
   card: {
     borderRadius: theme.radius.card,
@@ -344,36 +356,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.xl,
   },
   previewCard: {
-    width: '100%',
+    width: '88%',
     maxWidth: 360,
-    borderRadius: theme.radius.card,
+    borderRadius: 34,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface,
-    paddingBottom: theme.space.lg,
+    padding: 6,
+  },
+  previewImageFrame: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 29,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceRaised,
   },
   previewImage: {
     width: '100%',
-    aspectRatio: 1,
-    backgroundColor: theme.colors.surfaceRaised,
+    height: '100%',
+  },
+  previewBody: {
+    alignItems: 'center',
+    paddingTop: theme.space.lg,
+    paddingHorizontal: theme.space.lg,
+    gap: 4,
   },
   previewTitle: {
-    marginTop: theme.space.lg,
-    marginHorizontal: theme.space.lg,
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.7,
     color: theme.colors.text,
+    textAlign: 'center',
+  },
+  previewSubtitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
   previewClose: {
     alignSelf: 'center',
     marginTop: theme.space.md,
-    paddingVertical: theme.space.sm,
-    paddingHorizontal: theme.space.xl,
+    marginBottom: theme.space.sm,
+    minHeight: 44,
+    minWidth: 132,
+    borderRadius: theme.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
   },
   previewCloseText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.textMuted,
+    fontWeight: '800',
+    color: theme.colors.text,
   },
 })

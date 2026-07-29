@@ -1,110 +1,76 @@
-import { useCallback, useState } from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
-import { router, useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
-import { MicroLabel, PrimaryButton, Rule, ScreenHeader } from '@/components/ui'
-import { loadCollection } from '@/lib/collection'
-import type { Creature } from '@/lib/creatures'
-import { usePlayer } from '@/lib/use-player'
+import { MicroLabel } from '@/components/ui'
+import { animalImageAt } from '@/lib/animal-images'
 
-/** The index of everything saved, newest first. */
+type CollectionAnimal = {
+  id: string
+  name: string
+  image: ImageSourcePropType
+}
+
+const COLLECTION_ANIMALS: CollectionAnimal[] = [
+  { id: 'scout', name: 'Scout', image: animalImageAt(0)! },
+  { id: 'miso', name: 'Miso', image: animalImageAt(1)! },
+  { id: 'ember', name: 'Ember', image: animalImageAt(2)! },
+  { id: 'orion', name: 'Orion', image: animalImageAt(3)! },
+  { id: 'clover', name: 'Clover', image: animalImageAt(4)! },
+  { id: 'willow', name: 'Willow', image: animalImageAt(5)! },
+]
+
+/** Mock collection screen, opened from Profile. */
 export default function CollectionScreen() {
-  const [creatures, setCreatures] = useState<Creature[] | null>(null)
-  const { privyUserId } = usePlayer()
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true
-      void loadCollection(privyUserId).then((next) => {
-        if (active) setCreatures(next)
-      })
-      return () => {
-        active = false
-      }
-    }, [privyUserId]),
-  )
-
-  const goBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back()
-    } else {
-      router.replace('/')
-    }
-  }, [])
+  const liquid = isLiquidGlassAvailable()
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="collection" onBack={goBack} />
-      <Rule />
+      <View style={styles.container}>
+        <View style={styles.masthead}>
+          <Text style={styles.wordmark}>Collection</Text>
+          <MicroLabel color={theme.colors.textMuted}>
+            {COLLECTION_ANIMALS.length} saved
+          </MicroLabel>
+        </View>
 
-      {creatures === null ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.primary} />
+        <View style={styles.content}>
+        <View style={styles.listHeader}>
+          <MicroLabel>{COLLECTION_ANIMALS.length} animals</MicroLabel>
         </View>
-      ) : creatures.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="scan-outline" size={30} color={theme.colors.textFaint} />
-          <Text style={styles.emptyTitle}>nothing saved yet</Text>
-          <Text style={styles.emptyBody}>
-            Take a picture, name it, and add it to your collection.
-          </Text>
-          <View style={styles.emptyAction}>
-            <PrimaryButton
-              label="scan"
-              onPress={() => router.replace('/camera')}
-              accessibilityLabel="Open camera"
-            />
-          </View>
+
+        <View style={styles.grid}>
+          {COLLECTION_ANIMALS.map((animal) => (
+            <CollectionTile key={animal.id} animal={animal} liquid={liquid} />
+          ))}
         </View>
-      ) : (
-        <FlatList
-          data={creatures}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <MicroLabel>
-                {creatures.length} {creatures.length === 1 ? 'animal' : 'animals'}
-              </MicroLabel>
-            </View>
-          }
-          renderItem={({ item }) => <CreatureTile creature={item} />}
-        />
-      )}
+        </View>
+      </View>
     </SafeAreaView>
   )
 }
 
-function CreatureTile({ creature }: { creature: Creature }) {
-  const liquid = isLiquidGlassAvailable()
-
-  // Avoid GlassContainer around list cells — it can monopolize hit testing
-  // across siblings so only one tile stays tappable.
+function CollectionTile({
+  animal,
+  liquid,
+}: {
+  animal: CollectionAnimal
+  liquid: boolean
+}) {
   return (
     <View style={[styles.tile, !liquid && styles.fallbackCard]}>
       {liquid ? (
         <GlassView
           style={StyleSheet.absoluteFill}
           glassEffectStyle="regular"
+          tintColor="rgba(255,255,255,0.10)"
           pointerEvents="none"
         />
       ) : null}
-      <View style={styles.tileContent} pointerEvents="none">
-        <Image source={{ uri: creature.photoUri }} style={styles.tilePhoto} />
-        <Text style={styles.tileName} numberOfLines={2}>
-          {creature.commonName}
+      <Image source={animal.image} style={styles.tilePhoto} />
+      <View style={styles.tileBody}>
+        <Text style={styles.tileName} numberOfLines={1}>
+          {animal.name}
         </Text>
       </View>
     </View>
@@ -116,51 +82,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  centered: {
+  container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.space.xxl,
-    gap: theme.space.md,
-  },
-  emptyTitle: {
-    marginTop: theme.space.xs,
-    fontSize: theme.type.title.fontSize,
-    fontWeight: theme.type.title.fontWeight,
-    letterSpacing: theme.type.title.letterSpacing,
-    color: theme.colors.text,
-  },
-  emptyBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-  emptyAction: {
-    marginTop: theme.space.lg,
-    alignSelf: 'stretch',
-    paddingHorizontal: theme.space.xxl,
-  },
-  list: {
-    paddingHorizontal: theme.space.lg,
+    paddingHorizontal: theme.space.xl,
+    paddingTop: theme.space.xl,
     paddingBottom: theme.space.xxl,
   },
-  listHeader: {
-    paddingVertical: theme.space.lg,
+  masthead: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
   },
-  row: {
+  wordmark: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    color: theme.colors.text,
+  },
+  content: {
+    flex: 1,
+  },
+  listHeader: {
+    paddingTop: theme.space.xl,
+    paddingBottom: theme.space.md,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.space.md,
-    marginBottom: theme.space.md,
+    paddingBottom: 140,
   },
   tile: {
-    flex: 1,
-    maxWidth: '48.5%',
+    width: '47.8%',
     borderRadius: theme.radius.tile,
     overflow: 'hidden',
-  },
-  tileContent: {
-    flex: 1,
+    minHeight: 206,
   },
   fallbackCard: {
     borderWidth: 1,
@@ -172,12 +128,14 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     backgroundColor: theme.colors.surfaceRaised,
   },
-  tileName: {
+  tileBody: {
     padding: theme.space.md,
-    fontSize: 16,
-    lineHeight: 20,
+  },
+  tileName: {
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: '800',
-    letterSpacing: -0.35,
+    letterSpacing: -0.4,
     color: theme.colors.text,
   },
 })

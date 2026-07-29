@@ -63,6 +63,11 @@ AsyncStorage is kept as an offline mirror, so the app still shows a collection
 without a network. Sign-in is required — a bypassed session has no Privy user
 id and saves nothing.
 
+When the collection is empty, Home and Collection show a fixed demo set from
+`lib/demo-collection.ts` (bundled animal photos). Set
+`EXPO_PUBLIC_DEMO_COLLECTION=0` for a true empty state. Demo rows are never
+written to storage or Supabase — the first real catch replaces them.
+
 Note that row-level security is currently permissive: auth is Privy rather than
 Supabase Auth, so the anon key can read and write every row. Before this is
 public, register Privy as a third-party auth provider in Supabase and scope the
