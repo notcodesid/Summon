@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
-import { MicroLabel } from '@/components/ui'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
 import { usePlayer } from '@/lib/use-player'
@@ -45,16 +44,12 @@ export default function HomeScreen() {
     }, [privyUserId]),
   )
 
-  const count = creatures?.length ?? 0
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>Home</Text>
-          <MicroLabel color={theme.colors.textMuted}>
-            {count} saved
-          </MicroLabel>
         </View>
 
         {creatures === null ? (
