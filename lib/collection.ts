@@ -7,7 +7,8 @@ import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
  *
  * AsyncStorage is kept as a local mirror so the app still shows something
  * when the device is offline, when Supabase is not configured, or before the
- * player has signed in. Supabase wins whenever it answers.
+ * player has signed in. Supabase wins whenever it answers — but local-only
+ * catches are never discarded just because remote is empty or lagging.
  */
 const STORAGE_KEY = 'summon.collection.v1'
 
@@ -69,10 +70,38 @@ async function writeLocal(creatures: Creature[]): Promise<void> {
   }
 }
 
+/**
+ * Merge remote + local by id. Remote wins on conflicts; local-only rows stay
+ * so a catch never vanishes if Supabase insert is slow or failed.
+ * Prefer a non-empty photoUri when one side has it and the other does not.
+ */
+function mergeCollections(remote: Creature[], local: Creature[]): Creature[] {
+  const byId = new Map<string, Creature>()
+
+  for (const creature of remote) {
+    byId.set(creature.id, creature)
+  }
+
+  for (const creature of local) {
+    const existing = byId.get(creature.id)
+    if (!existing) {
+      byId.set(creature.id, creature)
+      continue
+    }
+    if (!existing.photoUri && creature.photoUri) {
+      byId.set(creature.id, { ...existing, photoUri: creature.photoUri })
+    }
+  }
+
+  return Array.from(byId.values()).sort((a, b) => b.capturedAt - a.capturedAt)
+}
+
 /** Newest first. Falls back to the local mirror if Supabase is unavailable. */
 export async function loadCollection(privyUserId?: string): Promise<Creature[]> {
+  const local = await readLocal()
+
   if (!isSupabaseConfigured || !privyUserId) {
-    return readLocal()
+    return local
   }
 
   try {
@@ -82,13 +111,14 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
       .eq('privy_user_id', privyUserId)
       .order('captured_at', { ascending: false })
 
-    if (error || !data) return readLocal()
+    if (error || !data) return local
 
-    const creatures = (data as CreatureRow[]).map(rowToCreature)
-    await writeLocal(creatures)
-    return creatures
+    const remote = (data as CreatureRow[]).map(rowToCreature)
+    const merged = mergeCollections(remote, local)
+    await writeLocal(merged)
+    return merged
   } catch {
-    return readLocal()
+    return local
   }
 }
 
@@ -100,7 +130,7 @@ export async function addToCollection(
   creature: Creature,
   privyUserId?: string,
 ): Promise<Creature[]> {
-  const next = [creature, ...(await readLocal())]
+  const next = mergeCollections([], [creature, ...(await readLocal())])
   await writeLocal(next)
 
   if (!isSupabaseConfigured || !privyUserId) return next

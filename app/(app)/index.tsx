@@ -111,7 +111,7 @@ export default function HomeScreen() {
                 pointerEvents="none"
                 style={StyleSheet.absoluteFill}
                 glassEffectStyle="regular"
-                tintColor="rgba(255,255,255,0.12)"
+                tintColor={theme.colors.glassSurfaceStrong}
               />
             ) : null}
             {selected ? (
@@ -172,6 +172,7 @@ function CreatureCard({
       style={({ pressed }) => [
         styles.card,
         { width: cardWidth, minHeight: cardWidth * 1.14 },
+        styles.cardSurface,
         !liquid && styles.fallbackCard,
         pressed && styles.cardPressed,
       ]}
@@ -184,7 +185,7 @@ function CreatureCard({
         <GlassView
           style={StyleSheet.absoluteFill}
           glassEffectStyle="regular"
-          tintColor="rgba(255,255,255,0.10)"
+          tintColor={theme.colors.glassSurfaceStrong}
           pointerEvents="none"
         />
       ) : null}
@@ -201,7 +202,11 @@ function CreatureCard({
           ]}
         >
           {creature.photoUri ? (
-            <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
+            <Image
+              source={{ uri: creature.photoUri }}
+              style={styles.animalImage}
+              resizeMode="cover"
+            />
           ) : (
             <View style={[styles.animalImage, styles.photoPlaceholder]}>
               <Ionicons name="paw-outline" size={28} color={theme.colors.textFaint} />
@@ -212,11 +217,10 @@ function CreatureCard({
               pointerEvents="none"
               style={styles.photoOrbGlass}
               glassEffectStyle="clear"
-              tintColor="rgba(255,255,255,0.18)"
+              tintColor={theme.colors.glassSurface}
             />
           ) : null}
           <View pointerEvents="none" style={styles.photoOrbRim} />
-          <View pointerEvents="none" style={styles.photoOrbGlint} />
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {name}
@@ -299,10 +303,17 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: theme.radius.card,
     overflow: 'hidden',
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  cardSurface: {
+    backgroundColor: theme.colors.glassSurfaceStrong,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
   },
   fallbackCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.rule,
     backgroundColor: theme.colors.surface,
   },
   cardContent: {
@@ -320,7 +331,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: theme.colors.text,
     shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.18,
+    backgroundColor: theme.colors.specimenSurface,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    shadowOpacity: 0.12,
     shadowRadius: 20,
   },
   animalImage: {
@@ -342,16 +356,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: theme.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
-  },
-  photoOrbGlint: {
-    position: 'absolute',
-    top: 14,
-    left: 18,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderColor: theme.colors.glassBorder,
   },
   cardTitle: {
     marginTop: theme.space.lg,

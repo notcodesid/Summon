@@ -17,6 +17,10 @@ export const theme = {
     background: adaptiveColor('#FCFCFB', '#10110F'),
     surface: adaptiveColor('#F4F4F2', '#1A1B18'),
     surfaceRaised: adaptiveColor('#ECECE9', '#23241F'),
+    glassSurface: adaptiveColor('rgba(17, 18, 16, 0.08)', 'rgba(245, 245, 239, 0.11)'),
+    glassSurfaceStrong: adaptiveColor('rgba(17, 18, 16, 0.12)', 'rgba(245, 245, 239, 0.16)'),
+    glassBorder: adaptiveColor('rgba(17, 18, 16, 0.10)', 'rgba(245, 245, 239, 0.12)'),
+    specimenSurface: adaptiveColor('#E2E3DE', '#3B3D36'),
     border: adaptiveColor('#E5E5E1', '#32342E'),
     /** Hairline rules between rows — lighter than a border. */
     rule: adaptiveColor('#EAEAE6', '#272923'),

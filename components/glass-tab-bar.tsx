@@ -80,7 +80,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
       <GlassView
         key={tab.name}
         style={styles.activeTabGlass}
-        glassEffectStyle="clear"
+        glassEffectStyle="regular"
         isInteractive
       >
         {content}
@@ -170,16 +170,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fallbackSurface: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.glassSurfaceStrong,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.glassBorder,
   },
   activeTabGlass: {
     borderRadius: theme.radius.pill,
     overflow: 'hidden',
   },
   tabFallbackActive: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.glassSurfaceStrong,
   },
   tab: {
     minWidth: 104,
