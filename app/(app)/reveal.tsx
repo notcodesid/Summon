@@ -59,6 +59,10 @@ export default function RevealScreen() {
     router.replace('/')
   }, [])
 
+  const onRetake = useCallback(() => {
+    router.replace('/camera')
+  }, [])
+
   const onKeep = useCallback(async () => {
     if (phase.status !== 'ready' || saving) return
 
@@ -176,14 +180,24 @@ export default function RevealScreen() {
             </View>
           )}
 
-          <Pressable
-            onPress={goHome}
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.buttonPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel and return home"
-          >
-            <Text style={styles.cancelText}>cancel</Text>
-          </Pressable>
+          <View style={styles.footerLinks}>
+            <Pressable
+              onPress={onRetake}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.buttonPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Retake photo"
+            >
+              <Text style={styles.cancelText}>retake</Text>
+            </Pressable>
+            <Pressable
+              onPress={goHome}
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.buttonPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel and return home"
+            >
+              <Text style={styles.cancelText}>cancel</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -313,11 +327,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.text,
   },
-  cancelButton: {
-    alignSelf: 'center',
+  footerLinks: {
     marginTop: theme.space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.space.xl,
+  },
+  cancelButton: {
     paddingVertical: theme.space.md,
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: theme.space.md,
   },
   cancelText: {
     fontSize: 15,
