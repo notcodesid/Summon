@@ -80,7 +80,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
       <GlassView
         key={tab.name}
         style={styles.activeTabGlass}
-        glassEffectStyle="regular"
+        glassEffectStyle="clear"
         isInteractive
       >
         {content}
@@ -110,7 +110,12 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
         {showScan ? (
           liquid ? (
             <GlassContainer spacing={18} style={styles.controlsGlassContainer}>
-              <GlassView style={styles.scanGlass} glassEffectStyle="regular" isInteractive>
+              <GlassView
+                style={styles.scanGlass}
+                glassEffectStyle="regular"
+                tintColor={theme.colors.glassSurfaceStrong}
+                isInteractive
+              >
                 {scanButton}
               </GlassView>
             </GlassContainer>
@@ -121,7 +126,11 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 
         {liquid ? (
           <GlassContainer spacing={18} style={[styles.glassStack, { width: barWidth }]}>
-            <GlassView style={styles.bar} glassEffectStyle="regular">
+            <GlassView
+              style={styles.bar}
+              glassEffectStyle="regular"
+              tintColor={theme.colors.glassSurfaceStrong}
+            >
               {tabs}
             </GlassView>
           </GlassContainer>
