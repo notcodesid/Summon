@@ -43,12 +43,13 @@ The legacy gacha / MagicBlock program has been removed — Summon is not a rando
 
 ## Identification
 
-After a capture, Summon asks Claude to name the animal and rate its rarity. Set
-`EXPO_PUBLIC_ANTHROPIC_API_KEY` in `.env` to enable it; without a key the app
-falls back to a demo creature so the scan → collect loop still works.
+After a capture, the reveal screen lets you name the animal and add it to your
+collection. Optional Claude vision identification lives in `lib/identify.ts`
+and requires `EXPO_PUBLIC_ANTHROPIC_API_KEY` — there is no demo creature
+fallback if the key is missing or the call fails.
 
-The key ships in the app bundle, which is fine for a local demo build but not
-for distribution — move the call behind a server before releasing.
+The key ships in the app bundle, which is fine for a local build but not for
+distribution — move the call behind a server before releasing.
 
 ## Database
 
@@ -63,10 +64,8 @@ AsyncStorage is kept as an offline mirror, so the app still shows a collection
 without a network. Sign-in is required — a bypassed session has no Privy user
 id and saves nothing.
 
-When the collection is empty, Home and Collection show a fixed demo set from
-`lib/demo-collection.ts` (bundled animal photos). Set
-`EXPO_PUBLIC_DEMO_COLLECTION=0` for a true empty state. Demo rows are never
-written to storage or Supabase — the first real catch replaces them.
+Home and Collection show only animals the player has actually saved. An empty
+collection is empty.
 
 Note that row-level security is currently permissive: auth is Privy rather than
 Supabase Auth, so the anon key can read and write every row. Before this is

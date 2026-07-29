@@ -1,28 +1,41 @@
-import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
+import { useCallback, useState } from 'react'
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
 import { MicroLabel } from '@/components/ui'
-import { animalImageAt } from '@/lib/animal-images'
+import { loadCollection } from '@/lib/collection'
+import type { Creature } from '@/lib/creatures'
+import { usePlayer } from '@/lib/use-player'
 
-type CollectionAnimal = {
-  id: string
-  name: string
-  image: ImageSourcePropType
-}
-
-const COLLECTION_ANIMALS: CollectionAnimal[] = [
-  { id: 'scout', name: 'Scout', image: animalImageAt(0)! },
-  { id: 'miso', name: 'Miso', image: animalImageAt(1)! },
-  { id: 'ember', name: 'Ember', image: animalImageAt(2)! },
-  { id: 'orion', name: 'Orion', image: animalImageAt(3)! },
-  { id: 'clover', name: 'Clover', image: animalImageAt(4)! },
-  { id: 'willow', name: 'Willow', image: animalImageAt(5)! },
-]
-
-/** Mock collection screen, opened from Profile. */
+/** Collection of animals the player has actually scanned and kept. */
 export default function CollectionScreen() {
+  const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const { privyUserId } = usePlayer()
   const liquid = isLiquidGlassAvailable()
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      void loadCollection(privyUserId).then((next) => {
+        if (active) setCreatures(next)
+      })
+      return () => {
+        active = false
+      }
+    }, [privyUserId]),
+  )
+
+  const count = creatures?.length ?? 0
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -30,33 +43,53 @@ export default function CollectionScreen() {
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>Collection</Text>
           <MicroLabel color={theme.colors.textMuted}>
-            {COLLECTION_ANIMALS.length} saved
+            {count} saved
           </MicroLabel>
         </View>
 
-        <View style={styles.content}>
-        <View style={styles.listHeader}>
-          <MicroLabel>{COLLECTION_ANIMALS.length} animals</MicroLabel>
-        </View>
+        {creatures === null ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        ) : creatures.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="images-outline" size={30} color={theme.colors.textFaint} />
+            <Text style={styles.emptyTitle}>nothing saved</Text>
+            <Text style={styles.emptyBody}>
+              animals you scan and keep will show up here.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.listHeader}>
+              <MicroLabel>{count} animals</MicroLabel>
+            </View>
 
-        <View style={styles.grid}>
-          {COLLECTION_ANIMALS.map((animal) => (
-            <CollectionTile key={animal.id} animal={animal} liquid={liquid} />
-          ))}
-        </View>
-        </View>
+            <View style={styles.grid}>
+              {creatures.map((creature) => (
+                <CollectionTile key={creature.id} creature={creature} liquid={liquid} />
+              ))}
+            </View>
+          </ScrollView>
+        )}
       </View>
     </SafeAreaView>
   )
 }
 
 function CollectionTile({
-  animal,
+  creature,
   liquid,
 }: {
-  animal: CollectionAnimal
+  creature: Creature
   liquid: boolean
 }) {
+  const name = creature.commonName || creature.species
+
   return (
     <View style={[styles.tile, !liquid && styles.fallbackCard]}>
       {liquid ? (
@@ -67,10 +100,16 @@ function CollectionTile({
           pointerEvents="none"
         />
       ) : null}
-      <Image source={animal.image} style={styles.tilePhoto} />
+      {creature.photoUri ? (
+        <Image source={{ uri: creature.photoUri }} style={styles.tilePhoto} />
+      ) : (
+        <View style={[styles.tilePhoto, styles.photoPlaceholder]}>
+          <Ionicons name="paw-outline" size={28} color={theme.colors.textFaint} />
+        </View>
+      )}
       <View style={styles.tileBody}>
         <Text style={styles.tileName} numberOfLines={1}>
-          {animal.name}
+          {name}
         </Text>
       </View>
     </View>
@@ -102,6 +141,35 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 96,
+    gap: theme.space.md,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  emptyBody: {
+    maxWidth: 260,
+    fontSize: 15,
+    lineHeight: 22,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+  },
   listHeader: {
     paddingTop: theme.space.xl,
     paddingBottom: theme.space.md,
@@ -110,7 +178,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.space.md,
-    paddingBottom: 140,
   },
   tile: {
     width: '47.8%',
@@ -127,6 +194,10 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     backgroundColor: theme.colors.surfaceRaised,
+  },
+  photoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tileBody: {
     padding: theme.space.md,

@@ -9,37 +9,21 @@ import {
   Text,
   View,
   useWindowDimensions,
-  type ImageSourcePropType,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { useFocusEffect } from 'expo-router'
 import { theme } from '@/constants/theme'
 import { MicroLabel } from '@/components/ui'
 import { loadCollection } from '@/lib/collection'
-import { animalImageAt } from '@/lib/animal-images'
 import type { Creature } from '@/lib/creatures'
 import { usePlayer } from '@/lib/use-player'
-
-type HomeAnimal = {
-  id: string
-  name: string
-  image: ImageSourcePropType
-}
-
-const HOME_ANIMALS: HomeAnimal[] = [
-  { id: 'scout', name: 'Scout', image: animalImageAt(0)! },
-  { id: 'miso', name: 'Miso', image: animalImageAt(1)! },
-  { id: 'ember', name: 'Ember', image: animalImageAt(2)! },
-  { id: 'orion', name: 'Orion', image: animalImageAt(3)! },
-  { id: 'clover', name: 'Clover', image: animalImageAt(4)! },
-  { id: 'willow', name: 'Willow', image: animalImageAt(5)! },
-]
 
 /** Home shows the user's real collection, newest first. */
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
-  const [selected, setSelected] = useState<HomeAnimal | null>(null)
+  const [selected, setSelected] = useState<Creature | null>(null)
   const { privyUserId } = usePlayer()
   const { width } = useWindowDimensions()
   const liquid = isLiquidGlassAvailable()
@@ -61,19 +45,31 @@ export default function HomeScreen() {
     }, [privyUserId]),
   )
 
+  const count = creatures?.length ?? 0
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.masthead}>
           <Text style={styles.wordmark}>Home</Text>
           <MicroLabel color={theme.colors.textMuted}>
-            {HOME_ANIMALS.length} saved
+            {count} saved
           </MicroLabel>
         </View>
 
         {creatures === null ? (
           <View style={styles.centered}>
             <ActivityIndicator color={theme.colors.primary} />
+          </View>
+        ) : creatures.length === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconGlass}>
+              <Ionicons name="paw-outline" size={32} color={theme.colors.textMuted} />
+            </View>
+            <Text style={styles.emptyTitle}>no animals yet</Text>
+            <Text style={styles.emptyBody}>
+              open the camera and scan a real animal you find.
+            </Text>
           </View>
         ) : (
           <ScrollView
@@ -84,13 +80,13 @@ export default function HomeScreen() {
             // ScrollView + Pressable keeps every card independently tappable.
             keyboardShouldPersistTaps="handled"
           >
-            {HOME_ANIMALS.map((animal) => (
+            {creatures.map((creature) => (
               <CreatureCard
-                key={animal.id}
-                animal={animal}
+                key={creature.id}
+                creature={creature}
                 cardWidth={cardWidth}
                 liquid={liquid}
-                onPress={() => setSelected(animal)}
+                onPress={() => setSelected(creature)}
               />
             ))}
           </ScrollView>
@@ -121,14 +117,22 @@ export default function HomeScreen() {
             {selected ? (
               <>
                 <View style={styles.previewImageFrame}>
-                  <Image
-                    source={selected.image}
-                    style={styles.previewImage}
-                    resizeMode="cover"
-                  />
+                  {selected.photoUri ? (
+                    <Image
+                      source={{ uri: selected.photoUri }}
+                      style={styles.previewImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[styles.previewImage, styles.photoPlaceholder]}>
+                      <Ionicons name="paw-outline" size={40} color={theme.colors.textFaint} />
+                    </View>
+                  )}
                 </View>
                 <View style={styles.previewBody}>
-                  <Text style={styles.previewTitle}>{selected.name}</Text>
+                  <Text style={styles.previewTitle}>
+                    {selected.commonName || selected.species}
+                  </Text>
                   <Text style={styles.previewSubtitle}>added to your collection</Text>
                 </View>
               </>
@@ -149,17 +153,18 @@ export default function HomeScreen() {
 }
 
 function CreatureCard({
-  animal,
+  creature,
   cardWidth,
   liquid,
   onPress,
 }: {
-  animal: HomeAnimal
+  creature: Creature
   cardWidth: number
   liquid: boolean
   onPress: () => void
 }) {
   const orbSize = cardWidth * 0.66
+  const name = creature.commonName || creature.species
 
   return (
     <Pressable
@@ -171,7 +176,7 @@ function CreatureCard({
         pressed && styles.cardPressed,
       ]}
       accessibilityRole="imagebutton"
-      accessibilityLabel={animal.name}
+      accessibilityLabel={name}
     >
       {/* Visual shell only — never isInteractive / GlassContainer here, or
           iOS liquid glass can lock hit-testing to a single sibling. */}
@@ -195,10 +200,13 @@ function CreatureCard({
             },
           ]}
         >
-          <Image
-            source={animal.image}
-            style={styles.animalImage}
-          />
+          {creature.photoUri ? (
+            <Image source={{ uri: creature.photoUri }} style={styles.animalImage} />
+          ) : (
+            <View style={[styles.animalImage, styles.photoPlaceholder]}>
+              <Ionicons name="paw-outline" size={28} color={theme.colors.textFaint} />
+            </View>
+          )}
           {liquid ? (
             <GlassView
               pointerEvents="none"
@@ -211,7 +219,7 @@ function CreatureCard({
           <View pointerEvents="none" style={styles.photoOrbGlint} />
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>
-          {animal.name}
+          {name}
         </Text>
       </View>
     </Pressable>
@@ -255,9 +263,6 @@ const styles = StyleSheet.create({
     paddingBottom: 96,
     gap: theme.space.md,
   },
-  emptyGlassContainer: {
-    alignItems: 'center',
-  },
   emptyIconGlass: {
     width: 78,
     height: 78,
@@ -265,6 +270,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.rule,
   },
   emptyTitle: {
     marginTop: theme.space.md,
@@ -319,6 +327,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     transform: [{ scale: 1.04 }],
+  },
+  photoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceRaised,
+    transform: [],
   },
   photoOrbGlass: {
     ...StyleSheet.absoluteFillObject,

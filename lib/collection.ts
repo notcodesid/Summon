@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Creature, Rarity } from '@/lib/creatures'
-import { getDemoCollection, isDemoCollectionEnabled } from '@/lib/demo-collection'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 
 /**
@@ -70,20 +69,10 @@ async function writeLocal(creatures: Creature[]): Promise<void> {
   }
 }
 
-/**
- * Prefer a real saved collection. When nothing is saved yet, return the demo
- * set so Home / Collection look populated for recordings and walkthroughs.
- * Demo rows are never written to AsyncStorage or Supabase.
- */
-function withDemoFallback(creatures: Creature[]): Creature[] {
-  if (creatures.length > 0 || !isDemoCollectionEnabled) return creatures
-  return getDemoCollection()
-}
-
 /** Newest first. Falls back to the local mirror if Supabase is unavailable. */
 export async function loadCollection(privyUserId?: string): Promise<Creature[]> {
   if (!isSupabaseConfigured || !privyUserId) {
-    return withDemoFallback(await readLocal())
+    return readLocal()
   }
 
   try {
@@ -93,13 +82,13 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
       .eq('privy_user_id', privyUserId)
       .order('captured_at', { ascending: false })
 
-    if (error || !data) return withDemoFallback(await readLocal())
+    if (error || !data) return readLocal()
 
     const creatures = (data as CreatureRow[]).map(rowToCreature)
     await writeLocal(creatures)
-    return withDemoFallback(creatures)
+    return creatures
   } catch {
-    return withDemoFallback(await readLocal())
+    return readLocal()
   }
 }
 

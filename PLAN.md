@@ -23,7 +23,7 @@ build the **app** first so the product is clear. no auth yet.
 
 - [x] home screen with a clear **scan** / open camera button
 - [x] open the **inbuilt / native camera** (expo-camera preview — custom UI on top)
-- [x] after capture → identify the animal (Claude vision, demo fallback)
+- [x] after capture → name + keep (manual; optional Claude vision in lib/identify, no demo fallback)
 - [x] **collect** — reveal card + collection grid
 - [x] require real Google login (auth bypass off by default)
 - [x] save players + creatures to Supabase, keyed by Privy user id

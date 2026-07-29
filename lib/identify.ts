@@ -3,10 +3,8 @@ import { isRarity, statsFor, type Creature, type Rarity } from '@/lib/creatures'
 /**
  * Turns a captured photo into a creature.
  *
- * With EXPO_PUBLIC_ANTHROPIC_API_KEY set, Claude looks at the photo and names
- * the real animal. Without it, a demo creature is returned instead, so the
- * scan → collect loop always works. Any failure falls back the same way —
- * a recording should never stall on a network error.
+ * Requires EXPO_PUBLIC_ANTHROPIC_API_KEY. Without a key, or when the API call
+ * fails, identifyAnimal throws — there is no demo / fake creature path.
  */
 const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? ''
 
@@ -18,8 +16,6 @@ export type Identification = {
   commonName: string
   rarity: Rarity
   note: string
-  /** False when the result came from the offline demo path. */
-  live: boolean
 }
 
 /**
@@ -27,7 +23,7 @@ export type Identification = {
  * node:fs for its credential chain, which Metro cannot resolve in React
  * Native.
  *
- * The key ships in the app bundle. Fine for a demo build; move this call
+ * The key ships in the app bundle. Fine for a local build; move this call
  * behind a server before the app is distributed.
  */
 const MESSAGES_URL = 'https://api.anthropic.com/v1/messages'
@@ -68,116 +64,88 @@ const PROMPT = `Identify the animal in this photo for a real-world creature-coll
 
 Judge rarity by how unlikely someone is to run into this animal while out walking, not by conservation status. If no animal is clearly visible, set isAnimal to false and leave the name fields empty.`
 
-const DEMO_CREATURES: Omit<Identification, 'live'>[] = [
-  {
-    isAnimal: true,
-    species: 'Columba livia',
-    commonName: 'Rock Pigeon',
-    rarity: 'common',
-    note: 'Unbothered by traffic, weather, or you.',
-  },
-  {
-    isAnimal: true,
-    species: 'Sciurus carolinensis',
-    commonName: 'Grey Squirrel',
-    rarity: 'uncommon',
-    note: 'Buries more than it will ever find again.',
-  },
-  {
-    isAnimal: true,
-    species: 'Vulpes vulpes',
-    commonName: 'Red Fox',
-    rarity: 'rare',
-    note: 'Moves at the edge of streetlight, then is gone.',
-  },
-  {
-    isAnimal: true,
-    species: 'Bubo bubo',
-    commonName: 'Eurasian Eagle-Owl',
-    rarity: 'epic',
-    note: 'Hears the field mouse before it decides to move.',
-  },
-]
-
-function demoIdentification(seed: number): Identification {
-  const pick = DEMO_CREATURES[seed % DEMO_CREATURES.length]
-  return { ...pick, live: false }
+export class IdentifyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'IdentifyError'
+  }
 }
 
 export async function identifyAnimal(base64Image: string): Promise<Identification> {
   if (!isIdentifyLive) {
-    return demoIdentification(base64Image.length)
+    throw new IdentifyError('Animal identification is not configured.')
   }
 
-  try {
-    const httpResponse = await fetch(MESSAGES_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+  const httpResponse = await fetch(MESSAGES_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-5',
+      max_tokens: 16000,
+      // Low effort keeps the scan snappy; identification is not a deep
+      // reasoning task.
+      output_config: {
+        effort: 'low',
+        format: { type: 'json_schema', schema: IDENTIFY_SCHEMA },
       },
-      body: JSON.stringify({
-        model: 'claude-opus-5',
-        max_tokens: 16000,
-        // Low effort keeps the scan snappy; identification is not a deep
-        // reasoning task.
-        output_config: {
-          effort: 'low',
-          format: { type: 'json_schema', schema: IDENTIFY_SCHEMA },
-        },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: 'image/jpeg',
-                  data: base64Image,
-                },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: base64Image,
               },
-              { type: 'text', text: PROMPT },
-            ],
-          },
-        ],
-      }),
-    })
+            },
+            { type: 'text', text: PROMPT },
+          ],
+        },
+      ],
+    }),
+  })
 
-    if (!httpResponse.ok) {
-      return demoIdentification(base64Image.length)
-    }
+  if (!httpResponse.ok) {
+    throw new IdentifyError(`Identification failed (${httpResponse.status}).`)
+  }
 
-    const response = (await httpResponse.json()) as {
-      stop_reason?: string
-      content?: { type: string; text?: string }[]
-    }
+  const response = (await httpResponse.json()) as {
+    stop_reason?: string
+    content?: { type: string; text?: string }[]
+  }
 
-    if (response.stop_reason === 'refusal') {
-      return demoIdentification(base64Image.length)
-    }
+  if (response.stop_reason === 'refusal') {
+    throw new IdentifyError('Identification was refused.')
+  }
 
-    const text = response.content?.find((block) => block.type === 'text')
-    if (!text?.text) {
-      return demoIdentification(base64Image.length)
-    }
+  const text = response.content?.find((block) => block.type === 'text')
+  if (!text?.text) {
+    throw new IdentifyError('Identification returned no result.')
+  }
 
-    const parsed = JSON.parse(text.text) as Omit<Identification, 'live'>
-    if (!parsed.isAnimal) {
-      return { ...parsed, live: true }
-    }
-
+  const parsed = JSON.parse(text.text) as Identification
+  if (!parsed.isAnimal) {
     return {
-      isAnimal: true,
-      species: parsed.species,
-      commonName: parsed.commonName,
-      rarity: isRarity(parsed.rarity) ? parsed.rarity : 'common',
-      note: parsed.note,
-      live: true,
+      isAnimal: false,
+      species: '',
+      commonName: '',
+      rarity: 'common',
+      note: '',
     }
-  } catch {
-    return demoIdentification(base64Image.length)
+  }
+
+  return {
+    isAnimal: true,
+    species: parsed.species,
+    commonName: parsed.commonName,
+    rarity: isRarity(parsed.rarity) ? parsed.rarity : 'common',
+    note: parsed.note,
   }
 }
 
