@@ -21,11 +21,12 @@ import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { addToCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
 import { takePendingCapture } from '@/lib/pending-capture'
+import { persistCapturePhoto } from '@/lib/persist-photo'
 import { usePlayer } from '@/lib/use-player'
 
 type Phase =
   | { status: 'loading' }
-  | { status: 'ready'; photoUri: string }
+  | { status: 'ready'; photoUri: string; base64: string }
   | { status: 'no-capture' }
 
 /** Post-capture: name the photo manually, then add it to the collection. */
@@ -47,7 +48,11 @@ export default function RevealScreen() {
       return
     }
 
-    setPhase({ status: 'ready', photoUri: capture.uri })
+    setPhase({
+      status: 'ready',
+      photoUri: capture.uri,
+      base64: capture.base64,
+    })
   }, [])
 
   const goHome = useCallback(() => {
@@ -61,14 +66,18 @@ export default function RevealScreen() {
     if (!cleanName) return
 
     setSaving(true)
+    const id = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
+    // Camera cache URIs expire — copy into permanent app storage first.
+    const photoUri = await persistCapturePhoto(id, phase.base64, phase.photoUri)
+
     const creature: Creature = {
-      id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+      id,
       species: cleanName,
       commonName: cleanName,
       rarity: 'common',
       stats: { hp: 0, attack: 0, defense: 0, speed: 0 },
       note: '',
-      photoUri: phase.photoUri,
+      photoUri,
       capturedAt: Date.now(),
     }
 

@@ -70,38 +70,38 @@ async function writeLocal(creatures: Creature[]): Promise<void> {
   }
 }
 
-/**
- * Merge remote + local by id. Remote wins on conflicts; local-only rows stay
- * so a catch never vanishes if Supabase insert is slow or failed.
- * Prefer a non-empty photoUri when one side has it and the other does not.
- */
-function mergeCollections(remote: Creature[], local: Creature[]): Creature[] {
-  const byId = new Map<string, Creature>()
+/** Camera cache paths die after a short time — never treat them as real photos. */
+function isEphemeralPhotoUri(uri: string): boolean {
+  if (!uri) return false
+  return (
+    uri.includes('/Library/Caches/') ||
+    uri.includes('/Caches/Camera/') ||
+    uri.includes('/cache/Camera/')
+  )
+}
 
-  for (const creature of remote) {
-    byId.set(creature.id, creature)
-  }
+function withUsablePhoto(creature: Creature): Creature {
+  if (!creature.photoUri || !isEphemeralPhotoUri(creature.photoUri)) return creature
+  return { ...creature, photoUri: '' }
+}
 
-  for (const creature of local) {
-    const existing = byId.get(creature.id)
-    if (!existing) {
-      byId.set(creature.id, creature)
-      continue
-    }
-    if (!existing.photoUri && creature.photoUri) {
-      byId.set(creature.id, { ...existing, photoUri: creature.photoUri })
-    }
-  }
-
-  return Array.from(byId.values()).sort((a, b) => b.capturedAt - a.capturedAt)
+/** Newest first when combining a fresh catch with the existing local list. */
+function prependLocal(creature: Creature, existing: Creature[]): Creature[] {
+  const rest = existing.filter((c) => c.id !== creature.id)
+  return [creature, ...rest]
 }
 
 /** Newest first. Falls back to the local mirror if Supabase is unavailable. */
 export async function loadCollection(privyUserId?: string): Promise<Creature[]> {
-  const local = await readLocal()
+  const local = (await readLocal()).map(withUsablePhoto)
 
   if (!isSupabaseConfigured || !privyUserId) {
-    return local
+    // No account key — only keep local rows that still have a real photo.
+    const cleaned = local.filter(
+      (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
+    )
+    await writeLocal(cleaned)
+    return cleaned
   }
 
   try {
@@ -111,14 +111,50 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
       .eq('privy_user_id', privyUserId)
       .order('captured_at', { ascending: false })
 
-    if (error || !data) return local
+    if (error || !data) {
+      const cleaned = local.filter(
+        (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
+      )
+      await writeLocal(cleaned)
+      return cleaned
+    }
 
-    const remote = (data as CreatureRow[]).map(rowToCreature)
-    const merged = mergeCollections(remote, local)
-    await writeLocal(merged)
-    return merged
+    // Successful remote read is source of truth (empty DB => empty Home).
+    // Still keep very recent local-only catches that have a durable photo in
+    // case Supabase insert has not landed yet.
+    const remote = (data as CreatureRow[]).map(rowToCreature).map(withUsablePhoto)
+    const remoteIds = new Set(remote.map((c) => c.id))
+    const unsyncedLocal = local.filter(
+      (c) =>
+        !remoteIds.has(c.id) &&
+        c.photoUri.length > 0 &&
+        !isEphemeralPhotoUri(c.photoUri) &&
+        Date.now() - c.capturedAt < 5 * 60 * 1000,
+    )
+    const merged = [...remote, ...unsyncedLocal].sort(
+      (a, b) => b.capturedAt - a.capturedAt,
+    )
+    // Prefer durable local photo when remote still has a blank/cache path.
+    const withPhotos = merged.map((creature) => {
+      if (creature.photoUri) return creature
+      const localHit = local.find((c) => c.id === creature.id)
+      if (
+        localHit?.photoUri &&
+        !isEphemeralPhotoUri(localHit.photoUri)
+      ) {
+        return { ...creature, photoUri: localHit.photoUri }
+      }
+      return creature
+    })
+
+    await writeLocal(withPhotos)
+    return withPhotos
   } catch {
-    return local
+    const cleaned = local.filter(
+      (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
+    )
+    await writeLocal(cleaned)
+    return cleaned
   }
 }
 
@@ -130,7 +166,7 @@ export async function addToCollection(
   creature: Creature,
   privyUserId?: string,
 ): Promise<Creature[]> {
-  const next = mergeCollections([], [creature, ...(await readLocal())])
+  const next = prependLocal(creature, await readLocal())
   await writeLocal(next)
 
   if (!isSupabaseConfigured || !privyUserId) return next
@@ -144,6 +180,20 @@ export async function addToCollection(
   return next
 }
 
-export async function clearCollection(): Promise<void> {
+/** Wipe local + remote creatures (broken photo rows, reset demos, etc.). */
+export async function clearCollection(privyUserId?: string): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY)
+
+  if (!isSupabaseConfigured) return
+
+  try {
+    const client = getSupabase()
+    if (privyUserId) {
+      await client.from('creatures').delete().eq('privy_user_id', privyUserId)
+    } else {
+      await client.from('creatures').delete().neq('id', '')
+    }
+  } catch {
+    // Local is already clear; remote wipe is best-effort.
+  }
 }
