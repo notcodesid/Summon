@@ -56,13 +56,13 @@ Earn the collect moment with real AI scan. Manual rename is fallback/edit only.
 - [x] retake from reveal still returns to camera
 - [ ] further camera polish if design specs arrive
 
-#### step 2 — identify (free Gemini, not Claude)
+#### step 2 — identify (free Gemini)
 
-- [ ] wire **Gemini** identify into reveal after “use photo” (species, common name, rarity, note)
-- [ ] **miss / retake** when no animal is clearly in the photo
-- [ ] **reveal card** as the main path (not a blank name form first)
-- [ ] keep with **real rarity + stats** (not always common / zeroed)
-- [ ] durable photo on keep (Documents / data URI; then Storage)
+- [x] wire **Gemini** identify into reveal after “use photo” (species, common name, rarity, note)
+- [x] **miss / retake** when no animal is clearly in the photo
+- [x] **reveal card** as the main path (edit name still allowed)
+- [x] keep with **real rarity + stats** from identify (`statsFor`)
+- [x] durable photo on keep (Documents / data URI; then Storage)
 - [ ] upload photos to Supabase Storage
 - [ ] scope RLS to the caller once Privy is registered as a Supabase auth provider
 - [ ] move identification behind a server (key currently ships in the bundle)

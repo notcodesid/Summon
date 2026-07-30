@@ -12,14 +12,15 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { setPendingCapture } from '@/lib/pending-capture'
+import { clearPendingCapture, setPendingCapture } from '@/lib/pending-capture'
 import { theme } from '@/constants/theme'
 
 type Shot = {
+  id: string
   uri: string
   base64: string
 }
@@ -51,6 +52,18 @@ export default function CameraScreen() {
   const isReview = phase.status === 'review'
   const isBusy = phase.status === 'capturing'
   const canShoot = ready && phase.status === 'live'
+
+  // Camera stays mounted in the tab stack. After retake from reveal we must
+  // open a fresh live viewfinder — not the previous freeze-frame review.
+  useFocusEffect(
+    useCallback(() => {
+      clearPendingCapture()
+      setPhase({ status: 'live' })
+      return () => {
+        // Leaving camera (e.g. to reveal) — nothing extra; pending is set on use.
+      }
+    }, []),
+  )
 
   useEffect(() => {
     if (phase.status !== 'live') return
@@ -139,7 +152,11 @@ export default function CameraScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       setPhase({
         status: 'review',
-        shot: { uri: photo.uri, base64: photo.base64 },
+        shot: {
+          id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+          uri: photo.uri,
+          base64: photo.base64,
+        },
       })
     } catch {
       setPhase({ status: 'live' })

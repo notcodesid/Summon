@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { theme } from '@/constants/theme'
@@ -33,11 +33,15 @@ import {
   toCreature,
   type Identification,
 } from '@/lib/identify'
-import { takePendingCapture } from '@/lib/pending-capture'
+import {
+  clearPendingCapture,
+  peekPendingCapture,
+  takePendingCapture,
+} from '@/lib/pending-capture'
 import { persistCapturePhoto } from '@/lib/persist-photo'
 import { usePlayer } from '@/lib/use-player'
 
-type Capture = { photoUri: string; base64: string }
+type Capture = { id: string; photoUri: string; base64: string }
 
 type Phase =
   | { status: 'boot' }
@@ -56,16 +60,20 @@ type Phase =
 export default function RevealScreen() {
   const [phase, setPhase] = useState<Phase>({ status: 'boot' })
   const [saving, setSaving] = useState(false)
-  const startedRef = useRef(false)
+  /** Last capture id we started identifying — avoids reusing stale miss/found UI. */
+  const activeCaptureIdRef = useRef<string | null>(null)
   const { privyUserId } = usePlayer()
   const liquid = isLiquidGlassAvailable()
   const { height: windowHeight } = useWindowDimensions()
   const heroHeight = Math.min(Math.round(windowHeight * 0.49), 456)
 
   const runIdentify = useCallback(async (capture: Capture) => {
+    activeCaptureIdRef.current = capture.id
+    setSaving(false)
     setPhase({ status: 'identifying', capture })
     try {
       if (!isIdentifyLive) {
+        if (activeCaptureIdRef.current !== capture.id) return
         setPhase({
           status: 'error',
           capture,
@@ -75,6 +83,9 @@ export default function RevealScreen() {
       }
 
       const identification = await identifyAnimal(capture.base64)
+      // A newer retake may have started while this request was in flight.
+      if (activeCaptureIdRef.current !== capture.id) return
+
       void Haptics.notificationAsync(
         identification.isAnimal
           ? Haptics.NotificationFeedbackType.Success
@@ -101,6 +112,7 @@ export default function RevealScreen() {
           identification.species,
       })
     } catch (error) {
+      if (activeCaptureIdRef.current !== capture.id) return
       const message =
         error instanceof IdentifyError
           ? error.userMessage
@@ -112,24 +124,43 @@ export default function RevealScreen() {
     }
   }, [])
 
-  useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
+  // Reveal often stays mounted in the tab stack. Re-run whenever we focus with
+  // a *new* pending capture (retake → use photo), not only on first mount.
+  useFocusEffect(
+    useCallback(() => {
+      const pending = peekPendingCapture()
+      if (!pending) {
+        // First open with nothing to scan.
+        if (activeCaptureIdRef.current === null) {
+          setPhase({ status: 'no-capture' })
+        }
+        return
+      }
 
-    const pending = takePendingCapture()
-    if (!pending) {
-      setPhase({ status: 'no-capture' })
-      return
-    }
+      // Same shot already on screen / in flight — leave state alone.
+      if (pending.id === activeCaptureIdRef.current) {
+        takePendingCapture()
+        return
+      }
 
-    void runIdentify({ photoUri: pending.uri, base64: pending.base64 })
-  }, [runIdentify])
+      const taken = takePendingCapture()
+      if (!taken) return
+
+      void runIdentify({
+        id: taken.id,
+        photoUri: taken.uri,
+        base64: taken.base64,
+      })
+    }, [runIdentify]),
+  )
 
   const goHome = useCallback(() => {
     router.replace('/')
   }, [])
 
   const onRetake = useCallback(() => {
+    // Drop the rejected shot so camera opens clean for a new capture.
+    clearPendingCapture()
     router.replace('/camera')
   }, [])
 
