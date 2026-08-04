@@ -1,20 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Creature, Rarity } from '@/lib/creatures'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
+import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
 
 /**
- * The collection lives in Supabase, keyed by Privy user id.
- *
- * AsyncStorage is kept as a local mirror so the app still shows something
- * when the device is offline, when Supabase is not configured, or before the
- * player has signed in. Supabase wins whenever it answers — but local-only
- * catches are never discarded just because remote is empty or lagging.
+ * Collection: local AsyncStorage mirror + server (Edge Function) as source of truth.
+ * Direct Supabase table access is locked down by RLS — all remote ops go through
+ * the `creatures` function after Privy auth.
  */
 const STORAGE_KEY = 'summon.collection.v1'
 
 type CreatureRow = {
   id: string
-  privy_user_id: string
+  privy_user_id?: string
   species: string
   common_name: string
   rarity: string
@@ -37,20 +34,6 @@ function rowToCreature(row: CreatureRow): Creature {
   }
 }
 
-function creatureToRow(creature: Creature, privyUserId: string): CreatureRow {
-  return {
-    id: creature.id,
-    privy_user_id: privyUserId,
-    species: creature.species,
-    common_name: creature.commonName,
-    rarity: creature.rarity,
-    stats: creature.stats,
-    note: creature.note,
-    photo_uri: creature.photoUri,
-    captured_at: new Date(creature.capturedAt).toISOString(),
-  }
-}
-
 async function readLocal(): Promise<Creature[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY)
@@ -70,130 +53,130 @@ async function writeLocal(creatures: Creature[]): Promise<void> {
   }
 }
 
-/** Camera cache paths die after a short time — never treat them as real photos. */
 function isEphemeralPhotoUri(uri: string): boolean {
   if (!uri) return false
   return (
     uri.includes('/Library/Caches/') ||
     uri.includes('/Caches/Camera/') ||
-    uri.includes('/cache/Camera/')
+    uri.includes('/cache/Camera/') ||
+    uri.startsWith('data:')
   )
 }
 
 function withUsablePhoto(creature: Creature): Creature {
   if (!creature.photoUri || !isEphemeralPhotoUri(creature.photoUri)) return creature
+  // Keep data: URIs for offline display of just-caught creatures; strip camera cache only.
+  if (uriIsData(creature.photoUri)) return creature
   return { ...creature, photoUri: '' }
 }
 
-/** Newest first when combining a fresh catch with the existing local list. */
+function uriIsData(uri: string): boolean {
+  return uri.startsWith('data:')
+}
+
 function prependLocal(creature: Creature, existing: Creature[]): Creature[] {
   const rest = existing.filter((c) => c.id !== creature.id)
   return [creature, ...rest]
 }
 
-/** Newest first. Falls back to the local mirror if Supabase is unavailable. */
+/** Newest first. Remote list (when signed in) is source of truth. */
 export async function loadCollection(privyUserId?: string): Promise<Creature[]> {
   const local = (await readLocal()).map(withUsablePhoto)
 
-  if (!isSupabaseConfigured || !privyUserId) {
-    // No account key — only keep local rows that still have a real photo.
-    const cleaned = local.filter(
-      (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
-    )
+  if (!isEdgeConfigured() || !privyUserId) {
+    const cleaned = local.filter((c) => c.photoUri.length > 0)
     await writeLocal(cleaned)
     return cleaned
   }
 
   try {
-    const { data, error } = await getSupabase()
-      .from('creatures')
-      .select('*')
-      .eq('privy_user_id', privyUserId)
-      .order('captured_at', { ascending: false })
+    const { creatures } = await callEdgeFunction<{ creatures: CreatureRow[] }>('creatures', {
+      action: 'list',
+    })
 
-    if (error || !data) {
-      const cleaned = local.filter(
-        (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
-      )
-      await writeLocal(cleaned)
-      return cleaned
-    }
-
-    // Successful remote read is source of truth (empty DB => empty Home).
-    // Still keep very recent local-only catches that have a durable photo in
-    // case Supabase insert has not landed yet.
-    const remote = (data as CreatureRow[]).map(rowToCreature).map(withUsablePhoto)
+    const remote = (creatures ?? []).map(rowToCreature).map(withUsablePhoto)
     const remoteIds = new Set(remote.map((c) => c.id))
     const unsyncedLocal = local.filter(
       (c) =>
         !remoteIds.has(c.id) &&
         c.photoUri.length > 0 &&
-        !isEphemeralPhotoUri(c.photoUri) &&
         Date.now() - c.capturedAt < 5 * 60 * 1000,
     )
     const merged = [...remote, ...unsyncedLocal].sort(
       (a, b) => b.capturedAt - a.capturedAt,
     )
-    // Prefer durable local photo when remote still has a blank/cache path.
-    const withPhotos = merged.map((creature) => {
-      if (creature.photoUri) return creature
-      const localHit = local.find((c) => c.id === creature.id)
-      if (
-        localHit?.photoUri &&
-        !isEphemeralPhotoUri(localHit.photoUri)
-      ) {
-        return { ...creature, photoUri: localHit.photoUri }
-      }
-      return creature
-    })
-
-    await writeLocal(withPhotos)
-    return withPhotos
+    await writeLocal(merged)
+    return merged
   } catch {
-    const cleaned = local.filter(
-      (c) => c.photoUri.length > 0 && !isEphemeralPhotoUri(c.photoUri),
-    )
+    const cleaned = local.filter((c) => c.photoUri.length > 0)
     await writeLocal(cleaned)
     return cleaned
   }
 }
 
 /**
- * Saves a catch. Writes the local mirror first so the collection always
- * reflects the catch, then persists to Supabase.
+ * Saves a catch. Uploads photo to Storage (via Edge) when base64 is provided.
+ * Falls back to local-only if the server is unreachable.
  */
 export async function addToCollection(
   creature: Creature,
   privyUserId?: string,
+  imageBase64?: string,
 ): Promise<Creature[]> {
   const next = prependLocal(creature, await readLocal())
   await writeLocal(next)
 
-  if (!isSupabaseConfigured || !privyUserId) return next
+  if (!isEdgeConfigured() || !privyUserId) return next
 
   try {
-    await getSupabase().from('creatures').insert(creatureToRow(creature, privyUserId))
+    const result = await callEdgeFunction<{
+      creature?: {
+        id: string
+        species: string
+        commonName: string
+        rarity: string
+        stats: Creature['stats']
+        note: string
+        photoUri: string | null
+        capturedAt: number
+      }
+    }>('creatures', {
+      action: 'save',
+      creature: {
+        id: creature.id,
+        species: creature.species,
+        commonName: creature.commonName,
+        rarity: creature.rarity,
+        stats: creature.stats,
+        note: creature.note,
+        photoUri: creature.photoUri,
+        capturedAt: creature.capturedAt,
+      },
+      imageBase64: imageBase64 || undefined,
+    })
+
+    if (result.creature?.photoUri) {
+      const updated = next.map((c) =>
+        c.id === creature.id ? { ...c, photoUri: result.creature!.photoUri || c.photoUri } : c,
+      )
+      await writeLocal(updated)
+      return updated
+    }
   } catch {
-    // Kept locally; a later load will re-sync from whatever Supabase has.
+    // Kept locally; a later load will re-sync from the server.
   }
 
   return next
 }
 
-/** Wipe local + remote creatures (broken photo rows, reset demos, etc.). */
 export async function clearCollection(privyUserId?: string): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY)
 
-  if (!isSupabaseConfigured) return
+  if (!isEdgeConfigured() || !privyUserId) return
 
   try {
-    const client = getSupabase()
-    if (privyUserId) {
-      await client.from('creatures').delete().eq('privy_user_id', privyUserId)
-    } else {
-      await client.from('creatures').delete().neq('id', '')
-    }
+    await callEdgeFunction('creatures', { action: 'clear' })
   } catch {
-    // Local is already clear; remote wipe is best-effort.
+    // Local is already clear.
   }
 }

@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useEffect, useState } from 'react'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
+import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
 
 /**
  * The player's avatar image.
  *
- * Supabase holds the durable copy; AsyncStorage mirrors it so the avatar
- * renders immediately on launch instead of popping in after a round trip.
+ * Server holds the durable copy (via Edge + RLS); AsyncStorage mirrors it so
+ * the avatar renders immediately on launch.
  */
 export type PhotoSource = 'google' | 'upload'
 
@@ -36,45 +36,23 @@ async function clearCache(privyUserId: string): Promise<void> {
   }
 }
 
-/**
- * Stores a photo against the player.
- *
- * A Google photo never overwrites one the player uploaded themselves —
- * otherwise signing in again would silently undo their choice.
- */
 export async function savePlayerPhoto(
   privyUserId: string,
   url: string,
   source: PhotoSource,
 ): Promise<boolean> {
-  if (!isSupabaseConfigured || !privyUserId || !url) return false
+  if (!isEdgeConfigured() || !privyUserId || !url) return false
 
   try {
-    const supabase = getSupabase()
-
-    if (source === 'google') {
-      const { data } = await supabase
-        .from('players')
-        .select('photo_source')
-        .eq('privy_user_id', privyUserId)
-        .maybeSingle()
-
-      if (data?.photo_source === 'upload') return false
-    }
-
-    const { error } = await supabase
-      .from('players')
-      .upsert(
-        {
-          privy_user_id: privyUserId,
-          photo_url: url,
-          photo_source: source,
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: 'privy_user_id' },
-      )
-
-    if (error) return false
+    const result = await callEdgeFunction<{ ok?: boolean; skipped?: boolean }>(
+      'creatures',
+      {
+        action: 'save_player_photo',
+        photoUrl: url,
+        photoSource: source,
+      },
+    )
+    if (result.skipped) return false
     await writeCache(privyUserId, url)
     return true
   } catch {
@@ -86,27 +64,22 @@ export async function loadPlayerPhoto(
   privyUserId: string,
 ): Promise<string | null> {
   const cached = await readCache(privyUserId)
-  if (!isSupabaseConfigured) return cached
+  if (!isEdgeConfigured()) return cached
 
   try {
-    const { data, error } = await getSupabase()
-      .from('players')
-      .select('photo_url')
-      .eq('privy_user_id', privyUserId)
-      .maybeSingle()
+    const { player } = await callEdgeFunction<{
+      player: { photo_url?: string | null } | null
+    }>('creatures', { action: 'get_player' })
 
-    // Keep the cache when we simply could not reach the row.
-    if (error || !data) return cached
+    if (!player) return cached
 
-    // The row answered and has no photo — that is authoritative, so a photo
-    // removed elsewhere actually disappears here too.
-    if (!data.photo_url) {
+    if (!player.photo_url) {
       await clearCache(privyUserId)
       return null
     }
 
-    await writeCache(privyUserId, data.photo_url as string)
-    return data.photo_url as string
+    await writeCache(privyUserId, player.photo_url)
+    return player.photo_url
   } catch {
     return cached
   }

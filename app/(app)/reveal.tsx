@@ -191,7 +191,8 @@ export default function RevealScreen() {
         phase.capture.photoUri,
       )
       const creature: Creature = toCreature(identification, photoUri, id)
-      await addToCollection(creature, privyUserId)
+      // Server uploads photo to Storage + inserts row (RLS locked).
+      await addToCollection(creature, privyUserId, phase.capture.base64)
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       router.replace('/collection')
     } catch {

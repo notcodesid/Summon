@@ -41,15 +41,14 @@ assets/              App icons and splash
 
 The legacy gacha / MagicBlock program has been removed — Summon is not a random-pull game. A new onchain design will follow once the core loop is settled.
 
-## Identification
+## Identification & hardening
 
-After a capture, the reveal screen lets you name the animal and add it to your
-collection. Optional Claude vision identification lives in `lib/identify.ts`
-and requires `EXPO_PUBLIC_ANTHROPIC_API_KEY` — there is no demo creature
-fallback if the key is missing or the call fails.
+Scan → Gemini identify runs through Supabase Edge Function `identify` (API key
+stays on the server). Saves go through Edge Function `creatures`, which uploads
+photos to Storage bucket `creature-photos` and inserts rows with the service
+role. Table RLS denies direct anon access.
 
-The key ships in the app bundle, which is fine for a local build but not for
-distribution — move the call behind a server before releasing.
+Deploy steps: see `docs/PHASE1_HARDENING.md`.
 
 ## Database
 

@@ -8,8 +8,8 @@ import {
 } from 'expo-file-system/legacy'
 
 /**
- * Camera captures land in Library/Caches and get purged. Collection photos must
- * either live under Documents or be inlined as a data URI.
+ * Local durable copy for offline / instant UI.
+ * Permanent cloud URLs come from the creatures Edge Function (Supabase Storage).
  */
 const CAPTURES_DIR = `${documentDirectory ?? ''}captures/`
 
@@ -23,16 +23,14 @@ async function ensureCapturesDir(): Promise<boolean> {
 }
 
 /**
- * Return a URI that React Native Image can load after app restarts.
- * Prefer a durable file under Documents; fall back to an inlined data URI.
+ * Persist a JPEG locally so the collection can render before / without Storage.
+ * Prefer Documents file; fall back to data URI.
  */
 export async function persistCapturePhoto(
   id: string,
   base64: string,
   sourceUri: string,
 ): Promise<string> {
-  // Data URI always works for <Image source={{ uri }} /> and survives reloads.
-  // Use it if file copy fails or document storage is unavailable.
   const dataUri = base64 ? `data:image/jpeg;base64,${base64}` : ''
 
   try {
@@ -40,7 +38,7 @@ export async function persistCapturePhoto(
     if (ok) {
       const dest = `${CAPTURES_DIR}${id}.jpg`
 
-      if (sourceUri) {
+      if (sourceUri && !sourceUri.startsWith('data:')) {
         try {
           await copyAsync({ from: sourceUri, to: dest })
           return dest

@@ -63,9 +63,16 @@ Earn the collect moment with real AI scan. Manual rename is fallback/edit only.
 - [x] **reveal card** as the main path (edit name still allowed)
 - [x] keep with **real rarity + stats** from identify (`statsFor`)
 - [x] durable photo on keep (Documents / data URI; then Storage)
-- [ ] upload photos to Supabase Storage
-- [ ] scope RLS to the caller once Privy is registered as a Supabase auth provider
-- [ ] move identification behind a server (key currently ships in the bundle)
+
+#### step 3 — phase 1 hardening (shippable)
+
+- [x] **Supabase Storage** bucket `creature-photos` + public read
+- [x] **Edge Function `identify`** — Gemini key server-side; Privy JWT required
+- [x] **Edge Function `creatures`** — list/save/clear + player upsert/photo via service role
+- [x] **RLS lockdown** — anon cannot read/write `players` / `creatures` directly
+- [x] app calls Edge Functions with Privy access token (no `EXPO_PUBLIC_GEMINI_*`)
+- [ ] deploy Edge Functions + set secrets on the linked Supabase project
+- [ ] apply migration `0003_storage_and_rls.sql` on production DB
 
 ### phase 2 — scan v1.5 (magic / 2.5D)
 
