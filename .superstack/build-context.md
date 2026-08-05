@@ -28,7 +28,7 @@ submitted. Deliberately no backend and no smart contract.
 | Auth           | **Real, required** — Google sign-in via Privy. No bypass.     |
 | Wallet         | **Real** — Privy embedded Solana wallet, created after login  |
 | Camera         | **Real** — expo-camera capture                                |
-| Identification | **Real when `EXPO_PUBLIC_ANTHROPIC_API_KEY` is set** (Claude vision); deterministic demo creature otherwise |
+| Identification | **Real** — Gemini vision via the `identify` Edge Function; key stays server-side |
 | Collection     | **Real** — Supabase `creatures`, keyed by Privy user id; AsyncStorage is an offline mirror |
 | On-chain       | Nothing. Web2 only for now — the wallet is recorded, not used |
 | Battle         | Not built yet                                                 |
@@ -52,10 +52,9 @@ psql "$DATABASE_URL" -f supabase/migrations/0001_players_and_creatures.sql
   Privy has created the wallet.
 - `creatures` — one row per catch, `privy_user_id` foreign-keyed to `players`.
 
-> ⚠️ **RLS is permissive.** Auth is Privy, not Supabase Auth, so the anon key
-> can read and write every row. Demo-grade only. The fix is to register Privy
-> as a third-party auth provider in the Supabase dashboard so requests carry a
-> Privy JWT, then scope each policy to the caller's own `privy_user_id`.
+> **RLS is locked down.** Anon cannot read/write `players` / `creatures`
+> directly (`0003_storage_and_rls.sql`); the app writes through Edge Functions
+> using the Privy JWT + service role.
 
 ## Mobile stack
 
@@ -74,8 +73,8 @@ psql "$DATABASE_URL" -f supabase/migrations/0001_players_and_creatures.sql
 
 Supporting modules:
 
-- `lib/identify.ts` — Claude vision call, with a demo fallback on missing key,
-  refusal, or any error, so a recording never stalls.
+- `lib/identify.ts` — calls the `identify` Edge Function (Gemini key stays
+  server-side) and turns the result into a creature.
 - `lib/creatures.ts` — rarity tiers and **deterministic** stats derived from the
   species name, so the same animal always yields the same creature.
 - `lib/collection.ts` — Supabase reads/writes with an AsyncStorage mirror.
@@ -84,12 +83,10 @@ Supporting modules:
 ## Known gaps
 
 - **Battle is not built.** It is the last piece of the pitched loop.
-- **Photos are not uploaded.** `photo_uri` stores a local `file://` path, so a
-  collection opened on a second device shows rows without images. Supabase
-  Storage is the fix.
-- **RLS is permissive** — see the warning above.
-- **The Anthropic API key ships in the app bundle.** Acceptable for a demo build
-  that is not distributed; move the call behind a server before any release.
+- **Edge Functions are not deployed.** `identify` / `creatures` must be deployed
+  and their secrets (`GEMINI_API_KEY`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`) set
+  on the linked Supabase project; `0003_storage_and_rls.sql` must be applied to
+  production before launch.
 - Camera preview does not work in the iOS Simulator (no camera hardware) — the
   shutter stays disabled there. Test capture on a physical device or via Revyl.
 - `mobile.physical_device_tested` stays `false` until a real device test passes.

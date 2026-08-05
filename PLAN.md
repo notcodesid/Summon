@@ -40,7 +40,6 @@ Skip for now: photo → SVG vector → 3D, on-device image-to-3D, paid 3D APIs a
 - [x] require real Google login (auth bypass off by default)
 - [x] save players + creatures to Supabase, keyed by Privy user id
 - [x] durable local photo persist (no camera-cache-only URIs)
-- [x] Claude vision helper in `lib/identify.ts` (not yet the main reveal path)
 
 ### phase 1 — scan v1 (real product) ← **current**
 
