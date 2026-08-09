@@ -42,6 +42,8 @@ import { persistCapturePhoto } from '@/lib/persist-photo'
 import { usePlayer } from '@/lib/use-player'
 
 type Capture = { id: string; photoUri: string; base64: string }
+type SaveNotice = { kind: 'pending' | 'failed'; message: string }
+type SaveAttempt = { creature: Creature; imageBase64: string }
 
 type Phase =
   | { status: 'boot' }
@@ -60,8 +62,11 @@ type Phase =
 export default function RevealScreen() {
   const [phase, setPhase] = useState<Phase>({ status: 'boot' })
   const [saving, setSaving] = useState(false)
+  const [saveNotice, setSaveNotice] = useState<SaveNotice | null>(null)
   /** Last capture id we started identifying — avoids reusing stale miss/found UI. */
   const activeCaptureIdRef = useRef<string | null>(null)
+  /** Keeps retries idempotent after a failed or pending remote save. */
+  const saveAttemptRef = useRef<SaveAttempt | null>(null)
   const { privyUserId } = usePlayer()
   const liquid = isLiquidGlassAvailable()
   const { height: windowHeight } = useWindowDimensions()
@@ -69,7 +74,9 @@ export default function RevealScreen() {
 
   const runIdentify = useCallback(async (capture: Capture) => {
     activeCaptureIdRef.current = capture.id
+    saveAttemptRef.current = null
     setSaving(false)
+    setSaveNotice(null)
     setPhase({ status: 'identifying', capture })
     try {
       if (!isIdentifyLive) {
@@ -161,6 +168,8 @@ export default function RevealScreen() {
   const onRetake = useCallback(() => {
     // Drop the rejected shot so camera opens clean for a new capture.
     clearPendingCapture()
+    saveAttemptRef.current = null
+    setSaveNotice(null)
     router.replace('/camera')
   }, [])
 
@@ -183,20 +192,63 @@ export default function RevealScreen() {
     }
 
     setSaving(true)
+    setSaveNotice(null)
     try {
-      const id = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
-      const photoUri = await persistCapturePhoto(
-        id,
-        phase.capture.base64,
-        phase.capture.photoUri,
+      const previous = saveAttemptRef.current
+      const attempt: SaveAttempt = previous
+        ? {
+            ...previous,
+            creature: {
+              ...previous.creature,
+              commonName: identification.commonName,
+              species: identification.species,
+              rarity: identification.rarity,
+              note: identification.note,
+            },
+          }
+        : (() => {
+            const id = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
+            return {
+              creature: toCreature(identification, '', id),
+              imageBase64: phase.capture.base64,
+            }
+          })()
+
+      if (!attempt.creature.photoUri) {
+        attempt.creature.photoUri = await persistCapturePhoto(
+          attempt.creature.id,
+          attempt.imageBase64,
+          phase.capture.photoUri,
+        )
+      }
+      saveAttemptRef.current = attempt
+
+      const result = await addToCollection(
+        attempt.creature,
+        privyUserId,
+        attempt.imageBase64,
       )
-      const creature: Creature = toCreature(identification, photoUri, id)
-      // Server uploads photo to Storage + inserts row (RLS locked).
-      await addToCollection(creature, privyUserId, phase.capture.base64)
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      router.replace('/collection')
+
+      if (result.status === 'saved') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        saveAttemptRef.current = null
+        router.replace('/collection')
+        return
+      }
+
+      setSaving(false)
+      setSaveNotice({ kind: result.status, message: result.message })
+      void Haptics.notificationAsync(
+        result.status === 'pending'
+          ? Haptics.NotificationFeedbackType.Warning
+          : Haptics.NotificationFeedbackType.Error,
+      )
     } catch {
       setSaving(false)
+      setSaveNotice({
+        kind: 'failed',
+        message: 'Could not prepare this photo to save. Please try again.',
+      })
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
   }, [phase, privyUserId, saving])
@@ -355,8 +407,33 @@ export default function RevealScreen() {
         style={styles.nameInput}
         accessibilityLabel="Animal name"
       />
+      {saveNotice ? (
+        <View
+          style={[
+            styles.saveNotice,
+            saveNotice.kind === 'pending'
+              ? styles.saveNoticePending
+              : styles.saveNoticeFailed,
+          ]}
+          accessibilityRole="alert"
+        >
+          <Ionicons
+            name={
+              saveNotice.kind === 'pending'
+                ? 'cloud-upload-outline'
+                : 'alert-circle-outline'
+            }
+            size={18}
+            color={theme.colors.text}
+          />
+          <Text style={styles.saveNoticeText}>{saveNotice.message}</Text>
+        </View>
+      ) : null}
     </View>
   )
+
+  const keepLabel =
+    saveNotice?.kind === 'pending' ? 'try upload again' : 'add to collection'
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -383,6 +460,7 @@ export default function RevealScreen() {
                   saving={saving}
                   disabled={!phase.displayName.trim()}
                   onPress={onKeep}
+                  label={keepLabel}
                 />
               </GlassView>
             </GlassContainer>
@@ -394,6 +472,7 @@ export default function RevealScreen() {
                   saving={saving}
                   disabled={!phase.displayName.trim()}
                   onPress={onKeep}
+                  label={keepLabel}
                 />
               </View>
             </View>
@@ -513,10 +592,12 @@ function KeepButton({
   saving,
   disabled,
   onPress,
+  label,
 }: {
   saving: boolean
   disabled: boolean
   onPress: () => void
+  label: string
 }) {
   return (
     <Pressable
@@ -528,14 +609,14 @@ function KeepButton({
         pressed && styles.buttonPressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel="Add to collection"
+      accessibilityLabel={label}
     >
       {saving ? (
         <ActivityIndicator color={theme.colors.text} />
       ) : (
         <Ionicons name="add" size={22} color={theme.colors.text} />
       )}
-      <Text style={styles.keepText}>{saving ? 'adding' : 'add to collection'}</Text>
+      <Text style={styles.keepText}>{saving ? 'saving' : label}</Text>
     </Pressable>
   )
 }
@@ -724,6 +805,29 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: '700',
+  },
+  saveNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.space.sm,
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    padding: theme.space.md,
+  },
+  saveNoticePending: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+  },
+  saveNoticeFailed: {
+    backgroundColor: theme.colors.surfaceRaised,
+    borderColor: theme.colors.border,
+  },
+  saveNoticeText: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   keepGlass: {
     borderRadius: theme.radius.pill,
