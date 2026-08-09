@@ -1,6 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useEffect, useState } from 'react'
 import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
+import {
+  normalizePhotoMediaReference,
+  refreshRemotePhotoUri,
+  resolvePhotoMediaUri,
+  type PhotoMediaReference,
+} from '@/lib/media-reference'
+import { deletePersistedPlayerPhoto, persistPlayerPhoto } from '@/lib/persist-photo'
 
 /**
  * The player's avatar image.
@@ -9,21 +16,34 @@ import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
  * the avatar renders immediately on launch.
  */
 export type PhotoSource = 'google' | 'upload'
-export type PlayerPhotoInput = { source: 'google'; sourceUrl: string } | { source: 'upload'; imageBase64: string }
+export type PlayerPhotoInput =
+  | { source: 'google'; sourceUrl: string }
+  | {
+      source: 'upload'
+      imageBase64: string
+      localPhotoUri: string
+    }
 
 const cacheKey = (privyUserId: string) => `summon.photo.v1.${privyUserId}`
 
-async function readCache(privyUserId: string): Promise<string | null> {
+async function readCache(privyUserId: string): Promise<PhotoMediaReference | null> {
   try {
-    return await AsyncStorage.getItem(cacheKey(privyUserId))
+    const raw = await AsyncStorage.getItem(cacheKey(privyUserId))
+    if (!raw) return null
+    try {
+      return normalizePhotoMediaReference(JSON.parse(raw))
+    } catch {
+      // Migrate the v1 cache, which stored one URL string directly.
+      return normalizePhotoMediaReference(raw)
+    }
   } catch {
     return null
   }
 }
 
-async function writeCache(privyUserId: string, url: string): Promise<void> {
+async function writeCache(privyUserId: string, media: PhotoMediaReference): Promise<void> {
   try {
-    await AsyncStorage.setItem(cacheKey(privyUserId), url)
+    await AsyncStorage.setItem(cacheKey(privyUserId), JSON.stringify(normalizePhotoMediaReference(media)))
   } catch {
     // A failed mirror is not worth surfacing.
   }
@@ -41,6 +61,7 @@ export async function savePlayerPhoto(privyUserId: string, input: PlayerPhotoInp
   if (!isEdgeConfigured() || !privyUserId) return false
 
   try {
+    const cached = await readCache(privyUserId)
     const result = await callEdgeFunction<{
       ok?: boolean
       skipped?: boolean
@@ -51,7 +72,29 @@ export async function savePlayerPhoto(privyUserId: string, input: PlayerPhotoInp
       sourceUrl: input.source === 'google' ? input.sourceUrl : undefined,
       imageBase64: input.source === 'upload' ? input.imageBase64 : undefined,
     })
-    if (result.photoUrl) await writeCache(privyUserId, result.photoUrl)
+
+    if (result.photoUrl) {
+      const persistedLocalPhotoUri =
+        result.skipped && cached?.localPhotoUri
+          ? cached.localPhotoUri
+          : await persistPlayerPhoto(
+              privyUserId,
+              input.source === 'upload' ? input.localPhotoUri : result.photoUrl,
+              input.source === 'upload' ? input.imageBase64 : undefined,
+            )
+
+      if (!persistedLocalPhotoUri && !result.skipped) {
+        await deletePersistedPlayerPhoto(privyUserId)
+      }
+
+      await writeCache(
+        privyUserId,
+        normalizePhotoMediaReference({
+          localPhotoUri: persistedLocalPhotoUri ?? undefined,
+          remotePhotoUri: result.photoUrl,
+        }),
+      )
+    }
     return result.ok === true || result.skipped === true
   } catch {
     return false
@@ -60,29 +103,42 @@ export async function savePlayerPhoto(privyUserId: string, input: PlayerPhotoInp
 
 export async function loadPlayerPhoto(privyUserId: string): Promise<string | null> {
   const cached = await readCache(privyUserId)
-  if (!isEdgeConfigured()) return cached
+  if (!isEdgeConfigured()) {
+    return cached ? resolvePhotoMediaUri(cached) || null : null
+  }
 
   try {
     const { player } = await callEdgeFunction<{
       player: { photo_url?: string | null } | null
     }>('creatures', { action: 'get_player' })
 
-    if (!player) return cached
+    if (!player) {
+      return cached ? resolvePhotoMediaUri(cached) || null : null
+    }
 
     if (!player.photo_url) {
-      await clearCache(privyUserId)
+      await clearPlayerPhotoCache(privyUserId)
       return null
     }
 
-    await writeCache(privyUserId, player.photo_url)
-    return player.photo_url
+    const localPhotoUri = cached?.localPhotoUri ?? (await persistPlayerPhoto(privyUserId, player.photo_url))
+    const refreshed = refreshRemotePhotoUri(
+      {
+        localPhotoUri,
+        remotePhotoUri: cached?.remotePhotoUri,
+      },
+      player.photo_url,
+    )
+    await writeCache(privyUserId, refreshed)
+    return resolvePhotoMediaUri(refreshed) || null
   } catch {
-    return cached
+    return cached ? resolvePhotoMediaUri(cached) || null : null
   }
 }
 
 export async function clearPlayerPhotoCache(privyUserId?: string): Promise<void> {
-  if (privyUserId) await clearCache(privyUserId)
+  if (!privyUserId) return
+  await Promise.all([clearCache(privyUserId), deletePersistedPlayerPhoto(privyUserId)])
 }
 
 /** Avatar image for the signed-in player, or null while unknown. */

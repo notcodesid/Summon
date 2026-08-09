@@ -70,7 +70,11 @@ export default function ProfileScreen() {
     setSavingPhoto(true)
     try {
       const prepared = await prepareImageForUpload(asset.uri, asset.width, asset.base64)
-      const saved = await savePlayerPhoto(player.privyUserId, { source: 'upload', imageBase64: prepared.base64 })
+      const saved = await savePlayerPhoto(player.privyUserId, {
+        source: 'upload',
+        imageBase64: prepared.base64,
+        localPhotoUri: prepared.uri,
+      })
       if (saved) {
         await refresh()
       } else {

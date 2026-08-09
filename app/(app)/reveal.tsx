@@ -20,24 +20,9 @@ import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-ef
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { addToCollection } from '@/lib/collection'
-import {
-  RARITY_COLOR,
-  RARITY_LABEL,
-  type Creature,
-  type Rarity,
-} from '@/lib/creatures'
-import {
-  IdentifyError,
-  identifyAnimal,
-  isIdentifyLive,
-  toCreature,
-  type Identification,
-} from '@/lib/identify'
-import {
-  clearPendingCapture,
-  peekPendingCapture,
-  takePendingCapture,
-} from '@/lib/pending-capture'
+import { RARITY_COLOR, RARITY_LABEL, type Creature, type Rarity } from '@/lib/creatures'
+import { IdentifyError, identifyAnimal, isIdentifyLive, toCreature, type Identification } from '@/lib/identify'
+import { clearPendingCapture, peekPendingCapture, takePendingCapture } from '@/lib/pending-capture'
 import { persistCapturePhoto } from '@/lib/persist-photo'
 import { usePlayer } from '@/lib/use-player'
 
@@ -94,9 +79,7 @@ export default function RevealScreen() {
       if (activeCaptureIdRef.current !== capture.id) return
 
       void Haptics.notificationAsync(
-        identification.isAnimal
-          ? Haptics.NotificationFeedbackType.Success
-          : Haptics.NotificationFeedbackType.Warning,
+        identification.isAnimal ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
       )
 
       if (!identification.isAnimal) {
@@ -113,10 +96,7 @@ export default function RevealScreen() {
         status: 'found',
         capture,
         identification,
-        displayName:
-          identification.commonName ||
-          identification.label ||
-          identification.species,
+        displayName: identification.commonName || identification.label || identification.species,
       })
     } catch (error) {
       if (activeCaptureIdRef.current !== capture.id) return
@@ -214,20 +194,18 @@ export default function RevealScreen() {
             }
           })()
 
-      if (!attempt.creature.photoUri) {
-        attempt.creature.photoUri = await persistCapturePhoto(
+      if (!attempt.creature.localPhotoUri) {
+        const localPhotoUri = await persistCapturePhoto(
           attempt.creature.id,
           attempt.imageBase64,
           phase.capture.photoUri,
         )
+        attempt.creature.localPhotoUri = localPhotoUri
+        attempt.creature.photoUri = localPhotoUri
       }
       saveAttemptRef.current = attempt
 
-      const result = await addToCollection(
-        attempt.creature,
-        privyUserId,
-        attempt.imageBase64,
-      )
+      const result = await addToCollection(attempt.creature, privyUserId, attempt.imageBase64)
 
       if (result.status === 'saved') {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -239,9 +217,7 @@ export default function RevealScreen() {
       setSaving(false)
       setSaveNotice({ kind: result.status, message: result.message })
       void Haptics.notificationAsync(
-        result.status === 'pending'
-          ? Haptics.NotificationFeedbackType.Warning
-          : Haptics.NotificationFeedbackType.Error,
+        result.status === 'pending' ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Error,
       )
     } catch {
       setSaving(false)
@@ -291,11 +267,7 @@ export default function RevealScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.bootCenter}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={30}
-            color={theme.colors.textFaint}
-          />
+          <Ionicons name="alert-circle-outline" size={30} color={theme.colors.textFaint} />
           <Text style={styles.panelTitle}>nothing to add</Text>
           <Text style={styles.panelBody}>that photo didn&apos;t come through.</Text>
           <View style={styles.panelAction}>
@@ -345,16 +317,10 @@ export default function RevealScreen() {
           <View style={styles.panelActions}>
             <PrimaryButton label="try again" onPress={onRetry} />
             <View style={styles.footerLinks}>
-              <Pressable
-                onPress={onRetake}
-                style={({ pressed }) => [styles.textLink, pressed && styles.buttonPressed]}
-              >
+              <Pressable onPress={onRetake} style={({ pressed }) => [styles.textLink, pressed && styles.buttonPressed]}>
                 <Text style={styles.textLinkLabel}>retake</Text>
               </Pressable>
-              <Pressable
-                onPress={goHome}
-                style={({ pressed }) => [styles.textLink, pressed && styles.buttonPressed]}
-              >
+              <Pressable onPress={goHome} style={({ pressed }) => [styles.textLink, pressed && styles.buttonPressed]}>
                 <Text style={styles.textLinkLabel}>back home</Text>
               </Pressable>
             </View>
@@ -375,29 +341,16 @@ export default function RevealScreen() {
       <View style={styles.formHeader}>
         <MicroLabel color={theme.colors.textMuted}>identified</MicroLabel>
         <Text style={styles.title}>{phase.displayName || 'Creature'}</Text>
-        <View
-          style={[
-            styles.rarityPill,
-            { backgroundColor: `${RARITY_COLOR[rarity]}22` },
-          ]}
-        >
-          <Text style={[styles.rarityText, { color: RARITY_COLOR[rarity] }]}>
-            {RARITY_LABEL[rarity]}
-          </Text>
+        <View style={[styles.rarityPill, { backgroundColor: `${RARITY_COLOR[rarity]}22` }]}>
+          <Text style={[styles.rarityText, { color: RARITY_COLOR[rarity] }]}>{RARITY_LABEL[rarity]}</Text>
         </View>
-        {species && species !== phase.displayName ? (
-          <Text style={styles.speciesText}>{species}</Text>
-        ) : null}
+        {species && species !== phase.displayName ? <Text style={styles.speciesText}>{species}</Text> : null}
         {note ? <Text style={styles.noteText}>{note}</Text> : null}
       </View>
 
       <TextInput
         value={phase.displayName}
-        onChangeText={(value) =>
-          setPhase((prev) =>
-            prev.status === 'found' ? { ...prev, displayName: value } : prev,
-          )
-        }
+        onChangeText={(value) => setPhase((prev) => (prev.status === 'found' ? { ...prev, displayName: value } : prev))}
         placeholder="Animal name"
         placeholderTextColor={theme.colors.textFaint}
         autoCapitalize="words"
@@ -411,18 +364,12 @@ export default function RevealScreen() {
         <View
           style={[
             styles.saveNotice,
-            saveNotice.kind === 'pending'
-              ? styles.saveNoticePending
-              : styles.saveNoticeFailed,
+            saveNotice.kind === 'pending' ? styles.saveNoticePending : styles.saveNoticeFailed,
           ]}
           accessibilityRole="alert"
         >
           <Ionicons
-            name={
-              saveNotice.kind === 'pending'
-                ? 'cloud-upload-outline'
-                : 'alert-circle-outline'
-            }
+            name={saveNotice.kind === 'pending' ? 'cloud-upload-outline' : 'alert-circle-outline'}
             size={18}
             color={theme.colors.text}
           />
@@ -432,22 +379,14 @@ export default function RevealScreen() {
     </View>
   )
 
-  const keepLabel =
-    saveNotice?.kind === 'pending' ? 'try upload again' : 'add to collection'
+  const keepLabel = saveNotice?.kind === 'pending' ? 'try upload again' : 'add to collection'
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboard}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.heroWrap}>
-            <ScanPhoto
-              uri={photoUri}
-              height={Math.min(heroHeight, 360)}
-              liquid={liquid}
-            />
+            <ScanPhoto uri={photoUri} height={Math.min(heroHeight, 360)} liquid={liquid} />
           </View>
 
           {liquid ? (
@@ -456,24 +395,14 @@ export default function RevealScreen() {
                 {form}
               </GlassView>
               <GlassView style={styles.keepGlass} glassEffectStyle="regular" isInteractive>
-                <KeepButton
-                  saving={saving}
-                  disabled={!phase.displayName.trim()}
-                  onPress={onKeep}
-                  label={keepLabel}
-                />
+                <KeepButton saving={saving} disabled={!phase.displayName.trim()} onPress={onKeep} label={keepLabel} />
               </GlassView>
             </GlassContainer>
           ) : (
             <View style={styles.stack}>
               <View style={[styles.formCard, styles.fallbackCard]}>{form}</View>
               <View style={[styles.keepGlass, styles.fallbackCard]}>
-                <KeepButton
-                  saving={saving}
-                  disabled={!phase.displayName.trim()}
-                  onPress={onKeep}
-                  label={keepLabel}
-                />
+                <KeepButton saving={saving} disabled={!phase.displayName.trim()} onPress={onKeep} label={keepLabel} />
               </View>
             </View>
           )}
@@ -560,11 +489,7 @@ function ScanPhoto({
         !liquid && styles.fallbackCard,
       ]}
     >
-      <Image
-        source={{ uri }}
-        style={styles.scanPhotoImage}
-        resizeMode="cover"
-      />
+      <Image source={{ uri }} style={styles.scanPhotoImage} resizeMode="cover" />
     </View>
   )
 
@@ -572,18 +497,10 @@ function ScanPhoto({
 
   return (
     <GlassView
-      style={[
-        styles.scanPhotoGlass,
-        fill ? styles.scanPhotoFrameFill : null,
-        !fill ? { height } : null,
-      ]}
+      style={[styles.scanPhotoGlass, fill ? styles.scanPhotoFrameFill : null, !fill ? { height } : null]}
       glassEffectStyle="regular"
     >
-      <Image
-        source={{ uri }}
-        style={styles.scanPhotoImage}
-        resizeMode="cover"
-      />
+      <Image source={{ uri }} style={styles.scanPhotoImage} resizeMode="cover" />
     </GlassView>
   )
 }

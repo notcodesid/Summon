@@ -3,7 +3,7 @@ import { deleteAsync, documentDirectory, EncodingType, readAsStringAsync } from 
 import type { Creature, Rarity } from '@/lib/creatures'
 import { saveWithDurableRetry } from '@/lib/durable-save'
 import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
-import { preferDurableLocalMediaUri } from '@/lib/media-reference'
+import { normalizePhotoMediaReference, refreshRemotePhotoUri } from '@/lib/media-reference'
 
 /**
  * Collection: local AsyncStorage mirror + server (Edge Function) as source of truth.
@@ -47,6 +47,9 @@ export type CollectionSaveResult =
   | { status: 'failed'; message: string }
 
 function rowToCreature(row: CreatureRow): Creature {
+  const media = normalizePhotoMediaReference({
+    remotePhotoUri: row.photo_uri ?? undefined,
+  })
   return {
     id: row.id,
     species: row.species,
@@ -54,8 +57,15 @@ function rowToCreature(row: CreatureRow): Creature {
     rarity: row.rarity as Rarity,
     stats: row.stats,
     note: row.note ?? '',
-    photoUri: row.photo_uri ?? '',
+    ...media,
     capturedAt: Date.parse(row.captured_at),
+  }
+}
+
+function normalizeCreatureMedia(creature: Creature): Creature {
+  return {
+    ...creature,
+    ...normalizePhotoMediaReference(creature),
   }
 }
 
@@ -64,7 +74,7 @@ async function readLocal(): Promise<Creature[]> {
     const raw = await AsyncStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as Creature[]) : []
+    return Array.isArray(parsed) ? (parsed as Creature[]).map(normalizeCreatureMedia) : []
   } catch {
     return []
   }
@@ -72,7 +82,7 @@ async function readLocal(): Promise<Creature[]> {
 
 async function writeLocal(creatures: Creature[]): Promise<boolean> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(creatures))
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(creatures.map(normalizeCreatureMedia)))
     return true
   } catch {
     return false
@@ -90,14 +100,19 @@ async function readPendingSaves(privyUserId: string): Promise<PendingSave[]> {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
 
-    return parsed.filter(
-      (entry): entry is PendingSave =>
-        Boolean(entry) &&
-        typeof entry === 'object' &&
-        typeof entry.queuedAt === 'number' &&
-        Boolean(entry.creature) &&
-        typeof entry.creature.id === 'string',
-    )
+    return parsed
+      .filter(
+        (entry): entry is PendingSave =>
+          Boolean(entry) &&
+          typeof entry === 'object' &&
+          typeof entry.queuedAt === 'number' &&
+          Boolean(entry.creature) &&
+          typeof entry.creature.id === 'string',
+      )
+      .map((entry) => ({
+        ...entry,
+        creature: normalizeCreatureMedia(entry.creature),
+      }))
   } catch {
     return []
   }
@@ -119,7 +134,10 @@ async function writePendingSaves(privyUserId: string, pending: PendingSave[]): P
 
 async function enqueuePendingSave(privyUserId: string, creature: Creature): Promise<boolean> {
   const current = await readPendingSaves(privyUserId)
-  const next = [{ creature, queuedAt: Date.now() }, ...current.filter((entry) => entry.creature.id !== creature.id)]
+  const next = [
+    { creature: normalizeCreatureMedia(creature), queuedAt: Date.now() },
+    ...current.filter((entry) => entry.creature.id !== creature.id),
+  ]
   return writePendingSaves(privyUserId, next)
 }
 
@@ -134,10 +152,17 @@ function isEphemeralPhotoUri(uri: string): boolean {
 }
 
 function withUsablePhoto(creature: Creature): Creature {
-  if (!creature.photoUri || !isEphemeralPhotoUri(creature.photoUri)) return creature
+  const normalized = normalizeCreatureMedia(creature)
+  const localPhotoUri = normalized.localPhotoUri
+  if (!localPhotoUri || !isEphemeralPhotoUri(localPhotoUri)) return normalized
   // Keep data: URIs for offline display of just-caught creatures; strip camera cache only.
-  if (uriIsData(creature.photoUri)) return creature
-  return { ...creature, photoUri: '' }
+  if (uriIsData(localPhotoUri)) return normalized
+  return {
+    ...normalized,
+    ...normalizePhotoMediaReference({
+      remotePhotoUri: normalized.remotePhotoUri,
+    }),
+  }
 }
 
 function uriIsData(uri: string): boolean {
@@ -157,7 +182,6 @@ function creaturePayload(creature: Creature) {
     rarity: creature.rarity,
     stats: creature.stats,
     note: creature.note,
-    photoUri: creature.photoUri,
     capturedAt: creature.capturedAt,
   }
 }
@@ -183,19 +207,43 @@ function base64FromDataUri(uri: string): string | null {
 }
 
 async function imageBase64For(creature: Creature): Promise<string | null> {
-  if (!creature.photoUri) return null
+  const { localPhotoUri } = normalizePhotoMediaReference(creature)
+  if (!localPhotoUri) return null
 
-  if (uriIsData(creature.photoUri)) {
-    return base64FromDataUri(creature.photoUri)
+  if (uriIsData(localPhotoUri)) {
+    return base64FromDataUri(localPhotoUri)
   }
 
   try {
-    return await readAsStringAsync(creature.photoUri, {
+    return await readAsStringAsync(localPhotoUri, {
       encoding: EncodingType.Base64,
     })
   } catch {
     return null
   }
+}
+
+function withRefreshedRemotePhoto(localCreature: Creature, remoteCreature: RemoteCreature): Creature {
+  return {
+    ...localCreature,
+    ...refreshRemotePhotoUri(localCreature, remoteCreature.photoUri),
+  }
+}
+
+async function storeRemotePhotoRefresh(creature: Creature, remoteCreature: RemoteCreature): Promise<Creature> {
+  const refreshed = withRefreshedRemotePhoto(creature, remoteCreature)
+  const local = await readLocal()
+  await writeLocal(
+    local.map((entry) =>
+      entry.id === refreshed.id
+        ? {
+            ...entry,
+            ...refreshRemotePhotoUri(entry, remoteCreature.photoUri),
+          }
+        : entry,
+    ),
+  )
+  return refreshed
 }
 
 /**
@@ -219,7 +267,8 @@ export async function syncPendingSaves(privyUserId?: string): Promise<number> {
         throw new Error('The saved photo is not available for upload yet.')
       }
 
-      await uploadCreature(entry.creature, imageBase64)
+      const remoteCreature = await uploadCreature(entry.creature, imageBase64)
+      await storeRemotePhotoRefresh(entry.creature, remoteCreature)
       synced += 1
     } catch {
       remaining.push(entry)
@@ -251,10 +300,13 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
     const remote = (creatures ?? [])
       .map(rowToCreature)
       .map(withUsablePhoto)
-      .map((creature) => ({
-        ...creature,
-        photoUri: preferDurableLocalMediaUri(creature.photoUri, localById.get(creature.id)?.photoUri),
-      }))
+      .map((creature) => {
+        const existing = localById.get(creature.id)
+        return {
+          ...creature,
+          ...refreshRemotePhotoUri(existing ?? creature, creature.remotePhotoUri),
+        }
+      })
     const remoteIds = new Set(remote.map((c) => c.id))
     const pendingIds = new Set((await readPendingSaves(privyUserId)).map((entry) => entry.creature.id))
     const unsyncedLocal = local.filter((c) => !remoteIds.has(c.id) && c.photoUri.length > 0 && pendingIds.has(c.id))
@@ -278,7 +330,8 @@ export async function addToCollection(
   privyUserId?: string,
   imageBase64?: string,
 ): Promise<CollectionSaveResult> {
-  const next = prependLocal(creature, await readLocal())
+  const normalizedCreature = normalizeCreatureMedia(creature)
+  const next = prependLocal(normalizedCreature, await readLocal())
 
   if (!privyUserId) {
     return {
@@ -295,7 +348,7 @@ export async function addToCollection(
         message: 'Could not save this animal on this device. Please try again.',
       }
     }
-    const queued = await enqueuePendingSave(privyUserId, creature)
+    const queued = await enqueuePendingSave(privyUserId, normalizedCreature)
     if (!queued) {
       return {
         status: 'failed',
@@ -304,23 +357,26 @@ export async function addToCollection(
     }
     return {
       status: 'pending',
-      creature,
+      creature: normalizedCreature,
       message: 'Saved on this device. Cloud saving is unavailable right now.',
     }
   }
 
+  let confirmedCreature = normalizedCreature
   const result = await saveWithDurableRetry({
-    entity: creature,
+    entity: normalizedCreature,
     persistLocal: () => writeLocal(next),
-    enqueue: () => enqueuePendingSave(privyUserId, creature),
+    enqueue: () => enqueuePendingSave(privyUserId, normalizedCreature),
     upload: async () => {
-      const uploadBase64 = imageBase64 || (await imageBase64For(creature))
+      const uploadBase64 = imageBase64 || (await imageBase64For(normalizedCreature))
       if (!uploadBase64) {
         throw new Error('The photo is not ready to upload.')
       }
-      return uploadCreature(creature, uploadBase64)
+      return uploadCreature(normalizedCreature, uploadBase64)
     },
-    onRemoteSaved: async () => {},
+    onRemoteSaved: async (remoteCreature) => {
+      confirmedCreature = await storeRemotePhotoRefresh(normalizedCreature, remoteCreature)
+    },
     dequeue: async () => {
       await writePendingSaves(
         privyUserId,
@@ -333,7 +389,7 @@ export async function addToCollection(
   })
 
   if (result.status === 'saved') {
-    return { status: 'saved', creature }
+    return { status: 'saved', creature: confirmedCreature }
   }
 
   if (result.status === 'pending') {
@@ -351,9 +407,10 @@ async function clearLocalPhotos(creatures: Creature[]): Promise<void> {
   const capturesDirectory = `${documentDirectory ?? ''}captures/`
   await Promise.all(
     creatures.map(async (creature) => {
-      if (!creature.photoUri.startsWith(capturesDirectory)) return
+      const { localPhotoUri } = normalizePhotoMediaReference(creature)
+      if (!localPhotoUri?.startsWith(capturesDirectory)) return
       try {
-        await deleteAsync(creature.photoUri, { idempotent: true })
+        await deleteAsync(localPhotoUri, { idempotent: true })
       } catch {
         // The local index is still cleared below.
       }

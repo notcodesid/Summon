@@ -36,10 +36,7 @@ function stripBase64Prefix(data: string): string {
 
 export async function identifyAnimal(base64Image: string): Promise<Identification> {
   if (!isIdentifyLive) {
-    throw new IdentifyError(
-      'Animal scan is not set up on this build.',
-      'Missing Supabase / Edge Function config',
-    )
+    throw new IdentifyError('Animal scan is not set up on this build.', 'Missing Supabase / Edge Function config')
   }
 
   const pure = stripBase64Prefix(base64Image)
@@ -60,9 +57,7 @@ export async function identifyAnimal(base64Image: string): Promise<Identificatio
         commonName: '',
         rarity: 'common',
         note: '',
-        message:
-          (result.message || '').trim() ||
-          'No real animal found — try again with a living animal.',
+        message: (result.message || '').trim() || 'No real animal found — try again with a living animal.',
       }
     }
 
@@ -89,18 +84,11 @@ export async function identifyAnimal(base64Image: string): Promise<Identificatio
     if (/network|fetch/i.test(raw)) {
       throw new IdentifyError('No connection — check the network and try scanning again.', raw)
     }
-    throw new IdentifyError(
-      raw.length < 120 ? raw : 'Could not scan this photo — retake and try again.',
-      raw,
-    )
+    throw new IdentifyError(raw.length < 120 ? raw : 'Could not scan this photo — retake and try again.', raw)
   }
 }
 
-export function toCreature(
-  identification: Identification,
-  photoUri: string,
-  id?: string,
-): Creature {
+export function toCreature(identification: Identification, photoUri: string, id?: string): Creature {
   const species = identification.species || identification.commonName
   const rarity = identification.rarity
   return {
@@ -111,6 +99,7 @@ export function toCreature(
     stats: statsFor(species, rarity),
     note: identification.note,
     photoUri,
+    ...(photoUri ? { localPhotoUri: photoUri } : {}),
     capturedAt: Date.now(),
   }
 }

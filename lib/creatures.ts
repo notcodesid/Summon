@@ -19,17 +19,14 @@ export type Creature = {
   rarity: Rarity
   stats: Stats
   note: string
+  /** Resolved render source: durable local copy first, signed remote fallback. */
   photoUri: string
+  localPhotoUri?: string
+  remotePhotoUri?: string
   capturedAt: number
 }
 
-export const RARITY_ORDER: Rarity[] = [
-  'common',
-  'uncommon',
-  'rare',
-  'epic',
-  'legendary',
-]
+export const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary']
 
 export const RARITY_LABEL: Record<Rarity, string> = {
   common: 'common',
