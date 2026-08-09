@@ -1,13 +1,5 @@
 import { useCallback, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -16,7 +8,10 @@ import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-ef
 import { usePrivy } from '@privy-io/expo'
 import { theme } from '@/constants/theme'
 import { Avatar, MicroLabel } from '@/components/ui'
-import { loadCollection } from '@/lib/collection'
+import { AppConfig } from '@/constants/app-config'
+import { deleteAccountData } from '@/lib/account'
+import { clearCollection, loadCollection } from '@/lib/collection'
+import { prepareImageForUpload } from '@/lib/image-processing'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
 
@@ -28,6 +23,7 @@ export default function ProfileScreen() {
   const avatarUrl = photoUrl ?? player.googlePhotoUrl
   const [caught, setCaught] = useState<number | null>(null)
   const [savingPhoto, setSavingPhoto] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const liquid = isLiquidGlassAvailable()
 
   useFocusEffect(
@@ -66,24 +62,22 @@ export default function ProfileScreen() {
     if (result.canceled) return
 
     const asset = result.assets[0]
-    if (!asset?.base64) {
+    if (!asset?.uri || !asset.base64) {
       Alert.alert('Could not use that photo', 'Please choose another image.')
       return
     }
 
     setSavingPhoto(true)
     try {
-      const mimeType = asset.mimeType ?? 'image/jpeg'
-      const saved = await savePlayerPhoto(
-        player.privyUserId,
-        `data:${mimeType};base64,${asset.base64}`,
-        'upload',
-      )
+      const prepared = await prepareImageForUpload(asset.uri, asset.width, asset.base64)
+      const saved = await savePlayerPhoto(player.privyUserId, { source: 'upload', imageBase64: prepared.base64 })
       if (saved) {
         await refresh()
       } else {
         Alert.alert('Upload failed', 'Please try again in a moment.')
       }
+    } catch {
+      Alert.alert('Could not prepare that photo', 'Choose a smaller image or update the app build and try again.')
     } finally {
       setSavingPhoto(false)
     }
@@ -96,6 +90,60 @@ export default function ProfileScreen() {
   const onSignOut = useCallback(() => {
     void logout().then(() => router.replace('/login'))
   }, [logout])
+
+  const openExternal = useCallback((url: string) => {
+    void Linking.openURL(url).catch(() => {
+      Alert.alert('Could not open link', 'Please try again in a browser.')
+    })
+  }, [])
+
+  const onClearCollection = useCallback(() => {
+    if (deleting || !player.privyUserId) return
+    Alert.alert('Delete collection?', 'This permanently deletes every saved animal and its photo from Summon.', [
+      { text: 'cancel', style: 'cancel' },
+      {
+        text: 'delete collection',
+        style: 'destructive',
+        onPress: () => {
+          setDeleting(true)
+          void clearCollection(player.privyUserId).then((deleted) => {
+            setDeleting(false)
+            if (deleted) {
+              setCaught(0)
+            } else {
+              Alert.alert('Could not delete collection', 'Check your connection and try again.')
+            }
+          })
+        },
+      },
+    ])
+  }, [deleting, player.privyUserId])
+
+  const onDeleteAccount = useCallback(() => {
+    if (deleting || !player.privyUserId) return
+    Alert.alert(
+      'Delete account and data?',
+      'This permanently deletes your Summon collection, photos, and profile data. This cannot be undone.',
+      [
+        { text: 'cancel', style: 'cancel' },
+        {
+          text: 'delete account',
+          style: 'destructive',
+          onPress: () => {
+            setDeleting(true)
+            void deleteAccountData(player.privyUserId).then((deleted) => {
+              setDeleting(false)
+              if (deleted) {
+                void logout().then(() => router.replace('/login'))
+              } else {
+                Alert.alert('Could not delete account', 'Check your connection and try again.')
+              }
+            })
+          },
+        },
+      ],
+    )
+  }, [deleting, logout, player.privyUserId])
 
   const profileCard = (
     <View style={styles.profileContent}>
@@ -116,9 +164,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <View style={styles.identityText}>
-        {player.name ? <Text style={styles.name}>{player.name}</Text> : null}
-      </View>
+      <View style={styles.identityText}>{player.name ? <Text style={styles.name}>{player.name}</Text> : null}</View>
 
       <View style={styles.metaRow}>
         <View style={styles.metaPill}>
@@ -170,6 +216,66 @@ export default function ProfileScreen() {
         >
           <Text style={styles.signOutText}>sign out</Text>
         </Pressable>
+
+        <View style={styles.accountActions}>
+          <Pressable
+            onPress={() => openExternal(AppConfig.privacyUrl)}
+            style={({ pressed }) => [styles.linkAction, pressed && styles.buttonPressed]}
+            accessibilityRole="link"
+            accessibilityLabel="Open privacy policy"
+          >
+            <Text style={styles.linkActionText}>privacy policy</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => openExternal(AppConfig.termsUrl)}
+            style={({ pressed }) => [styles.linkAction, pressed && styles.buttonPressed]}
+            accessibilityRole="link"
+            accessibilityLabel="Open terms"
+          >
+            <Text style={styles.linkActionText}>terms</Text>
+          </Pressable>
+          {AppConfig.supportEmail ? (
+            <Pressable
+              onPress={() => openExternal(`mailto:${AppConfig.supportEmail}`)}
+              style={({ pressed }) => [styles.linkAction, pressed && styles.buttonPressed]}
+              accessibilityRole="link"
+              accessibilityLabel="Contact support"
+            >
+              <Text style={styles.linkActionText}>contact support</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.dangerZone}>
+          <Text style={styles.dangerTitle}>your data</Text>
+          <Text style={styles.dangerBody}>Delete saved animals or remove your Summon data permanently.</Text>
+          <Pressable
+            onPress={onClearCollection}
+            disabled={deleting}
+            style={({ pressed }) => [
+              styles.dangerAction,
+              pressed && styles.buttonPressed,
+              deleting && styles.actionDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Delete collection"
+          >
+            <Text style={styles.dangerActionText}>delete collection</Text>
+          </Pressable>
+          <Pressable
+            onPress={onDeleteAccount}
+            disabled={deleting}
+            style={({ pressed }) => [
+              styles.dangerAction,
+              pressed && styles.buttonPressed,
+              deleting && styles.actionDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account and data"
+          >
+            <Text style={styles.dangerActionText}>{deleting ? 'deleting…' : 'delete account and data'}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -311,5 +417,55 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  accountActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: theme.space.md,
+    marginTop: theme.space.xl,
+  },
+  linkAction: {
+    paddingVertical: theme.space.xs,
+  },
+  linkActionText: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  dangerZone: {
+    marginTop: theme.space.section,
+    gap: theme.space.sm,
+    paddingTop: theme.space.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  dangerTitle: {
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  dangerBody: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: theme.space.sm,
+  },
+  dangerAction: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  dangerActionText: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  actionDisabled: {
+    opacity: 0.5,
   },
 })

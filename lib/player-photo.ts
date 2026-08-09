@@ -9,6 +9,7 @@ import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
  * the avatar renders immediately on launch.
  */
 export type PhotoSource = 'google' | 'upload'
+export type PlayerPhotoInput = { source: 'google'; sourceUrl: string } | { source: 'upload'; imageBase64: string }
 
 const cacheKey = (privyUserId: string) => `summon.photo.v1.${privyUserId}`
 
@@ -36,33 +37,28 @@ async function clearCache(privyUserId: string): Promise<void> {
   }
 }
 
-export async function savePlayerPhoto(
-  privyUserId: string,
-  url: string,
-  source: PhotoSource,
-): Promise<boolean> {
-  if (!isEdgeConfigured() || !privyUserId || !url) return false
+export async function savePlayerPhoto(privyUserId: string, input: PlayerPhotoInput): Promise<boolean> {
+  if (!isEdgeConfigured() || !privyUserId) return false
 
   try {
-    const result = await callEdgeFunction<{ ok?: boolean; skipped?: boolean }>(
-      'creatures',
-      {
-        action: 'save_player_photo',
-        photoUrl: url,
-        photoSource: source,
-      },
-    )
-    if (result.skipped) return false
-    await writeCache(privyUserId, url)
-    return true
+    const result = await callEdgeFunction<{
+      ok?: boolean
+      skipped?: boolean
+      photoUrl?: string | null
+    }>('creatures', {
+      action: 'save_player_photo',
+      photoSource: input.source,
+      sourceUrl: input.source === 'google' ? input.sourceUrl : undefined,
+      imageBase64: input.source === 'upload' ? input.imageBase64 : undefined,
+    })
+    if (result.photoUrl) await writeCache(privyUserId, result.photoUrl)
+    return result.ok === true || result.skipped === true
   } catch {
     return false
   }
 }
 
-export async function loadPlayerPhoto(
-  privyUserId: string,
-): Promise<string | null> {
+export async function loadPlayerPhoto(privyUserId: string): Promise<string | null> {
   const cached = await readCache(privyUserId)
   if (!isEdgeConfigured()) return cached
 
@@ -83,6 +79,10 @@ export async function loadPlayerPhoto(
   } catch {
     return cached
   }
+}
+
+export async function clearPlayerPhotoCache(privyUserId?: string): Promise<void> {
+  if (privyUserId) await clearCache(privyUserId)
 }
 
 /** Avatar image for the signed-in player, or null while unknown. */

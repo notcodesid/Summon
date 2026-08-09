@@ -27,7 +27,10 @@ export function CaptureGooglePhoto() {
   const flush = useCallback(async () => {
     const url = pendingUrlRef.current
     if (!url || !privyUserId) return
-    const saved = await savePlayerPhoto(privyUserId, url, 'google')
+    const saved = await savePlayerPhoto(privyUserId, {
+      source: 'google',
+      sourceUrl: url,
+    })
     // Clear only on a definite outcome so a transient failure can retry.
     if (saved) pendingUrlRef.current = null
   }, [privyUserId])

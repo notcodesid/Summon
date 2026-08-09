@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { EncodingType, readAsStringAsync } from 'expo-file-system/legacy'
+import { deleteAsync, documentDirectory, EncodingType, readAsStringAsync } from 'expo-file-system/legacy'
 import type { Creature, Rarity } from '@/lib/creatures'
 import { saveWithDurableRetry } from '@/lib/durable-save'
 import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
+import { preferDurableLocalMediaUri } from '@/lib/media-reference'
 
 /**
  * Collection: local AsyncStorage mirror + server (Edge Function) as source of truth.
@@ -102,10 +103,7 @@ async function readPendingSaves(privyUserId: string): Promise<PendingSave[]> {
   }
 }
 
-async function writePendingSaves(
-  privyUserId: string,
-  pending: PendingSave[],
-): Promise<boolean> {
+async function writePendingSaves(privyUserId: string, pending: PendingSave[]): Promise<boolean> {
   try {
     const key = pendingSaveKey(privyUserId)
     if (pending.length === 0) {
@@ -119,15 +117,9 @@ async function writePendingSaves(
   }
 }
 
-async function enqueuePendingSave(
-  privyUserId: string,
-  creature: Creature,
-): Promise<boolean> {
+async function enqueuePendingSave(privyUserId: string, creature: Creature): Promise<boolean> {
   const current = await readPendingSaves(privyUserId)
-  const next = [
-    { creature, queuedAt: Date.now() },
-    ...current.filter((entry) => entry.creature.id !== creature.id),
-  ]
+  const next = [{ creature, queuedAt: Date.now() }, ...current.filter((entry) => entry.creature.id !== creature.id)]
   return writePendingSaves(privyUserId, next)
 }
 
@@ -170,10 +162,7 @@ function creaturePayload(creature: Creature) {
   }
 }
 
-async function uploadCreature(
-  creature: Creature,
-  imageBase64: string,
-): Promise<RemoteCreature> {
+async function uploadCreature(creature: Creature, imageBase64: string): Promise<RemoteCreature> {
   const result = await callEdgeFunction<{ creature?: RemoteCreature }>('creatures', {
     action: 'save',
     creature: creaturePayload(creature),
@@ -209,19 +198,6 @@ async function imageBase64For(creature: Creature): Promise<string | null> {
   }
 }
 
-async function replaceLocalCreature(
-  id: string,
-  update: Partial<Creature>,
-): Promise<Creature | null> {
-  const current = await readLocal()
-  const next = current.map((creature) =>
-    creature.id === id ? { ...creature, ...update } : creature,
-  )
-  const saved = await writeLocal(next)
-  if (!saved) return null
-  return next.find((creature) => creature.id === id) ?? null
-}
-
 /**
  * Retries locally queued saves. It is safe to call on every collection load:
  * Edge `save` upserts by creature id, and successful items are removed only
@@ -243,10 +219,7 @@ export async function syncPendingSaves(privyUserId?: string): Promise<number> {
         throw new Error('The saved photo is not available for upload yet.')
       }
 
-      const remote = await uploadCreature(entry.creature, imageBase64)
-      await replaceLocalCreature(entry.creature.id, {
-        photoUri: remote.photoUri || entry.creature.photoUri,
-      })
+      await uploadCreature(entry.creature, imageBase64)
       synced += 1
     } catch {
       remaining.push(entry)
@@ -274,20 +247,18 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
       action: 'list',
     })
 
-    const remote = (creatures ?? []).map(rowToCreature).map(withUsablePhoto)
+    const localById = new Map(local.map((creature) => [creature.id, creature]))
+    const remote = (creatures ?? [])
+      .map(rowToCreature)
+      .map(withUsablePhoto)
+      .map((creature) => ({
+        ...creature,
+        photoUri: preferDurableLocalMediaUri(creature.photoUri, localById.get(creature.id)?.photoUri),
+      }))
     const remoteIds = new Set(remote.map((c) => c.id))
-    const pendingIds = new Set(
-      (await readPendingSaves(privyUserId)).map((entry) => entry.creature.id),
-    )
-    const unsyncedLocal = local.filter(
-      (c) =>
-        !remoteIds.has(c.id) &&
-        c.photoUri.length > 0 &&
-        pendingIds.has(c.id),
-    )
-    const merged = [...remote, ...unsyncedLocal].sort(
-      (a, b) => b.capturedAt - a.capturedAt,
-    )
+    const pendingIds = new Set((await readPendingSaves(privyUserId)).map((entry) => entry.creature.id))
+    const unsyncedLocal = local.filter((c) => !remoteIds.has(c.id) && c.photoUri.length > 0 && pendingIds.has(c.id))
+    const merged = [...remote, ...unsyncedLocal].sort((a, b) => b.capturedAt - a.capturedAt)
     await writeLocal(merged)
     return merged
   } catch {
@@ -349,31 +320,20 @@ export async function addToCollection(
       }
       return uploadCreature(creature, uploadBase64)
     },
-    onRemoteSaved: async (remote) => {
-      await replaceLocalCreature(creature.id, {
-        photoUri: remote.photoUri || creature.photoUri,
-      })
-    },
+    onRemoteSaved: async () => {},
     dequeue: async () => {
       await writePendingSaves(
         privyUserId,
-        (await readPendingSaves(privyUserId)).filter(
-          (entry) => entry.creature.id !== creature.id,
-        ),
+        (await readPendingSaves(privyUserId)).filter((entry) => entry.creature.id !== creature.id),
       )
     },
-    pendingMessage:
-      'Saved on this device. We’ll keep trying to upload it when you reopen your collection.',
+    pendingMessage: 'Saved on this device. We’ll keep trying to upload it when you reopen your collection.',
     localFailureMessage: 'Could not save this animal on this device. Please try again.',
     queueFailureMessage: 'Could not prepare a safe retry for this animal. Please try again.',
   })
 
   if (result.status === 'saved') {
-    const savedCreature = {
-      ...creature,
-      photoUri: result.remote.photoUri || creature.photoUri,
-    }
-    return { status: 'saved', creature: savedCreature }
+    return { status: 'saved', creature }
   }
 
   if (result.status === 'pending') {
@@ -387,17 +347,42 @@ export async function addToCollection(
   return result
 }
 
-export async function clearCollection(privyUserId?: string): Promise<void> {
+async function clearLocalPhotos(creatures: Creature[]): Promise<void> {
+  const capturesDirectory = `${documentDirectory ?? ''}captures/`
+  await Promise.all(
+    creatures.map(async (creature) => {
+      if (!creature.photoUri.startsWith(capturesDirectory)) return
+      try {
+        await deleteAsync(creature.photoUri, { idempotent: true })
+      } catch {
+        // The local index is still cleared below.
+      }
+    }),
+  )
+}
+
+/** Removes the local mirror and the on-device copies of saved photos. */
+export async function clearLocalCollection(privyUserId?: string): Promise<void> {
+  const local = await readLocal()
+  await clearLocalPhotos(local)
   await AsyncStorage.removeItem(STORAGE_KEY)
   if (privyUserId) {
     await AsyncStorage.removeItem(pendingSaveKey(privyUserId))
   }
+}
 
-  if (!isEdgeConfigured() || !privyUserId) return
+/**
+ * Deletes the collection from the server first. Local records are removed
+ * only after the private media and rows are confirmed deleted remotely.
+ */
+export async function clearCollection(privyUserId?: string): Promise<boolean> {
+  if (!isEdgeConfigured() || !privyUserId) return false
 
   try {
     await callEdgeFunction('creatures', { action: 'clear' })
+    await clearLocalCollection(privyUserId)
+    return true
   } catch {
-    // Local is already clear.
+    return false
   }
 }

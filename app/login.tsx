@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { Redirect, router } from 'expo-router'
@@ -57,6 +57,9 @@ function LoginWithPrivy() {
       setErrorMessage(e instanceof Error ? e.message : 'Google sign-in failed')
     }
   }, [login])
+  const openLegal = useCallback((url: string) => {
+    void Linking.openURL(url)
+  }, [])
 
   if (!isReady) {
     return (
@@ -111,6 +114,17 @@ function LoginWithPrivy() {
               {errorMessage ?? oauthError}
             </Animated.Text>
           ) : null}
+          <Text style={styles.consent}>
+            By continuing, you agree to the{' '}
+            <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.termsUrl)}>
+              terms
+            </Text>{' '}
+            and{' '}
+            <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.privacyUrl)}>
+              privacy policy
+            </Text>
+            . Animal photos are sent to Gemini for AI identification.
+          </Text>
         </Animated.View>
       </View>
     </SafeAreaView>
@@ -199,5 +213,16 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: theme.colors.textMuted,
     textAlign: 'center',
+  },
+  consent: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  consentLink: {
+    color: theme.colors.text,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 })

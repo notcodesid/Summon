@@ -1,4 +1,5 @@
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
+import { imageDataFromBase64, ImageValidationError } from '../_shared/image.ts'
 import { AuthError, requirePrivyUserId } from '../_shared/privy.ts'
 
 /**
@@ -58,21 +59,7 @@ const RESPONSE_SCHEMA = {
     note: { type: 'string' },
     message: { type: 'string' },
   },
-  required: [
-    'isAnimal',
-    'label',
-    'species',
-    'commonName',
-    'rarity',
-    'note',
-    'message',
-  ],
-}
-
-function stripBase64Prefix(data: string): string {
-  const marker = 'base64,'
-  const idx = data.indexOf(marker)
-  return idx >= 0 ? data.slice(idx + marker.length) : data
+  required: ['isAnimal', 'label', 'species', 'commonName', 'rarity', 'note', 'message'],
 }
 
 Deno.serve(async (req) => {
@@ -94,10 +81,7 @@ Deno.serve(async (req) => {
     const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash'
 
     const body = (await req.json()) as { imageBase64?: string }
-    const pure = stripBase64Prefix(body.imageBase64 ?? '')
-    if (!pure) {
-      return errorResponse('Missing imageBase64', 400)
-    }
+    const { base64: pure } = imageDataFromBase64(body.imageBase64 ?? '')
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
@@ -201,6 +185,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     if (err instanceof AuthError) {
       return errorResponse(err.message, 401)
+    }
+    if (err instanceof ImageValidationError) {
+      return errorResponse(err.message, 413)
     }
     console.error(err)
     return errorResponse('Identify failed', 500)

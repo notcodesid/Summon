@@ -16,6 +16,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { prepareImageForUpload } from '@/lib/image-processing'
 import { clearPendingCapture, setPendingCapture } from '@/lib/pending-capture'
 import { theme } from '@/constants/theme'
 
@@ -25,10 +26,7 @@ type Shot = {
   base64: string
 }
 
-type Phase =
-  | { status: 'live' }
-  | { status: 'capturing' }
-  | { status: 'review'; shot: Shot }
+type Phase = { status: 'live' } | { status: 'capturing' } | { status: 'review'; shot: Shot }
 
 /**
  * Scan step 1 — capture experience only.
@@ -149,13 +147,15 @@ export default function CameraScreen() {
         return
       }
 
+      const prepared = await prepareImageForUpload(photo.uri, photo.width, photo.base64)
+
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       setPhase({
         status: 'review',
         shot: {
           id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
-          uri: photo.uri,
-          base64: photo.base64,
+          uri: prepared.uri,
+          base64: prepared.base64,
         },
       })
     } catch {
@@ -176,8 +176,7 @@ export default function CameraScreen() {
     router.replace('/reveal')
   }, [phase])
 
-  const flashIcon =
-    flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off'
+  const flashIcon = flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off'
 
   if (!permission) {
     return (
@@ -195,9 +194,7 @@ export default function CameraScreen() {
           <Ionicons name="camera-outline" size={28} color={theme.colors.onDark} />
         </View>
         <Text style={styles.permissionTitle}>camera access</Text>
-        <Text style={styles.permissionBody}>
-          summon needs the camera to scan real animals you find outside.
-        </Text>
+        <Text style={styles.permissionBody}>summon needs the camera to scan real animals you find outside.</Text>
         <Pressable
           style={styles.permissionButton}
           onPress={requestPermission}
@@ -227,18 +224,9 @@ export default function CameraScreen() {
         onCameraReady={() => setReady(true)}
       />
 
-      {isReview ? (
-        <Image
-          source={{ uri: phase.shot.uri }}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      ) : null}
+      {isReview ? <Image source={{ uri: phase.shot.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
 
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.flashOverlay, { opacity: flashOpacity }]}
-      />
+      <Animated.View pointerEvents="none" style={[styles.flashOverlay, { opacity: flashOpacity }]} />
 
       {/* Dim + scan frame */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -261,9 +249,7 @@ export default function CameraScreen() {
             <View style={[styles.corner, styles.cornerBottomRight]} />
             {!isReview ? (
               <View style={styles.frameHint}>
-                <Text style={styles.frameHintText}>
-                  {isBusy ? 'hold still…' : 'frame the animal'}
-                </Text>
+                <Text style={styles.frameHintText}>{isBusy ? 'hold still…' : 'frame the animal'}</Text>
               </View>
             ) : null}
           </Animated.View>
@@ -273,10 +259,7 @@ export default function CameraScreen() {
       </View>
 
       {/* Top chrome */}
-      <View
-        style={[styles.topBar, { paddingTop: insets.top + 10 }]}
-        pointerEvents="box-none"
-      >
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]} pointerEvents="box-none">
         <Pressable
           onPress={handleClose}
           style={styles.iconButton}
@@ -288,12 +271,8 @@ export default function CameraScreen() {
         </Pressable>
 
         <View style={styles.scanTitle}>
-          <Text style={styles.scanTitleText}>
-            {isReview ? 'got it?' : 'scan'}
-          </Text>
-          <Text style={styles.scanSubtitle}>
-            {isReview ? 'use this shot or retake' : 'point at a real animal'}
-          </Text>
+          <Text style={styles.scanTitleText}>{isReview ? 'got it?' : 'scan'}</Text>
+          <Text style={styles.scanSubtitle}>{isReview ? 'use this shot or retake' : 'point at a real animal'}</Text>
         </View>
 
         {isReview ? (
@@ -312,19 +291,12 @@ export default function CameraScreen() {
       </View>
 
       {/* Bottom controls */}
-      <View
-        style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 28) }]}
-        pointerEvents="box-none"
-      >
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 28) }]} pointerEvents="box-none">
         {isReview ? (
           <View style={styles.reviewRow}>
             <Pressable
               onPress={handleRetake}
-              style={({ pressed }) => [
-                styles.reviewButton,
-                styles.reviewSecondary,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.reviewButton, styles.reviewSecondary, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Retake photo"
             >
@@ -334,11 +306,7 @@ export default function CameraScreen() {
 
             <Pressable
               onPress={handleUsePhoto}
-              style={({ pressed }) => [
-                styles.reviewButton,
-                styles.reviewPrimary,
-                pressed && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.reviewButton, styles.reviewPrimary, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Use this photo"
             >
@@ -348,25 +316,16 @@ export default function CameraScreen() {
           </View>
         ) : (
           <>
-            <Text style={styles.liveHint}>
-              {ready ? 'tap to capture' : 'starting camera…'}
-            </Text>
+            <Text style={styles.liveHint}>{ready ? 'tap to capture' : 'starting camera…'}</Text>
             <Animated.View style={{ transform: [{ scale: shutterScale }] }}>
               <Pressable
                 onPress={handleCapture}
                 disabled={!canShoot}
-                style={[
-                  styles.shutterOuter,
-                  !canShoot && styles.shutterDisabled,
-                ]}
+                style={[styles.shutterOuter, !canShoot && styles.shutterDisabled]}
                 accessibilityRole="button"
                 accessibilityLabel="Capture photo"
               >
-                {isBusy ? (
-                  <ActivityIndicator color={theme.colors.viewfinder} />
-                ) : (
-                  <View style={styles.shutterInner} />
-                )}
+                {isBusy ? <ActivityIndicator color={theme.colors.viewfinder} /> : <View style={styles.shutterInner} />}
               </Pressable>
             </Animated.View>
           </>

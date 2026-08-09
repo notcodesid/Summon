@@ -19,7 +19,7 @@
     "web": "expo start --web",
     "seeker:verify-config": "node scripts/verify-seeker-config.mjs",
     "seeker:check-release": "node scripts/check-seeker-release.mjs",
-    "test:save": "node --test --experimental-strip-types tests/durable-save.test.mjs"
+    "test:save": "node --test --experimental-strip-types tests/durable-save.test.mjs tests/media-reference.test.mjs"
   },
   "displayName": "Summon",
   "description": "Real-world animal collection and battles on Solana — initial mobile shell.",
@@ -61,6 +61,7 @@
     "expo-glass-effect": "~55.0.11",
     "expo-haptics": "~55.0.9",
     "expo-image": "~55.0.6",
+    "expo-image-manipulator": "~55.0.19",
     "expo-image-picker": "~55.0.22",
     "expo-linking": "~55.0.16",
     "expo-router": "~55.0.7",
