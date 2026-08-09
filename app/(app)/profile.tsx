@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import Clipboard from '@react-native-clipboard/clipboard'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { router, useFocusEffect } from 'expo-router'
@@ -21,26 +20,15 @@ import { loadCollection } from '@/lib/collection'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
 
-function shortAddress(address?: string | null) {
-  if (!address) return 'creating wallet…'
-  if (address.length <= 14) return address
-  return `${address.slice(0, 6)}…${address.slice(-6)}`
-}
-
-/** Account screen: identity, collection progress, wallet, and sign out. */
+/** Account screen: identity, collection progress, and sign out. */
 export default function ProfileScreen() {
   const { logout } = usePrivy()
   const player = usePlayer()
   const { photoUrl, refresh } = usePlayerPhoto(player.privyUserId)
   const avatarUrl = photoUrl ?? player.googlePhotoUrl
   const [caught, setCaught] = useState<number | null>(null)
-  const [copied, setCopied] = useState(false)
   const [savingPhoto, setSavingPhoto] = useState(false)
   const liquid = isLiquidGlassAvailable()
-  const walletDisplay = useMemo(
-    () => shortAddress(player.walletAddress),
-    [player.walletAddress],
-  )
 
   useFocusEffect(
     useCallback(() => {
@@ -53,18 +41,6 @@ export default function ProfileScreen() {
       }
     }, [player.privyUserId]),
   )
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 2000)
-    return () => clearTimeout(timer)
-  }, [copied])
-
-  const onCopy = useCallback(() => {
-    if (!player.walletAddress) return
-    Clipboard.setString(player.walletAddress)
-    setCopied(true)
-  }, [player.walletAddress])
 
   const onChoosePhoto = useCallback(async () => {
     if (savingPhoto) return
@@ -153,34 +129,6 @@ export default function ProfileScreen() {
     </View>
   )
 
-  const walletCard = (
-    <View style={styles.walletContent}>
-      <View style={styles.walletAddressRow}>
-        <View style={styles.walletIcon}>
-          <Ionicons name="wallet-outline" size={18} color={theme.colors.text} />
-        </View>
-        <Text style={styles.address} selectable>
-          {walletDisplay}
-        </Text>
-        {player.walletAddress ? (
-          <Pressable
-            onPress={onCopy}
-            style={({ pressed }) => [styles.copyIconButton, pressed && styles.copyButtonPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Copy wallet address"
-          >
-            <Ionicons
-              name={copied ? 'checkmark' : 'copy-outline'}
-              size={17}
-              color={theme.colors.text}
-            />
-          </Pressable>
-        ) : null}
-      </View>
-
-    </View>
-  )
-
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -194,14 +142,10 @@ export default function ProfileScreen() {
             <GlassView style={styles.profileCard} glassEffectStyle="regular">
               {profileCard}
             </GlassView>
-            <GlassView style={styles.walletCard} glassEffectStyle="regular">
-              {walletCard}
-            </GlassView>
           </GlassContainer>
         ) : (
           <View style={styles.stack}>
             <View style={[styles.profileCard, styles.fallbackCard]}>{profileCard}</View>
-            <View style={[styles.walletCard, styles.fallbackCard]}>{walletCard}</View>
           </View>
         )}
 
@@ -320,52 +264,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: theme.colors.textMuted,
-  },
-  walletCard: {
-    borderRadius: 28,
-    overflow: 'hidden',
-    padding: theme.space.md,
-  },
-  walletContent: {
-    gap: theme.space.sm,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  walletAddressRow: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: theme.space.md,
-  },
-  walletIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-  },
-  address: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: theme.colors.text,
-  },
-  copyIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-  },
-  copyButtonPressed: {
-    opacity: 0.7,
   },
   collectionButton: {
     marginTop: theme.space.lg,
