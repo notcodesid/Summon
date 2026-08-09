@@ -1,6 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
-import { Redirect, Tabs } from 'expo-router'
-import { GlassTabBar } from '@/components/glass-tab-bar'
+import { Redirect, Stack } from 'expo-router'
 import { AuthBoundary } from '@privy-io/expo'
 import { theme } from '@/constants/theme'
 import { isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
@@ -22,32 +21,14 @@ function ErrorScreen({ error }: { error: Error }) {
   )
 }
 
-/**
- * Home and Profile are tabs. Camera and reveal are reachable by
- * navigation but never appear in the bar — `href: null` keeps them routable.
- */
+/** Tabs use the native system bar; camera and reveal remain full-screen routes. */
 function AppStack() {
   return (
-    <Tabs
-      tabBar={(props) => <GlassTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: theme.colors.background },
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
-
-      <Tabs.Screen
-        name="camera"
-        options={{
-          href: null,
-          sceneStyle: { backgroundColor: theme.colors.viewfinder },
-        }}
-      />
-      <Tabs.Screen name="reveal" options={{ href: null }} />
-      <Tabs.Screen name="collection" options={{ href: null }} />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="camera" options={{ contentStyle: { backgroundColor: theme.colors.viewfinder } }} />
+      <Stack.Screen name="reveal" />
+    </Stack>
   )
 }
 

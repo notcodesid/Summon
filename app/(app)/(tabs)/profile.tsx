@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: theme.space.xl,
-    paddingBottom: 132,
+    paddingBottom: theme.space.section,
   },
   stack: {
     gap: theme.space.md,
