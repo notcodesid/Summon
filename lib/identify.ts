@@ -1,5 +1,5 @@
 import { isRarity, statsFor, type Creature, type Rarity } from '@/lib/creatures'
-import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
+import { callEdgeFunction, EdgeFunctionError, isEdgeConfigured } from '@/lib/edge'
 
 /**
  * Turns a captured photo into a creature via the server-side identify
@@ -75,6 +75,26 @@ export async function identifyAnimal(base64Image: string): Promise<Identificatio
     }
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'Identify failed'
+    if (error instanceof EdgeFunctionError) {
+      if (error.code === 'RATE_LIMIT_FREQUENCY') {
+        const retryAfter = typeof error.details?.retryAfterSeconds === 'number' ? error.details.retryAfterSeconds : null
+        throw new IdentifyError(
+          retryAfter
+            ? `Wait ${retryAfter} seconds before scanning again.`
+            : 'Wait a few seconds before scanning again.',
+          raw,
+        )
+      }
+      if (error.code === 'RATE_LIMIT_USER') {
+        throw new IdentifyError('You’ve reached the scan limit for now. Try again later.', raw)
+      }
+      if (error.code === 'RATE_LIMIT_IP') {
+        throw new IdentifyError('Too many scans are coming from this network. Try again later.', raw)
+      }
+      if (error.code === 'PROVIDER_TIMEOUT') {
+        throw new IdentifyError('The scan took too long. Please try again.', raw)
+      }
+    }
     if (/not signed in/i.test(raw)) {
       throw new IdentifyError('Sign in to scan animals.', raw)
     }

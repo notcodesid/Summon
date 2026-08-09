@@ -19,7 +19,8 @@
     "web": "expo start --web",
     "seeker:verify-config": "node scripts/verify-seeker-config.mjs",
     "seeker:check-release": "node scripts/check-seeker-release.mjs",
-    "test:save": "node --test --experimental-strip-types tests/durable-save.test.mjs tests/media-reference.test.mjs"
+    "test:save": "node --test --experimental-strip-types tests/durable-save.test.mjs tests/media-reference.test.mjs",
+    "test:protection": "node --test --experimental-strip-types tests/identify-protection.test.mjs"
   },
   "displayName": "Summon",
   "description": "Real-world animal collection and battles on Solana — initial mobile shell.",

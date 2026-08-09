@@ -1,7 +1,6 @@
 export const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-privy-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-privy-token',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
@@ -12,6 +11,18 @@ export function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-export function errorResponse(message: string, status = 400): Response {
-  return jsonResponse({ error: message }, status)
+export function errorResponse(
+  message: string,
+  status = 400,
+  code = 'BAD_REQUEST',
+  details?: Record<string, unknown>,
+): Response {
+  return jsonResponse(
+    {
+      error: message,
+      code,
+      ...(details ? { details } : {}),
+    },
+    status,
+  )
 }
