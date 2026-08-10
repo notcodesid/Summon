@@ -138,7 +138,6 @@ function DraggableCompanion({
             contentFit="contain"
           />
         )}
-        <View style={styles.activePulseIndicator} />
       </View>
     </Animated.View>
   )
@@ -278,17 +277,6 @@ const styles = StyleSheet.create({
   companionMascotImg: {
     width: 76,
     height: 76,
-  },
-  activePulseIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: '#34C759',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   bottomContainer: {
     flex: 1,
