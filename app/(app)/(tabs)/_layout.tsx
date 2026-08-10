@@ -9,10 +9,6 @@ const TAB_ICONS: Record<string, { icon: any; label: string; badge?: number }> = 
     icon: require('@/assets/tab-icons-transparent/home.png'),
     label: 'Home',
   },
-  collection: {
-    icon: require('@/assets/tab-icons-transparent/collection.png'),
-    label: 'Collection',
-  },
   profile: {
     icon: require('@/assets/tab-icons-transparent/profile.png'),
     label: 'Profile',
@@ -128,7 +124,6 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="collection" options={{ title: 'Collection' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   )

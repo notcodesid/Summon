@@ -210,7 +210,7 @@ export default function RevealScreen() {
       if (result.status === 'saved') {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
         saveAttemptRef.current = null
-        router.replace('/collection')
+        router.replace('/')
         return
       }
 
