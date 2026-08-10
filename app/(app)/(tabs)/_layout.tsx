@@ -12,7 +12,6 @@ const TAB_ICONS: Record<string, { icon: any; label: string; badge?: number }> = 
   collection: {
     icon: require('@/assets/tab-icons-transparent/collection.png'),
     label: 'Collection',
-    badge: 2,
   },
   profile: {
     icon: require('@/assets/tab-icons-transparent/profile.png'),

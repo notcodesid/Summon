@@ -281,43 +281,44 @@ export async function syncPendingSaves(privyUserId?: string): Promise<number> {
 
 /** Newest first. Remote list (when signed in) is source of truth. */
 export async function loadCollection(privyUserId?: string): Promise<Creature[]> {
+  let list: Creature[] = []
+
   if (!isEdgeConfigured() || !privyUserId) {
     const local = (await readLocal()).map(withUsablePhoto)
-    const cleaned = local.filter((c) => c.photoUri.length > 0)
-    await writeLocal(cleaned)
-    return cleaned
-  }
+    list = local.filter((c) => c.photoUri.length > 0 && !c.id.startsWith('demo-'))
+  } else {
+    await syncPendingSaves(privyUserId)
+    const local = (await readLocal()).map(withUsablePhoto)
 
-  await syncPendingSaves(privyUserId)
-  const local = (await readLocal()).map(withUsablePhoto)
-
-  try {
-    const { creatures } = await callEdgeFunction<{ creatures: CreatureRow[] }>('creatures', {
-      action: 'list',
-    })
-
-    const localById = new Map(local.map((creature) => [creature.id, creature]))
-    const remote = (creatures ?? [])
-      .map(rowToCreature)
-      .map(withUsablePhoto)
-      .map((creature) => {
-        const existing = localById.get(creature.id)
-        return {
-          ...creature,
-          ...refreshRemotePhotoUri(existing ?? creature, creature.remotePhotoUri),
-        }
+    try {
+      const { creatures } = await callEdgeFunction<{ creatures: CreatureRow[] }>('creatures', {
+        action: 'list',
       })
-    const remoteIds = new Set(remote.map((c) => c.id))
-    const pendingIds = new Set((await readPendingSaves(privyUserId)).map((entry) => entry.creature.id))
-    const unsyncedLocal = local.filter((c) => !remoteIds.has(c.id) && c.photoUri.length > 0 && pendingIds.has(c.id))
-    const merged = [...remote, ...unsyncedLocal].sort((a, b) => b.capturedAt - a.capturedAt)
-    await writeLocal(merged)
-    return merged
-  } catch {
-    const cleaned = local.filter((c) => c.photoUri.length > 0)
-    await writeLocal(cleaned)
-    return cleaned
+
+      const localById = new Map(local.map((creature) => [creature.id, creature]))
+      const remote = (creatures ?? [])
+        .map(rowToCreature)
+        .map(withUsablePhoto)
+        .map((creature) => {
+          const existing = localById.get(creature.id)
+          return {
+            ...creature,
+            ...refreshRemotePhotoUri(existing ?? creature, creature.remotePhotoUri),
+          }
+        })
+      const remoteIds = new Set(remote.map((c) => c.id))
+      const pendingIds = new Set((await readPendingSaves(privyUserId)).map((entry) => entry.creature.id))
+      const unsyncedLocal = local.filter((c) => !remoteIds.has(c.id) && c.photoUri.length > 0 && pendingIds.has(c.id))
+      list = [...remote, ...unsyncedLocal]
+        .filter((c) => !c.id.startsWith('demo-'))
+        .sort((a, b) => b.capturedAt - a.capturedAt)
+    } catch {
+      list = local.filter((c) => c.photoUri.length > 0 && !c.id.startsWith('demo-'))
+    }
   }
+
+  await writeLocal(list)
+  return list
 }
 
 /**

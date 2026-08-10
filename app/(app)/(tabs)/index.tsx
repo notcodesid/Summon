@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  ImageBackground,
+  Animated,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -15,11 +16,124 @@ import * as Haptics from 'expo-haptics'
 import { theme } from '@/constants/theme'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
-import { latestDiscovery } from '@/lib/discovery-library'
 import { usePlayer } from '@/lib/use-player'
+
+const DEFAULT_POSITIONS = [
+  { x: 0, y: 40 },         // 1. Stone bridge center
+  { x: -95, y: -30 },      // 2. Left meadow path
+  { x: 95, y: -10 },       // 3. Right pasture near treehouse
+  { x: 75, y: -140 },      // 4. Treehouse balcony
+  { x: -110, y: -110 },    // 5. High pine forest top left
+  { x: -40, y: -80 },      // 6. Central hill path
+  { x: -100, y: 55 },       // 7. Lower stream bank left
+  { x: 40, y: 20 },        // 8. River bank right
+  { x: 110, y: -90 },      // 9. Treehouse foliage
+  { x: -12, y: -165 },     // 10. Far upper mountain valley
+]
+
+function DraggableCompanion({
+  creature,
+  initialPos,
+  isSelected,
+  onSelect,
+}: {
+  creature: Creature
+  initialPos: { x: number; y: number }
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  const pan = useRef(new Animated.ValueXY(initialPos)).current
+  const scale = useRef(new Animated.Value(1)).current
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+        pan.setOffset({
+          x: (pan.x as any)._value,
+          y: (pan.y as any)._value,
+        })
+        pan.setValue({ x: 0, y: 0 })
+        Animated.spring(scale, {
+          toValue: 1.16,
+          friction: 6,
+          useNativeDriver: false,
+        }).start()
+      },
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (e, gestureState) => {
+        pan.flattenOffset()
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 5,
+          useNativeDriver: false,
+        }).start()
+
+        if (Math.abs(gestureState.dx) < 6 && Math.abs(gestureState.dy) < 6) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+          onSelect()
+        }
+      },
+    }),
+  ).current
+
+  return (
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        styles.draggableFrame,
+        {
+          transform: [
+            { translateX: pan.x },
+            { translateY: pan.y },
+            { scale: scale },
+          ],
+        },
+      ]}
+    >
+      {isSelected ? (
+        <View style={styles.companionBubbleCard}>
+          <View style={styles.bubbleHeader}>
+            <Text style={styles.bubbleName}>
+              {creature.commonName || creature.species}
+            </Text>
+            <Text style={styles.bubbleRarity}>
+              {creature.rarity.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.bubbleSpecies}>{creature.species}</Text>
+          {creature.stats ? (
+            <View style={styles.bubbleStatsRow}>
+              <Text style={styles.bubbleStatText}>⚡ {creature.stats.attack} ATK</Text>
+              <Text style={styles.bubbleStatText}>🛡️ {creature.stats.defense} DEF</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.companionFrame}>
+        {creature.photoUri ? (
+          <Image source={{ uri: creature.photoUri }} style={styles.companionAvatarPhoto} contentFit="cover" />
+        ) : (
+          <Image
+            source={require('@/assets/tab-icons-transparent/profile.png')}
+            style={styles.companionMascotImg}
+            contentFit="contain"
+          />
+        )}
+        <View style={styles.activePulseIndicator} />
+      </View>
+    </Animated.View>
+  )
+}
 
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
 
@@ -43,51 +157,54 @@ export default function HomeScreen() {
     )
   }
 
-  const recent = latestDiscovery(creatures)
+  const activeCompanions = creatures.slice(0, 10)
 
   return (
     <View style={styles.container}>
-      {/* Full-Screen Outdoor Wild Sanctuary Background */}
-      <ImageBackground
+      {/* Full-Screen Outdoor Sanctuary Background */}
+      <Image
         source={require('@/assets/sanctuary.jpg')}
         style={StyleSheet.absoluteFillObject}
-        resizeMode="cover"
+        contentFit="fill"
       />
 
+      {/* Interactive Drag & Drop Sanctuary Habitat Area */}
+      <View style={styles.habitatCompanionArea} pointerEvents="box-none">
+        {activeCompanions.length > 0 ? (
+          activeCompanions.map((creature, idx) => (
+            <DraggableCompanion
+              key={creature.id}
+              creature={creature}
+              initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
+              isSelected={selectedId === creature.id}
+              onSelect={() =>
+                setSelectedId((prev) => (prev === creature.id ? null : creature.id))
+              }
+            />
+          ))
+        ) : (
+          <DraggableCompanion
+            creature={{
+              id: 'mascot-lee',
+              species: 'Sanctuary Mascot',
+              commonName: 'Lee • Field Guide',
+              rarity: 'common',
+              stats: { hp: 100, attack: 50, defense: 50, speed: 50 },
+              note: 'Ready for field scanning!',
+              photoUri: '',
+              capturedAt: Date.now(),
+            }}
+            initialPos={{ x: 0, y: 30 }}
+            isSelected={selectedId === 'mascot-lee'}
+            onSelect={() =>
+              setSelectedId((prev) => (prev === 'mascot-lee' ? null : 'mascot-lee'))
+            }
+          />
+        )}
+      </View>
+
       {/* Floating Bottom Overlays */}
-      <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 115 }]}>
-        {/* Scanned Lead Specimen Card (Only when animals exist) */}
-        {recent ? (
-          <View style={styles.heroCard}>
-            <View style={styles.heroCardHeader}>
-              <Text style={styles.heroCardBadge}>LEAD COMPANION</Text>
-              <View style={styles.rarityPill}>
-                <Text style={styles.rarityText}>{recent.rarity.toUpperCase()}</Text>
-              </View>
-            </View>
-
-            <View style={styles.heroBody}>
-              {recent.photoUri ? (
-                <Image source={{ uri: recent.photoUri }} style={styles.heroPhoto} contentFit="cover" />
-              ) : (
-                <View style={styles.heroPhotoPlaceholder}>
-                  <Ionicons name="paw" size={32} color={theme.colors.primary} />
-                </View>
-              )}
-              <View style={styles.heroMeta}>
-                <Text style={styles.heroName}>{recent.commonName || recent.species}</Text>
-                <Text style={styles.heroSpecies}>{recent.species}</Text>
-                {recent.stats ? (
-                  <View style={styles.statChips}>
-                    <Text style={styles.statChip}>⚡ {recent.stats.attack} ATK</Text>
-                    <Text style={styles.statChip}>🛡️ {recent.stats.defense} DEF</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        ) : null}
-
+      <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 115 }]} pointerEvents="box-none">
         {/* Primary Scan Camera Circular CTA floating above tabs */}
         <Pressable
           style={({ pressed }) => [styles.scanCircleBtn, pressed && styles.scanBtnPressed]}
@@ -112,91 +229,112 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bottomContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-  },
-  heroCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 22,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroCardHeader: {
-    flexDirection: 'row',
+  habitatCompanionArea: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '52%',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    justifyContent: 'center',
+    zIndex: 10,
   },
-  heroCardBadge: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    color: '#2F7D5B',
-  },
-  rarityPill: {
-    backgroundColor: '#DDEFF8',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  rarityText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    color: '#2B6F93',
-  },
-  heroBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  heroPhoto: {
-    width: 58,
-    height: 58,
-    borderRadius: 14,
-  },
-  heroPhotoPlaceholder: {
-    width: 58,
-    height: 58,
-    borderRadius: 14,
-    backgroundColor: '#EAEFEA',
+  draggableFrame: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroMeta: {
-    flex: 1,
+  companionBubbleCard: {
+    position: 'absolute',
+    bottom: 85,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    minWidth: 160,
   },
-  heroName: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#22332D',
-  },
-  heroSpecies: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#768E85',
-    marginTop: 1,
-  },
-  statChips: {
+  bubbleHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    marginTop: 4,
   },
-  statChip: {
+  bubbleName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1E3B33',
+  },
+  bubbleRarity: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#2B6F93',
+    backgroundColor: '#DDEFF8',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  bubbleSpecies: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#5C7A70',
+    marginTop: 2,
+  },
+  bubbleStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  bubbleStatText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#2F7D5B',
     backgroundColor: '#EAEFEA',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
+  },
+  companionFrame: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companionAvatarPhoto: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+  },
+  companionMascotImg: {
+    width: 76,
+    height: 76,
+  },
+  activePulseIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#34C759',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  bottomContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
   },
   scanCircleBtn: {
     alignSelf: 'center',
