@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   filterCollection,
   latestDiscovery,
+  nextSpeciesMilestone,
   uniqueSpeciesCount,
   weeklyDiscoveryPrompt,
 } from '../lib/discovery-library.ts'
@@ -40,6 +41,32 @@ test('returns the newest discovery regardless of array order', () => {
   )
 })
 
+test('advances species milestones without counting duplicate captures', () => {
+  const milestone = nextSpeciesMilestone([
+    creature({ id: 'dog-1', commonName: 'Milo' }),
+    creature({ id: 'dog-2', commonName: 'Pepper' }),
+    creature({ id: 'cat', species: 'Felis catus', commonName: 'Luna' }),
+  ])
+
+  assert.deepEqual(milestone, {
+    current: 2,
+    target: 3,
+    remaining: 1,
+    progress: 2 / 3,
+  })
+})
+
+test('moves to the next milestone after a target is reached', () => {
+  const milestone = nextSpeciesMilestone([
+    creature({ id: 'dog' }),
+    creature({ id: 'cat', species: 'Felis catus' }),
+    creature({ id: 'fox', species: 'Vulpes vulpes' }),
+  ])
+
+  assert.equal(milestone.target, 5)
+  assert.equal(milestone.remaining, 2)
+})
+
 test('searches custom names, species, and notes while applying rarity filters', () => {
   const creatures = [
     creature({ id: 'dog', commonName: 'Milo', rarity: 'common' }),
@@ -67,8 +94,11 @@ test('searches custom names, species, and notes while applying rarity filters', 
   )
 })
 
-test('weekly prompts stay stable within the same seven-day window', () => {
-  const first = weeklyDiscoveryPrompt(new Date('2026-08-09T00:00:00.000Z'))
-  const second = weeklyDiscoveryPrompt(new Date('2026-08-10T00:00:00.000Z'))
-  assert.equal(first, second)
+test('weekly prompts follow Monday-to-Sunday calendar weeks', () => {
+  const monday = weeklyDiscoveryPrompt(new Date(2026, 7, 10, 12))
+  const sunday = weeklyDiscoveryPrompt(new Date(2026, 7, 16, 12))
+  const nextMonday = weeklyDiscoveryPrompt(new Date(2026, 7, 17, 12))
+
+  assert.equal(monday, sunday)
+  assert.notEqual(monday, nextMonday)
 })

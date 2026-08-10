@@ -2,13 +2,22 @@ import type { Creature, Rarity } from '@/lib/creatures'
 
 export type CollectionFilter = 'all' | Rarity
 
+export type SpeciesMilestone = {
+  current: number
+  target: number
+  remaining: number
+  progress: number
+}
+
+const SPECIES_MILESTONES = [3, 5, 10, 25, 50, 100] as const
+
 const WEEKLY_PROMPTS = [
   'Find an animal with wings.',
-  'Look for a small animal close to home.',
-  'Spot an animal active near sunset.',
+  'Notice a small animal close to home.',
   'Find an animal with a bold pattern.',
-  'Look near water for your next discovery.',
-  'Photograph an animal you hear before you see.',
+  'Photograph without approaching.',
+  'Find wildlife in a familiar place.',
+  'Notice an animal by its sound.',
 ] as const
 
 function normalized(value: string): string {
@@ -17,6 +26,18 @@ function normalized(value: string): string {
 
 export function uniqueSpeciesCount(creatures: Creature[]): number {
   return new Set(creatures.map((creature) => normalized(creature.species || creature.commonName)).filter(Boolean)).size
+}
+
+export function nextSpeciesMilestone(creatures: Creature[]): SpeciesMilestone {
+  const current = uniqueSpeciesCount(creatures)
+  const target = SPECIES_MILESTONES.find((milestone) => milestone > current) ?? Math.ceil((current + 1) / 50) * 50
+
+  return {
+    current,
+    target,
+    remaining: target - current,
+    progress: current / target,
+  }
 }
 
 export function latestDiscovery(creatures: Creature[]): Creature | null {
@@ -40,6 +61,11 @@ export function filterCollection(creatures: Creature[], query: string, filter: C
 }
 
 export function weeklyDiscoveryPrompt(date: Date = new Date()): string {
-  const week = Math.floor(date.getTime() / (7 * 24 * 60 * 60 * 1000))
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const daysSinceMonday = (monday.getDay() + 6) % 7
+  monday.setDate(monday.getDate() - daysSinceMonday)
+
+  const calendarDay = Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate())
+  const week = Math.floor(calendarDay / (7 * 24 * 60 * 60 * 1000))
   return WEEKLY_PROMPTS[Math.abs(week) % WEEKLY_PROMPTS.length]
 }
