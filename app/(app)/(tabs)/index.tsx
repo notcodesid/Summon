@@ -34,16 +34,35 @@ const DEFAULT_POSITIONS = [
 function DraggableCompanion({
   creature,
   initialPos,
-  isSelected,
-  onSelect,
 }: {
   creature: Creature
   initialPos: { x: number; y: number }
-  isSelected: boolean
-  onSelect: () => void
 }) {
   const pan = useRef(new Animated.ValueXY(initialPos)).current
   const scale = useRef(new Animated.Value(1)).current
+  const bounceAnim = useRef(new Animated.Value(0)).current
+  const heartTranslateY = useRef(new Animated.Value(0)).current
+  const heartOpacity = useRef(new Animated.Value(0)).current
+  const [heartKey, setHeartKey] = useState(0)
+
+  const triggerPettingAnimation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    setHeartKey((prev) => prev + 1)
+    heartTranslateY.setValue(0)
+    heartOpacity.setValue(1)
+
+    // Bounce physics
+    Animated.sequence([
+      Animated.timing(bounceAnim, { toValue: -18, duration: 110, useNativeDriver: false }),
+      Animated.spring(bounceAnim, { toValue: 0, friction: 4, tension: 180, useNativeDriver: false }),
+    ]).start()
+
+    // Floating hearts animation
+    Animated.parallel([
+      Animated.timing(heartTranslateY, { toValue: -50, duration: 800, useNativeDriver: false }),
+      Animated.timing(heartOpacity, { toValue: 0, duration: 800, useNativeDriver: false }),
+    ]).start()
+  }
 
   const panResponder = useRef(
     PanResponder.create({
@@ -57,7 +76,7 @@ function DraggableCompanion({
         })
         pan.setValue({ x: 0, y: 0 })
         Animated.spring(scale, {
-          toValue: 1.16,
+          toValue: 1.18,
           friction: 6,
           useNativeDriver: false,
         }).start()
@@ -74,8 +93,7 @@ function DraggableCompanion({
         }).start()
 
         if (Math.abs(gestureState.dx) < 6 && Math.abs(gestureState.dy) < 6) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-          onSelect()
+          triggerPettingAnimation()
         }
       },
     }),
@@ -89,31 +107,26 @@ function DraggableCompanion({
         {
           transform: [
             { translateX: pan.x },
-            { translateY: pan.y },
+            { translateY: Animated.add(pan.y, bounceAnim) },
             { scale: scale },
           ],
         },
       ]}
     >
-      {isSelected ? (
-        <View style={styles.companionBubbleCard}>
-          <View style={styles.bubbleHeader}>
-            <Text style={styles.bubbleName}>
-              {creature.commonName || creature.species}
-            </Text>
-            <Text style={styles.bubbleRarity}>
-              {creature.rarity.toUpperCase()}
-            </Text>
-          </View>
-          <Text style={styles.bubbleSpecies}>{creature.species}</Text>
-          {creature.stats ? (
-            <View style={styles.bubbleStatsRow}>
-              <Text style={styles.bubbleStatText}>⚡ {creature.stats.attack} ATK</Text>
-              <Text style={styles.bubbleStatText}>🛡️ {creature.stats.defense} DEF</Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+      {/* Floating Heart Particles Animation */}
+      <Animated.View
+        key={heartKey}
+        style={[
+          styles.floatingHeartContainer,
+          {
+            opacity: heartOpacity,
+            transform: [{ translateY: heartTranslateY }],
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={styles.floatingHeartText}>❤️</Text>
+      </Animated.View>
 
       <View style={styles.companionFrame}>
         {creature.photoUri ? (
@@ -133,7 +146,6 @@ function DraggableCompanion({
 
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
 
@@ -176,10 +188,6 @@ export default function HomeScreen() {
               key={creature.id}
               creature={creature}
               initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
-              isSelected={selectedId === creature.id}
-              onSelect={() =>
-                setSelectedId((prev) => (prev === creature.id ? null : creature.id))
-              }
             />
           ))
         ) : (
@@ -195,10 +203,6 @@ export default function HomeScreen() {
               capturedAt: Date.now(),
             }}
             initialPos={{ x: 0, y: 30 }}
-            isSelected={selectedId === 'mascot-lee'}
-            onSelect={() =>
-              setSelectedId((prev) => (prev === 'mascot-lee' ? null : 'mascot-lee'))
-            }
           />
         )}
       </View>
@@ -243,62 +247,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  companionBubbleCard: {
+  floatingHeartContainer: {
     position: 'absolute',
-    bottom: 85,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 5,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    minWidth: 160,
+    top: -30,
+    alignSelf: 'center',
+    zIndex: 30,
   },
-  bubbleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  bubbleName: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#1E3B33',
-  },
-  bubbleRarity: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#2B6F93',
-    backgroundColor: '#DDEFF8',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  bubbleSpecies: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    color: '#5C7A70',
-    marginTop: 2,
-  },
-  bubbleStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  bubbleStatText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#2F7D5B',
-    backgroundColor: '#EAEFEA',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  floatingHeartText: {
+    fontSize: 22,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   companionFrame: {
     position: 'relative',
