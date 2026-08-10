@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { MicroLabel } from '@/components/ui'
 import { theme } from '@/constants/theme'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
@@ -26,10 +26,10 @@ import { usePlayer } from '@/lib/use-player'
 
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
-  const [completedGoals, setCompletedGoals] = useState<Record<string, boolean>>({
-    water: false,
+  const [completedMissions, setCompletedMissions] = useState<Record<string, boolean>>({
+    flyer: false,
     explore: false,
-    scan: false,
+    battle: false,
   })
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
@@ -51,442 +51,634 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.centered}>
-          <ActivityIndicator color="#FFFFFF" size="large" />
+          <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
       </SafeAreaView>
     )
   }
 
+  const recent = latestDiscovery(creatures)
   const speciesCount = uniqueSpeciesCount(creatures)
   const milestone = nextSpeciesMilestone(creatures)
-  const milestonePercent = Math.min(100, Math.round((milestone.current / Math.max(1, milestone.target)) * 100))
+  const milestonePercent = Math.min(
+    100,
+    Math.round((milestone.current / Math.max(1, milestone.target)) * 100),
+  )
 
-  const toggleGoal = (id: string) => {
+  const toggleMission = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setCompletedGoals((prev) => ({ ...prev, [id]: !prev[id] }))
+    setCompletedMissions((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.headerSafe} edges={['top']}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.headerIconBtn} hitSlop={12}>
-            <Ionicons name="menu-outline" size={26} color="#FFFFFF" />
-          </Pressable>
-          <View style={styles.headerRight}>
-            <Pressable style={styles.headerIconBtn} hitSlop={12}>
-              <Ionicons name="sparkles" size={22} color="#FFFFFF" />
-              <View style={styles.headerBadge} />
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-
+    <SafeAreaView style={styles.safe}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 90 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Sanctuary Habitat Scene Header */}
-        <View style={styles.habitatContainer}>
-          <ImageBackground
-            source={require('@/assets/sanctuary.jpg')}
-            style={styles.habitatBg}
-            imageStyle={styles.habitatImageStyle}
+        {/* Top Explorer Masthead */}
+        <View style={styles.masthead}>
+          <View style={styles.mastheadLeft}>
+            <MicroLabel color={theme.colors.primary}>REAL-WORLD ANIMAL COLLECTION</MicroLabel>
+            <Text style={styles.wordmark}>Summon</Text>
+          </View>
+          <Pressable
+            style={styles.profileBadge}
+            onPress={() => router.push('/profile')}
           >
-            {/* Cute Chick Companion "Lee" standing in sanctuary */}
-            <View style={styles.mascotContainer}>
-              <Image
-                source={require('@/assets/tab-icons-transparent/profile.png')}
-                style={styles.mascotImage}
-                contentFit="contain"
-              />
-            </View>
-          </ImageBackground>
+            <Ionicons name="leaf" size={16} color={theme.colors.primary} />
+            <Text style={styles.profileBadgeText}>{speciesCount} Species</Text>
+          </Pressable>
         </View>
 
-        {/* Adventure Progress Banner */}
-        <View style={styles.adventureBanner}>
-          <View style={styles.adventureHeader}>
-            <View style={styles.boltBadge}>
-              <Ionicons name="flash" size={18} color="#FFD13B" />
+        {/* Lead Creature Companion / Recent Discovery Hero Card */}
+        {recent ? (
+          <View style={styles.leadCard}>
+            <View style={styles.leadHeader}>
+              <View style={styles.leadLabelRow}>
+                <Image
+                  source={require('@/assets/goal-icons/lead_badge.png')}
+                  style={styles.leadBadgeIcon}
+                  contentFit="contain"
+                />
+                <Text style={styles.leadLabel}>LEAD COMPANION</Text>
+              </View>
+              <View style={styles.rarityPill}>
+                <Text style={styles.rarityText}>{recent.rarity.toUpperCase()}</Text>
+              </View>
             </View>
-            <Text style={styles.adventureTitle}>
-              Species Expedition • {speciesCount} found
+
+            <View style={styles.leadBody}>
+              <View style={styles.leadPhotoFrame}>
+                {recent.photoUri ? (
+                  <Image source={{ uri: recent.photoUri }} style={styles.leadPhoto} contentFit="cover" />
+                ) : (
+                  <View style={styles.leadPhotoPlaceholder}>
+                    <Ionicons name="paw" size={40} color={theme.colors.primary} />
+                  </View>
+                )}
+              </View>
+              <View style={styles.leadInfo}>
+                <Text style={styles.leadName}>{recent.commonName || recent.species}</Text>
+                <Text style={styles.leadSpecies}>{recent.species}</Text>
+                {recent.stats ? (
+                  <View style={styles.statBadges}>
+                    <View style={styles.statBadgeItem}>
+                      <Text style={styles.statBadgeLabel}>HP</Text>
+                      <Text style={styles.statBadgeValue}>{recent.stats.hp}</Text>
+                    </View>
+                    <View style={styles.statBadgeItem}>
+                      <Text style={styles.statBadgeLabel}>ATK</Text>
+                      <Text style={styles.statBadgeValue}>{recent.stats.attack}</Text>
+                    </View>
+                    <View style={styles.statBadgeItem}>
+                      <Text style={styles.statBadgeLabel}>DEF</Text>
+                      <Text style={styles.statBadgeValue}>{recent.stats.defense}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.emptyLeadCard}>
+            <Image
+              source={require('@/assets/tab-icons-transparent/home.png')}
+              style={styles.emptySticker}
+              contentFit="contain"
+            />
+            <Text style={styles.emptyTitle}>No Animals Summoned Yet</Text>
+            <Text style={styles.emptySub}>
+              Head outside, point your camera at a real animal, and turn it into your first onchain companion!
             </Text>
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${milestonePercent}%` }]} />
-            <Text style={styles.progressText}>
-              {milestone.current} / {milestone.target}
-            </Text>
-          </View>
-        </View>
+        )}
 
-        {/* Goals Section */}
-        <View style={styles.goalsSection}>
-          <View style={styles.goalsHeader}>
-            <View style={styles.goalsTitleRow}>
-              <Ionicons name="calendar" size={20} color="#FFFFFF" />
-              <Text style={styles.goalsTitle}>Field Goals Today</Text>
-            </View>
-            <View style={styles.goalsActions}>
-              <Pressable style={styles.actionIconBtn} hitSlop={8}>
-                <Ionicons name="options-outline" size={18} color="#FFFFFF" />
-              </Pressable>
-              <Pressable style={styles.actionIconBtn} hitSlop={8}>
-                <Ionicons name="grid-outline" size={18} color="#FFFFFF" />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Goal 1: Scan an animal */}
-          <Pressable
-            style={[styles.goalCard, completedGoals.scan && styles.goalCardCompleted]}
-            onPress={() => router.push('/camera')}
-          >
-            <View style={styles.goalStickerFrame}>
-              <Image
-                source={require('@/assets/tab-icons-transparent/home.png')}
-                style={styles.goalSticker}
-                contentFit="contain"
-              />
-            </View>
-            <View style={styles.goalTextContainer}>
-              <Text style={[styles.goalName, completedGoals.scan && styles.goalTextDone]}>
-                Scan an animal outside
-              </Text>
-              <Text style={styles.goalCategory}>Weekly Mission • 10 ⚡</Text>
-            </View>
-            <Pressable
-              style={[styles.checkBtn, completedGoals.scan && styles.checkBtnDone]}
-              onPress={() => toggleGoal('scan')}
-            >
-              <Ionicons
-                name="checkmark"
-                size={18}
-                color={completedGoals.scan ? '#FFFFFF' : '#8CA39B'}
-              />
-            </Pressable>
-          </Pressable>
-
-          {/* Goal 2: Hydrate */}
-          <Pressable
-            style={[styles.goalCard, completedGoals.water && styles.goalCardCompleted]}
-            onPress={() => toggleGoal('water')}
-          >
-            <View style={styles.goalStickerFrame}>
-              <Image
-                source={require('@/assets/goal-icons/water.png')}
-                style={styles.goalSticker}
-                contentFit="contain"
-              />
-            </View>
-            <View style={styles.goalTextContainer}>
-              <Text style={[styles.goalName, completedGoals.water && styles.goalTextDone]}>
-                Drink water
-              </Text>
-              <Text style={styles.goalCategory}>Health & Energy • 5 ⚡</Text>
-            </View>
-            <View style={[styles.checkBtn, completedGoals.water && styles.checkBtnDone]}>
-              <Ionicons
-                name="checkmark"
-                size={18}
-                color={completedGoals.water ? '#FFFFFF' : '#8CA39B'}
-              />
-            </View>
-          </Pressable>
-
-          {/* Goal 3: Explore */}
-          <Pressable
-            style={[styles.goalCard, completedGoals.explore && styles.goalCardCompleted]}
-            onPress={() => toggleGoal('explore')}
-          >
-            <View style={styles.goalStickerFrame}>
-              <Image
-                source={require('@/assets/goal-icons/sunflower.png')}
-                style={styles.goalSticker}
-                contentFit="contain"
-              />
-            </View>
-            <View style={styles.goalTextContainer}>
-              <Text style={[styles.goalName, completedGoals.explore && styles.goalTextDone]}>
-                {weeklyPrompt}
-              </Text>
-              <Text style={styles.goalCategory}>Exploration • 5 ⚡</Text>
-            </View>
-            <View style={[styles.checkBtn, completedGoals.explore && styles.checkBtnDone]}>
-              <Ionicons
-                name="checkmark"
-                size={18}
-                color={completedGoals.explore ? '#FFFFFF' : '#8CA39B'}
-              />
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Primary Scan Button */}
+        {/* Primary Scan Camera CTA */}
         <Pressable
-          style={({ pressed }) => [styles.scanBtn, pressed && styles.scanBtnPressed]}
+          style={({ pressed }) => [styles.radarCta, pressed && styles.radarCtaPressed]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
             router.push('/camera')
           }}
         >
-          <Ionicons name="camera" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.scanBtnText}>Scan Animal</Text>
+          <View style={styles.radarIconRing}>
+            <Ionicons name="scan-outline" size={26} color="#FFFFFF" />
+          </View>
+          <View style={styles.radarTextGroup}>
+            <Text style={styles.radarTitle}>Point Camera & Scan</Text>
+            <Text style={styles.radarSub}>Capture real wildlife to collect & battle</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </Pressable>
+
+        {/* Milestone Expedition Progress Banner */}
+        <View style={styles.milestoneBanner}>
+          <View style={styles.milestoneHeader}>
+            <Ionicons name="compass-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.milestoneTitle}>Species Discovery Progress</Text>
+            <Text style={styles.milestoneCount}>
+              {milestone.current} / {milestone.target}
+            </Text>
+          </View>
+          <View style={styles.milestoneTrack}>
+            <View style={[styles.milestoneFill, { width: `${milestonePercent}%` }]} />
+          </View>
+        </View>
+
+        {/* Summon Field Missions (Real Animal Quests) */}
+        <View style={styles.missionsSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="sparkles-outline" size={18} color={theme.colors.text} />
+            <Text style={styles.sectionTitle}>Field Quests</Text>
+          </View>
+
+          {/* Mission 1: Real animal prompt */}
+          <Pressable
+            style={[styles.missionCard, completedMissions.explore && styles.missionCompleted]}
+            onPress={() => toggleMission('explore')}
+          >
+            <View style={styles.missionStickerFrame}>
+              <Image
+                source={require('@/assets/goal-icons/sunflower.png')}
+                style={styles.missionSticker}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.missionTextGroup}>
+              <Text style={[styles.missionTitle, completedMissions.explore && styles.missionTextDone]}>
+                {weeklyPrompt}
+              </Text>
+              <Text style={styles.missionReward}>+50 XP • Species Discovery</Text>
+            </View>
+            <View style={[styles.checkPill, completedMissions.explore && styles.checkPillDone]}>
+              <Ionicons
+                name="checkmark"
+                size={16}
+                color={completedMissions.explore ? '#FFFFFF' : theme.colors.textFaint}
+              />
+            </View>
+          </Pressable>
+
+          {/* Mission 2: Scan 2 Animals */}
+          <Pressable
+            style={[styles.missionCard, completedMissions.flyer && styles.missionCompleted]}
+            onPress={() => toggleMission('flyer')}
+          >
+            <View style={styles.missionStickerFrame}>
+              <Image
+                source={require('@/assets/tab-icons-transparent/home.png')}
+                style={styles.missionSticker}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.missionTextGroup}>
+              <Text style={[styles.missionTitle, completedMissions.flyer && styles.missionTextDone]}>
+                Scan 2 animals in the wild
+              </Text>
+              <Text style={styles.missionReward}>+25 XP • Daily Expedition</Text>
+            </View>
+            <View style={[styles.checkPill, completedMissions.flyer && styles.checkPillDone]}>
+              <Ionicons
+                name="checkmark"
+                size={16}
+                color={completedMissions.flyer ? '#FFFFFF' : theme.colors.textFaint}
+              />
+            </View>
+          </Pressable>
+
+          {/* Mission 3: Onchain Battle */}
+          <Pressable
+            style={[styles.missionCard, completedMissions.battle && styles.missionCompleted]}
+            onPress={() => toggleMission('battle')}
+          >
+            <View style={styles.missionStickerFrame}>
+              <Image
+                source={require('@/assets/goal-icons/battle.png')}
+                style={styles.missionSticker}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.missionTextGroup}>
+              <Text style={[styles.missionTitle, completedMissions.battle && styles.missionTextDone]}>
+                Challenge a rival in battle
+              </Text>
+              <Text style={styles.missionReward}>+100 XP • Onchain Combat</Text>
+            </View>
+            <View style={[styles.checkPill, completedMissions.battle && styles.checkPillDone]}>
+              <Ionicons
+                name="checkmark"
+                size={16}
+                color={completedMissions.battle ? '#FFFFFF' : theme.colors.textFaint}
+              />
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Recent Animal Specimen Gallery */}
+        {creatures.length > 0 ? (
+          <View style={styles.gallerySection}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="library-outline" size={18} color={theme.colors.text} />
+              <Text style={styles.sectionTitle}>Recent Discoveries</Text>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
+              {creatures.slice(0, 6).map((c) => (
+                <Pressable
+                  key={c.id}
+                  style={styles.galleryTile}
+                  onPress={() => router.push('/collection')}
+                >
+                  {c.photoUri ? (
+                    <Image source={{ uri: c.photoUri }} style={styles.galleryPhoto} contentFit="cover" />
+                  ) : (
+                    <View style={styles.galleryPlaceholder}>
+                      <Ionicons name="paw" size={24} color={theme.colors.textFaint} />
+                    </View>
+                  )}
+                  <View style={styles.galleryMeta}>
+                    <Text style={styles.galleryName} numberOfLines={1}>
+                      {c.commonName || c.species}
+                    </Text>
+                    <Text style={styles.gallerySpecies} numberOfLines={1}>
+                      {c.species}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#61B6A9',
-  },
   safe: {
     flex: 1,
-    backgroundColor: '#61B6A9',
+    backgroundColor: theme.colors.background,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerSafe: {
-    backgroundColor: '#61B6A9',
-    zIndex: 10,
+  scroll: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
   },
-  headerRow: {
+  masthead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#FF5A5F',
-    borderWidth: 1.5,
-    borderColor: '#61B6A9',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  habitatContainer: {
-    width: '100%',
-    height: 240,
-    borderRadius: 28,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  habitatBg: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  habitatImageStyle: {
-    borderRadius: 28,
-  },
-  mascotContainer: {
     marginBottom: 16,
   },
-  mascotImage: {
-    width: 80,
-    height: 80,
+  mastheadLeft: {
+    flex: 1,
   },
-  adventureBanner: {
-    marginTop: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+  wordmark: {
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -1,
+    color: theme.colors.text,
+    marginTop: 2,
   },
-  adventureHeader: {
+  profileBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    backgroundColor: theme.colors.speciesSurface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
   },
-  boltBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adventureTitle: {
-    fontSize: 14,
+  profileBadgeText: {
+    fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
+    color: theme.colors.primary,
   },
-  progressTrack: {
-    height: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 11,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+  leadCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  progressFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#FFD13B',
-    borderRadius: 11,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#2F4F4F',
-    zIndex: 2,
-  },
-  goalsSection: {
-    marginTop: 20,
-  },
-  goalsHeader: {
+  leadHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
-    paddingHorizontal: 4,
   },
-  goalsTitleRow: {
+  leadLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  goalsTitle: {
+  leadBadgeIcon: {
+    width: 24,
+    height: 24,
+  },
+  leadLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: theme.colors.primary,
+  },
+  rarityPill: {
+    backgroundColor: theme.colors.discoverySurface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  rarityText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    color: theme.colors.discoveryAccent,
+  },
+  leadBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  leadPhotoFrame: {
+    width: 88,
+    height: 88,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceRaised,
+  },
+  leadPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  leadPhotoPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leadInfo: {
+    flex: 1,
+  },
+  leadName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.4,
+  },
+  leadSpecies: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  statBadges: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  statBadgeItem: {
+    backgroundColor: theme.colors.surfaceRaised,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statBadgeLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.textFaint,
+  },
+  statBadgeValue: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: theme.colors.text,
+  },
+  emptyLeadCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    marginBottom: 16,
+  },
+  emptySticker: {
+    width: 60,
+    height: 60,
+    marginBottom: 10,
+  },
+  emptyTitle: {
     fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  emptySub: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  radarCta: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 24,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#2F7D5B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  radarCtaPressed: {
+    opacity: 0.88,
+  },
+  radarIconRing: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  radarTextGroup: {
+    flex: 1,
+  },
+  radarTitle: {
+    fontSize: 17,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.3,
   },
-  goalsActions: {
+  radarSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
+  milestoneBanner: {
+    backgroundColor: theme.colors.surfaceRaised,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 20,
+  },
+  milestoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    marginBottom: 8,
   },
-  actionIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  milestoneTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
-  goalCard: {
+  milestoneCount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.primary,
+  },
+  milestoneTrack: {
+    height: 8,
+    backgroundColor: theme.colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  milestoneFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 4,
+  },
+  missionsSection: {
+    marginBottom: 20,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    gap: 6,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.text,
+    letterSpacing: -0.3,
+  },
+  missionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
     padding: 12,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.rule,
   },
-  goalCardCompleted: {
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+  missionCompleted: {
+    opacity: 0.65,
+    backgroundColor: theme.colors.surfaceRaised,
   },
-  goalStickerFrame: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#FAF5EA',
+  missionStickerFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  goalSticker: {
-    width: 36,
-    height: 36,
+  missionSticker: {
+    width: 32,
+    height: 32,
   },
-  goalTextContainer: {
+  missionTextGroup: {
     flex: 1,
   },
-  goalName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#22332D',
-    letterSpacing: -0.2,
+  missionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
-  goalTextDone: {
+  missionTextDone: {
     textDecorationLine: 'line-through',
-    color: '#8A9E96',
+    color: theme.colors.textMuted,
   },
-  goalCategory: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#768E85',
+  missionReward: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primary,
     marginTop: 2,
   },
-  checkBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: '#EAEFEA',
+  checkPill: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
   },
-  checkBtnDone: {
-    backgroundColor: '#61B6A9',
+  checkPillDone: {
+    backgroundColor: theme.colors.primary,
   },
-  scanBtn: {
-    marginTop: 14,
-    backgroundColor: '#2F7D5B',
-    borderRadius: 24,
-    minHeight: 54,
-    flexDirection: 'row',
+  gallerySection: {
+    marginBottom: 10,
+  },
+  galleryScroll: {
+    marginHorizontal: -18,
+    paddingHorizontal: 18,
+  },
+  galleryTile: {
+    width: 120,
+    marginRight: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  galleryPhoto: {
+    width: '100%',
+    height: 90,
+  },
+  galleryPlaceholder: {
+    width: '100%',
+    height: 90,
+    backgroundColor: theme.colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  scanBtnPressed: {
-    opacity: 0.88,
+  galleryMeta: {
+    padding: 8,
   },
-  scanBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  galleryName: {
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.2,
+    color: theme.colors.text,
+  },
+  gallerySpecies: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: theme.colors.textMuted,
+    marginTop: 1,
   },
 })
+
 
