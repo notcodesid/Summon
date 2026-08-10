@@ -55,42 +55,58 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.masthead}>
           <MicroLabel color={theme.colors.textMuted}>field journal</MicroLabel>
-          <Text style={styles.wordmark}>Home</Text>
+          <Text style={styles.wordmark}>Ready to explore?</Text>
         </View>
 
         <View style={styles.stats}>
-          <Stat label="discoveries" value={String(creatures.length)} />
-          <View style={styles.statDivider} />
-          <Stat label="species" value={String(speciesCount)} />
+          <Stat
+            icon="paw-outline"
+            label="discoveries"
+            value={String(creatures.length)}
+            surfaceColor={theme.colors.discoverySurface}
+            accentColor={theme.colors.discoveryAccent}
+          />
+          <Stat
+            icon="leaf-outline"
+            label="species"
+            value={String(speciesCount)}
+            surfaceColor={theme.colors.speciesSurface}
+            accentColor={theme.colors.speciesAccent}
+          />
         </View>
 
-        <View style={styles.sectionHeader}>
-          <MicroLabel>this week</MicroLabel>
-        </View>
-        <Surface liquid={liquid} style={styles.weeklyCard}>
+        <View style={styles.weeklyCard}>
+          <View style={styles.questLabel}>
+            <Ionicons name="sparkles" size={14} color={theme.colors.questText} />
+            <MicroLabel color={theme.colors.questText}>weekly field mission</MicroLabel>
+          </View>
           <View style={styles.weeklyHeader}>
             <Text style={styles.weeklyPrompt}>{weeklyPrompt}</Text>
-            <Ionicons name="compass-outline" size={24} color={theme.colors.textMuted} />
+            <View style={styles.compassBadge}>
+              <Ionicons name="compass" size={28} color={theme.colors.questText} />
+            </View>
           </View>
 
-          <View style={styles.milestoneRow}>
-            <Text style={styles.milestoneLabel}>Next milestone</Text>
-            <Text style={styles.milestoneCount}>
-              {milestone.current} / {milestone.target} species
-            </Text>
+          <View style={styles.milestonePanel}>
+            <View style={styles.milestoneRow}>
+              <Text style={styles.milestoneLabel}>Next species milestone</Text>
+              <Text style={styles.milestoneCount}>
+                {milestone.current} / {milestone.target}
+              </Text>
+            </View>
+            <View
+              style={styles.progressTrack}
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: milestone.target,
+                now: milestone.current,
+              }}
+            >
+              <View style={[styles.progressFill, { width: milestoneWidth }]} />
+            </View>
           </View>
-          <View
-            style={styles.progressTrack}
-            accessibilityRole="progressbar"
-            accessibilityValue={{
-              min: 0,
-              max: milestone.target,
-              now: milestone.current,
-            }}
-          >
-            <View style={[styles.progressFill, { width: milestoneWidth }]} />
-          </View>
-        </Surface>
+        </View>
 
         <View style={styles.primaryAction}>
           <PrimaryButton label="scan an animal" onPress={() => router.push('/camera')} />
@@ -138,11 +154,28 @@ function Surface({ liquid, style, children }: { liquid: boolean; style: object; 
   return <View style={[style, styles.fallbackSurface]}>{children}</View>
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  surfaceColor,
+  accentColor,
+}: {
+  icon: 'paw-outline' | 'leaf-outline'
+  label: string
+  value: string
+  surfaceColor: string
+  accentColor: string
+}) {
   return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <MicroLabel color={theme.colors.textMuted}>{label}</MicroLabel>
+    <View style={[styles.stat, { backgroundColor: surfaceColor }]}>
+      <View style={[styles.statIcon, { backgroundColor: accentColor }]}>
+        <Ionicons name={icon} size={17} color={theme.colors.onDark} />
+      </View>
+      <View>
+        <Text style={styles.statValue}>{value}</Text>
+        <MicroLabel color={theme.colors.textMuted}>{label}</MicroLabel>
+      </View>
     </View>
   )
 }
@@ -166,38 +199,42 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   wordmark: {
-    marginTop: 2,
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.8,
+    marginTop: 4,
+    maxWidth: 300,
+    fontSize: 36,
+    lineHeight: 40,
+    fontWeight: '900',
+    letterSpacing: -1,
     color: theme.colors.text,
   },
   stats: {
-    marginTop: theme.space.xxl,
+    marginTop: theme.space.xl,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: theme.space.lg,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.colors.rule,
+    gap: theme.space.md,
   },
   stat: {
     flex: 1,
-    gap: 3,
+    minHeight: 108,
+    borderRadius: theme.radius.card,
+    padding: theme.space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.md,
+  },
+  statIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: theme.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statValue: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontWeight: '800',
+    fontSize: 30,
+    lineHeight: 32,
+    fontWeight: '900',
     letterSpacing: -0.9,
     color: theme.colors.text,
     fontVariant: ['tabular-nums'],
-  },
-  statDivider: {
-    width: 1,
-    height: 42,
-    marginHorizontal: theme.space.xl,
-    backgroundColor: theme.colors.rule,
   },
   fallbackSurface: {
     backgroundColor: theme.colors.surface,
@@ -205,7 +242,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   sectionHeader: {
-    paddingTop: theme.space.xxl,
+    paddingTop: theme.space.xl,
     paddingBottom: theme.space.md,
   },
   recentCard: {
@@ -251,12 +288,20 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
   },
   weeklyCard: {
-    minHeight: 184,
+    minHeight: 226,
+    marginTop: theme.space.xl,
     borderRadius: theme.radius.card,
     overflow: 'hidden',
     padding: theme.space.xl,
+    backgroundColor: theme.colors.questSurface,
+  },
+  questLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   weeklyHeader: {
+    marginTop: theme.space.md,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -264,14 +309,27 @@ const styles = StyleSheet.create({
   },
   weeklyPrompt: {
     flex: 1,
-    fontSize: 28,
-    lineHeight: 33,
-    fontWeight: '800',
-    letterSpacing: -0.65,
-    color: theme.colors.text,
+    fontSize: 27,
+    lineHeight: 32,
+    fontWeight: '900',
+    letterSpacing: -0.7,
+    color: theme.colors.questText,
+  },
+  compassBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.questSurfaceRaised,
+  },
+  milestonePanel: {
+    marginTop: theme.space.xl,
+    borderRadius: theme.radius.tile,
+    padding: theme.space.md,
+    backgroundColor: theme.colors.questSurfaceRaised,
   },
   milestoneRow: {
-    marginTop: theme.space.xxl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -279,12 +337,12 @@ const styles = StyleSheet.create({
   milestoneLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.textMuted,
+    color: theme.colors.questMuted,
   },
   milestoneCount: {
     fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.text,
+    fontWeight: '800',
+    color: theme.colors.questText,
     fontVariant: ['tabular-nums'],
   },
   progressTrack: {
@@ -292,12 +350,12 @@ const styles = StyleSheet.create({
     marginTop: theme.space.sm,
     borderRadius: theme.radius.pill,
     overflow: 'hidden',
-    backgroundColor: theme.colors.surfaceRaised,
+    backgroundColor: theme.colors.questSurfaceRaised,
   },
   progressFill: {
     height: '100%',
     borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryStrong,
   },
   primaryAction: {
     marginTop: theme.space.lg,

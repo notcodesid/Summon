@@ -9,31 +9,40 @@ function adaptiveColor(light: string, dark: string): string {
 }
 
 /**
- * Field-guide editorial: warm paper ground, near-black ink, rarity as the only
- * hue. Colors follow the system appearance; users do not choose an app theme.
+ * Playful field journal: warm paper, botanical green, and a few semantic
+ * discovery colors. Colors follow the system appearance; users do not choose
+ * an app theme.
  */
 export const theme = {
   colors: {
-    background: adaptiveColor('#FCFCFB', '#10110F'),
-    surface: adaptiveColor('#F4F4F2', '#1A1B18'),
-    surfaceRaised: adaptiveColor('#ECECE9', '#23241F'),
-    glassSurface: adaptiveColor('rgba(17, 18, 16, 0.08)', 'rgba(245, 245, 239, 0.11)'),
-    glassSurfaceStrong: adaptiveColor('rgba(17, 18, 16, 0.12)', 'rgba(245, 245, 239, 0.16)'),
-    glassBorder: adaptiveColor('rgba(17, 18, 16, 0.10)', 'rgba(245, 245, 239, 0.12)'),
-    specimenSurface: adaptiveColor('#E2E3DE', '#3B3D36'),
-    border: adaptiveColor('#E5E5E1', '#32342E'),
+    background: adaptiveColor('#F7F5EA', '#101510'),
+    surface: adaptiveColor('#FFFDF7', '#1A211B'),
+    surfaceRaised: adaptiveColor('#EEEDE3', '#263027'),
+    glassSurface: adaptiveColor('rgba(255, 253, 247, 0.68)', 'rgba(34, 45, 36, 0.68)'),
+    glassSurfaceStrong: adaptiveColor('rgba(255, 253, 247, 0.84)', 'rgba(42, 55, 44, 0.82)'),
+    glassBorder: adaptiveColor('rgba(47, 125, 91, 0.10)', 'rgba(221, 241, 226, 0.12)'),
+    specimenSurface: adaptiveColor('#E2E8DF', '#39453B'),
+    border: adaptiveColor('#E3E1D5', '#334035'),
     /** Hairline rules between rows — lighter than a border. */
     rule: adaptiveColor('#EAEAE6', '#272923'),
-    text: adaptiveColor('#111210', '#F5F5EF'),
-    textMuted: adaptiveColor('#767773', '#B5B6AD'),
+    text: adaptiveColor('#18221C', '#F4F7F0'),
+    textMuted: adaptiveColor('#687169', '#B6C0B6'),
     /** Micro-labels and captions; one step quieter than textMuted. */
     textFaint: adaptiveColor('#9B9C97', '#85877E'),
-    primary: adaptiveColor('#111210', '#F5F5EF'),
-    primaryStrong: adaptiveColor('#000000', '#FFFFFF'),
+    primary: adaptiveColor('#2F7D5B', '#69C592'),
+    primaryStrong: adaptiveColor('#205A43', '#82D6A6'),
+    discoverySurface: adaptiveColor('#DDEFF8', '#193442'),
+    discoveryAccent: adaptiveColor('#2B6F93', '#78C4EB'),
+    speciesSurface: adaptiveColor('#DDF1E2', '#1D3927'),
+    speciesAccent: adaptiveColor('#2F7D5B', '#69C592'),
+    questSurface: adaptiveColor('#FFE6A7', '#463713'),
+    questSurfaceRaised: adaptiveColor('rgba(255, 253, 247, 0.72)', 'rgba(255, 230, 167, 0.10)'),
+    questText: adaptiveColor('#4A3710', '#FFE8AF'),
+    questMuted: adaptiveColor('#715B27', '#D8BF80'),
     /** Camera viewfinder only — deliberate true black behind a live preview. */
     viewfinder: '#000000',
     onDark: '#FCFCFB',
-    onPrimary: adaptiveColor('#FCFCFB', '#10110F'),
+    onPrimary: '#FFFFFF',
   },
 
   /** Radius varies by role on purpose: pills for actions, softer for specimens. */
