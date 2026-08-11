@@ -49,17 +49,11 @@ export default function ProfileScreen() {
     }, [player.privyUserId]),
   )
 
-  const totalPower = creatures.reduce((acc, c) => acc + (c.stats?.attack || 50), 0)
-  const activeCompanion: Creature = creatures[0] || {
-    id: 'mascot-lee',
-    species: 'Sanctuary Mascot',
-    commonName: 'Lee • Field Guide',
-    rarity: 'common',
-    stats: { hp: 100, attack: 50, defense: 50, speed: 50 },
-    note: 'Tap to pet!',
-    photoUri: '',
-    capturedAt: Date.now(),
-  }
+  const speciesCount = creatures.length
+  const discoveriesCount = creatures.length
+  const rareCount = creatures.filter(
+    (c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary',
+  ).length
 
   const totalExp = creatures.length * 50
   const level = Math.floor(totalExp / 100) + 1
@@ -70,28 +64,30 @@ export default function ProfileScreen() {
     {
       id: 'first_scan',
       title: 'First Scan',
-      desc: 'Scan 1 animal',
-      image: require('@/assets/goal-icons/sunflower.png'),
+      emoji: '🌻',
       unlocked: creatures.length >= 1,
-      progress: Math.min(creatures.length, 1) / 1,
     },
     {
       id: 'wildlife_scout',
       title: 'Wildlife Scout',
-      desc: 'Save 5 animals',
-      image: require('@/assets/goal-icons/water.png'),
+      emoji: '🧃',
       unlocked: creatures.length >= 5,
-      progress: Math.min(creatures.length, 5) / 5,
     },
     {
       id: 'rare_hunter',
       title: 'Rare Finder',
-      desc: 'Catch a rare species',
-      image: require('@/assets/goal-icons/lead_badge.png'),
-      unlocked: creatures.some((c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary'),
-      progress: creatures.some((c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary') ? 1 : 0,
+      emoji: '🛡️',
+      unlocked: rareCount > 0,
     },
   ]
+
+  const recentDiscoveries = creatures.slice(0, 4)
+  // Fill up field guide preview slots (up to 4 items)
+  const fieldGuidePreview = Array.from({ length: 4 }).map((_, i) => creatures[i] || null)
+
+  const handleName = player.name
+    ? `@${player.name.toLowerCase().replace(/\s+/g, '')}`
+    : '@explorer'
 
   const onChoosePhoto = useCallback(async () => {
     if (savingPhoto) return
@@ -206,37 +202,27 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Sanctuary Outdoor Background Artwork */}
+      {/* Background Artwork */}
       <Image
         source={require('@/assets/sanctuary.jpg')}
         style={StyleSheet.absoluteFillObject}
-        contentFit="fill"
+        contentFit="cover"
       />
-      <SafeAreaView style={styles.safe}>
-        {/* Top Right Gear Settings Button */}
-        <View style={styles.topRightHeader}>
-          <Pressable
-            style={({ pressed }) => [styles.gearBtn, pressed && styles.pressedOpacity]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              setSettingsOpen(true)
-            }}
-          >
-            <Ionicons name="settings-sharp" size={18} color="#B7F34A" />
-          </Pressable>
-        </View>
+      {/* Darkened readability overlay */}
+      <View style={styles.darkOverlay} />
 
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Pure Floating Profile Header (No white box!) */}
-          <View style={styles.floatingProfileHeader}>
+          {/* Identity Header & Settings Button */}
+          <View style={styles.topBarRow}>
             <View style={styles.avatarContainer}>
               <Avatar
                 initials={initialsFor(player)}
                 uri={avatarUrl}
-                size={96}
+                size={64}
                 onPress={onChoosePhoto}
                 accessibilityLabel="Change profile picture"
               />
@@ -244,76 +230,124 @@ export default function ProfileScreen() {
                 {savingPhoto ? (
                   <ActivityIndicator size="small" color="#171A17" />
                 ) : (
-                  <Ionicons name="camera" size={14} color="#171A17" />
+                  <Ionicons name="camera" size={11} color="#171A17" />
                 )}
               </View>
             </View>
 
-            <Text style={styles.floatingPlayerName}>{player.name || 'Explorer'}</Text>
-
-            {/* Floating Glass EXP & Level Bar */}
-            <View style={styles.floatingLevelCard}>
-              <View style={styles.levelHeaderRow}>
-                <Text style={styles.levelTitle}>LEVEL {level} EXPLORER</Text>
-                <Text style={styles.expText}>{currentLevelExp} / 100 EXP</Text>
-              </View>
-              <View style={styles.expTrack}>
-                <View style={[styles.expFill, { width: `${Math.min(Math.max(expProgress * 100, 6), 100)}%` }]} />
-              </View>
+            <View style={styles.namesColumn}>
+              <Text style={styles.displayName}>{player.name || 'Explorer'}</Text>
+              <Text style={styles.handleText}>{handleName}</Text>
+              <Text style={styles.levelBadge}>✦ Level {level} Explorer</Text>
             </View>
 
-            {/* Floating Species Saved Pill */}
-            <View style={styles.floatingStatsPill}>
-              <Ionicons name="paw" size={14} color="#B7F34A" />
-              <Text style={styles.speciesSavedText}>
-                {creatures.length} {creatures.length === 1 ? 'SPECIES DISCOVERED' : 'SPECIES DISCOVERED'}
-              </Text>
+            <Pressable
+              style={({ pressed }) => [styles.gearBtn, pressed && styles.pressedOpacity]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                setSettingsOpen(true)
+              }}
+            >
+              <Ionicons name="settings-sharp" size={18} color="#B7F34A" />
+            </Pressable>
+          </View>
+
+          {/* Compact Level XP Bar */}
+          <View style={styles.compactXpCard}>
+            <View style={styles.xpHeaderRow}>
+              <Text style={styles.xpTitle}>PROGRESSION</Text>
+              <Text style={styles.xpVal}>{currentLevelExp} / 100 XP</Text>
+            </View>
+            <View style={styles.xpTrack}>
+              <View style={[styles.xpFill, { width: `${Math.min(Math.max(expProgress * 100, 5), 100)}%` }]} />
             </View>
           </View>
 
-          {/* Active Companion / Buddy Card */}
-          <View style={styles.companionCard}>
-            <Text style={styles.companionSectionTitle}>ACTIVE COMPANION</Text>
-            <View style={styles.companionRow}>
-              <View style={styles.companionAvatarCircle}>
-                {activeCompanion.photoUri ? (
-                  <Image source={{ uri: activeCompanion.photoUri }} style={styles.companionPhoto} contentFit="cover" />
-                ) : (
-                  <Ionicons name="paw" size={24} color="#B7F34A" />
-                )}
-              </View>
+          {/* Primary Discovery Stats Grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statCell}>
+              <Text style={styles.statNumber}>{speciesCount}</Text>
+              <Text style={styles.statLabel}>SPECIES</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <Text style={styles.statNumber}>{discoveriesCount}</Text>
+              <Text style={styles.statLabel}>DISCOVERIES</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <Text style={styles.statNumber}>{rareCount}</Text>
+              <Text style={styles.statLabel}>RARE</Text>
+            </View>
+          </View>
 
-              <View style={styles.companionInfo}>
-                <Text style={styles.companionName}>{activeCompanion.commonName}</Text>
-                <Text style={styles.companionSpecies}>{activeCompanion.species}</Text>
-                <View style={styles.companionRarityBadge}>
-                  <Text style={styles.companionRarityText}>{activeCompanion.rarity.toUpperCase()}</Text>
+          {/* Field Guide Section Entry */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
+                <Text style={styles.sectionSubtitle}>{speciesCount} / 386 species discovered</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#B7F34A" />
+            </View>
+            <View style={styles.fieldGuideRow}>
+              {fieldGuidePreview.map((item, idx) => (
+                <View key={item?.id || `empty-${idx}`} style={styles.fieldGuideItem}>
+                  {item?.photoUri ? (
+                    <Image source={{ uri: item.photoUri }} style={styles.fieldGuidePhoto} contentFit="cover" />
+                  ) : (
+                    <View style={styles.silhouetteBox}>
+                      <Text style={styles.silhouetteQuestionMark}>?</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-
-              <View style={styles.companionPowerPill}>
-                <Ionicons name="flash" size={14} color="#C9A66B" />
-                <Text style={styles.companionPowerVal}>{activeCompanion.stats?.attack || 50}</Text>
-              </View>
+              ))}
             </View>
           </View>
 
-          {/* Achievement Medals Card */}
-          <View style={styles.medalsCard}>
-            <Text style={styles.medalsSectionTitle}>EXPLORER MEDALS</Text>
-            <View style={styles.medalsRow}>
-              {medals.map((m) => (
-                <View key={m.id} style={styles.medalItem}>
-                  <View style={styles.medalIconCircle}>
-                    <Image source={m.image} style={styles.medalBadgeImg} contentFit="contain" />
-                    {!m.unlocked ? (
-                      <View style={styles.lockBadge}>
-                        <Ionicons name="lock-closed" size={10} color="#FFFFFF" />
-                      </View>
-                    ) : null}
+          {/* Recent Discoveries Section */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>RECENT DISCOVERIES</Text>
+            {recentDiscoveries.length > 0 ? (
+              <View style={styles.recentList}>
+                {recentDiscoveries.map((c) => (
+                  <View key={c.id} style={styles.recentRow}>
+                    <View style={styles.recentPhotoWrap}>
+                      {c.photoUri ? (
+                        <Image source={{ uri: c.photoUri }} style={styles.recentPhoto} contentFit="cover" />
+                      ) : (
+                        <Ionicons name="paw" size={18} color="#B7F34A" />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.recentName}>{c.commonName}</Text>
+                      <Text style={styles.recentSpecies}>{c.species}</Text>
+                    </View>
+                    <Text style={styles.recentTime}>
+                      {c.capturedAt ? new Date(c.capturedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Today'}
+                    </Text>
                   </View>
-                  <Text style={styles.medalTitle}>{m.title}</Text>
-                  <Text style={styles.medalDesc}>{m.desc}</Text>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyDiscoveriesBox}>
+                <Text style={styles.emptyTitle}>Your field guide is empty.</Text>
+                <Text style={styles.emptySubtitle}>Go see what's around you.</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Compact Explorer Medals */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>EXPLORER MEDALS</Text>
+            <View style={styles.compactMedalsRow}>
+              {medals.map((m) => (
+                <View key={m.id} style={styles.compactMedalCell}>
+                  <Text style={styles.compactMedalEmoji}>{m.emoji}</Text>
+                  <Text style={styles.compactMedalTitle}>{m.title}</Text>
+                  <Text style={[styles.compactMedalBadge, m.unlocked ? styles.badgeUnlocked : styles.badgeLocked]}>
+                    {m.unlocked ? '✓' : '🔒'}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -337,7 +371,7 @@ export default function ProfileScreen() {
                 style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedOpacity]}
                 onPress={() => setSettingsOpen(false)}
               >
-                <Ionicons name="close" size={20} color="#F8FAFC" />
+                <Ionicons name="close" size={20} color="#F5F2E9" />
               </Pressable>
             </View>
 
@@ -349,7 +383,7 @@ export default function ProfileScreen() {
                     <Ionicons name="log-out-outline" size={17} color="#EF4444" />
                   </View>
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Sign Out</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
+                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
               </View>
 
@@ -360,7 +394,7 @@ export default function ProfileScreen() {
                     <Ionicons name="shield-checkmark-outline" size={17} color="#B7F34A" />
                   </View>
                   <Text style={styles.modalRowText}>Privacy Policy</Text>
-                  <Ionicons name="open-outline" size={15} color="#64748B" />
+                  <Ionicons name="open-outline" size={15} color="#68736A" />
                 </Pressable>
 
                 <View style={styles.modalDivider} />
@@ -370,7 +404,7 @@ export default function ProfileScreen() {
                     <Ionicons name="document-text-outline" size={17} color="#B7F34A" />
                   </View>
                   <Text style={styles.modalRowText}>Terms of Service</Text>
-                  <Ionicons name="open-outline" size={15} color="#64748B" />
+                  <Ionicons name="open-outline" size={15} color="#68736A" />
                 </Pressable>
 
                 {AppConfig.supportEmail ? (
@@ -381,7 +415,7 @@ export default function ProfileScreen() {
                         <Ionicons name="mail-outline" size={17} color="#B7F34A" />
                       </View>
                       <Text style={styles.modalRowText}>Contact Support</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#64748B" />
+                      <Ionicons name="chevron-forward" size={16} color="#68736A" />
                     </Pressable>
                   </>
                 ) : null}
@@ -394,7 +428,7 @@ export default function ProfileScreen() {
                     <Ionicons name="trash-outline" size={17} color="#EF4444" />
                   </View>
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Delete Saved Collection</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
+                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
 
                 <View style={styles.modalDivider} />
@@ -406,7 +440,7 @@ export default function ProfileScreen() {
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>
                     {deleting ? 'Deleting...' : 'Delete Account Data'}
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
+                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
               </View>
             </ScrollView>
@@ -422,314 +456,304 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F1411',
   },
+  darkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 20, 17, 0.78)',
+  },
   safe: {
     flex: 1,
   },
-  topRightHeader: {
-    alignItems: 'flex-end',
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 12,
+    gap: 14,
+  },
+  topBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 8,
+    marginTop: 4,
   },
   gearBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(24, 32, 25, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 14,
-  },
-  floatingProfileHeader: {
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  floatingPlayerName: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#F5F2E9',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  floatingLevelCard: {
-    width: '94%',
-    backgroundColor: 'rgba(24, 32, 25, 0.92)',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-    gap: 6,
-  },
-  levelHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  levelTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#F5F2E9',
-    letterSpacing: 0.6,
-  },
-  expText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#B7F34A',
-  },
-  expTrack: {
-    height: 8,
-    backgroundColor: '#0F1411',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  expFill: {
-    height: '100%',
-    backgroundColor: '#B7F34A',
-    borderRadius: 4,
-  },
-  floatingStatsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(24, 32, 25, 0.92)',
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  speciesSavedText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#B7F34A',
-    letterSpacing: 0.6,
-  },
-  companionCard: {
-    backgroundColor: '#182019',
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
-    gap: 10,
-  },
-  companionSectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#B7F34A',
-    letterSpacing: 1,
-  },
-  companionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  companionAvatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#0F1411',
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  companionPhoto: {
-    width: 52,
-    height: 52,
-  },
-  companionMascotImg: {
-    width: 44,
-    height: 44,
-  },
-  companionInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  companionName: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#F5F2E9',
-  },
-  companionSpecies: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9CA69D',
-  },
-  companionRarityBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(183, 243, 74, 0.15)',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  companionRarityText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#B7F34A',
-    letterSpacing: 0.5,
-  },
-  companionPowerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(201, 166, 107, 0.15)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(201, 166, 107, 0.3)',
-  },
-  companionPowerVal: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#C9A66B',
-  },
-  medalsCard: {
-    backgroundColor: '#182019',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
-    gap: 12,
-  },
-  medalsSectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#B7F34A',
-    letterSpacing: 1,
-  },
-  medalsRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  medalItem: {
-    flex: 1,
-    backgroundColor: '#0F1411',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 242, 233, 0.08)',
-  },
-  medalIconCircle: {
-    position: 'relative',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#182019',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 1.5,
     borderColor: 'rgba(183, 243, 74, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  medalBadgeImg: {
-    width: 44,
-    height: 44,
-  },
-  lockBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#68736A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#0F1411',
-  },
-  medalTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#F5F2E9',
-    textAlign: 'center',
-  },
-  medalDesc: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#9CA69D',
-    textAlign: 'center',
-    marginTop: 2,
   },
   avatarContainer: {
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   cameraBadge: {
     position: 'absolute',
     right: -2,
     bottom: -2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#B7F34A',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#0F1411',
+  },
+  namesColumn: {
+    flex: 1,
+    gap: 2,
+  },
+  displayName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#F5F2E9',
+    letterSpacing: -0.3,
+  },
+  handleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA69D',
+  },
+  levelBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B7F34A',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  compactXpCard: {
+    backgroundColor: 'rgba(24, 32, 25, 0.88)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 243, 74, 0.25)',
+    gap: 6,
+  },
+  xpHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  xpTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#F5F2E9',
+    letterSpacing: 0.8,
+  },
+  xpVal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B7F34A',
+  },
+  xpTrack: {
+    height: 6,
+    backgroundColor: '#0F1411',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: '#B7F34A',
+    borderRadius: 3,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#182019',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.3)',
+  },
+  statCell: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#F5F2E9',
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#B7F34A',
+    letterSpacing: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(245, 242, 233, 0.12)',
+  },
+  sectionCard: {
+    backgroundColor: '#182019',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.25)',
+    gap: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#B7F34A',
+    letterSpacing: 1,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA69D',
+    marginTop: 2,
+  },
+  fieldGuideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  fieldGuideItem: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 14,
+    backgroundColor: '#0F1411',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 242, 233, 0.08)',
+  },
+  fieldGuidePhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  silhouetteBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  silhouetteQuestionMark: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#68736A',
+  },
+  recentList: {
+    gap: 8,
+  },
+  recentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#0F1411',
+    padding: 10,
+    borderRadius: 14,
+  },
+  recentPhotoWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#182019',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 243, 74, 0.3)',
+  },
+  recentPhoto: {
+    width: 40,
+    height: 40,
+  },
+  recentName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F5F2E9',
+  },
+  recentSpecies: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA69D',
+  },
+  recentTime: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#68736A',
+  },
+  emptyDiscoveriesBox: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 4,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F5F2E9',
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA69D',
+  },
+  compactMedalsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  compactMedalCell: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F1411',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 242, 233, 0.08)',
+    gap: 4,
+  },
+  compactMedalEmoji: {
+    fontSize: 22,
+    marginBottom: 2,
+  },
+  compactMedalTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F5F2E9',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  compactMedalBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  badgeUnlocked: {
+    color: '#B7F34A',
+  },
+  badgeLocked: {
+    color: '#68736A',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#182019',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 20,
     maxHeight: '75%',
     borderTopWidth: 1.5,
-    borderTopColor: 'rgba(56, 189, 248, 0.35)',
+    borderTopColor: 'rgba(183, 243, 74, 0.35)',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -738,28 +762,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(245, 242, 233, 0.1)',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSection: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(245, 242, 233, 0.08)',
   },
   modalRow: {
     flexDirection: 'row',
@@ -771,7 +795,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(183, 243, 74, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -779,11 +803,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
   },
   modalDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(245, 242, 233, 0.08)',
   },
   pressedOpacity: {
     opacity: 0.75,
