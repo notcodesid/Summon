@@ -1,6 +1,8 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -241,24 +243,9 @@ export default function RevealScreen() {
 
   if (phase.status === 'identifying') {
     return (
-      <ScanStage
+      <ScanningCheckingScreen
         photoUri={phase.capture.photoUri}
         heroHeight={heroHeight}
-        liquid={liquid}
-        eyebrow="scanning"
-        title="Scanning photo"
-        body="Looking for a real animal."
-        footer={
-          <View style={styles.scanningFooter}>
-            <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
-            </View>
-            <View style={styles.scanStatusRow}>
-              <ActivityIndicator color={theme.colors.textMuted} size="small" />
-              <Text style={styles.scanningHint}>analyzing image</Text>
-            </View>
-          </View>
-        }
       />
     )
   }
@@ -777,4 +764,284 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.72,
   },
+  checkingContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    justifyContent: 'space-between',
+    gap: 16,
+    backgroundColor: '#0F1411',
+  },
+  checkingPhotoCard: {
+    width: '100%',
+    borderRadius: 28,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#182019',
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.35)',
+    shadowColor: '#B7F34A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  laserScanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 4,
+    backgroundColor: '#B7F34A',
+    shadowColor: '#B7F34A',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 20,
+  },
+  hudCorner: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: '#B7F34A',
+    zIndex: 15,
+  },
+  hudTopLeft: {
+    top: 14,
+    left: 14,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 6,
+  },
+  hudTopRight: {
+    top: 14,
+    right: 14,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 6,
+  },
+  hudBottomLeft: {
+    bottom: 14,
+    left: 14,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 6,
+  },
+  hudBottomRight: {
+    bottom: 14,
+    right: 14,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 6,
+  },
+  hudBadge: {
+    position: 'absolute',
+    top: 14,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(24, 32, 25, 0.92)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 243, 74, 0.4)',
+    zIndex: 15,
+  },
+  hudBadgeText: {
+    color: '#B7F34A',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  checkingInfoCard: {
+    backgroundColor: '#182019',
+    borderRadius: 24,
+    padding: 20,
+    gap: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  checkingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  scanningBadgeCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(183, 243, 74, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.4)',
+  },
+  checkingEyebrow: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#B7F34A',
+    letterSpacing: 1,
+  },
+  checkingTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#F5F2E9',
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
+  checkingTrack: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#222C23',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 243, 74, 0.2)',
+  },
+  checkingFill: {
+    height: '100%',
+    backgroundColor: '#B7F34A',
+    borderRadius: 5,
+  },
+  checkingSubtext: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#9CA69D',
+    textAlign: 'center',
+  },
 })
+
+function ScanningCheckingScreen({
+  photoUri,
+  heroHeight,
+}: {
+  photoUri: string
+  heroHeight: number
+}) {
+  const scanAnim = useRef(new Animated.Value(0)).current
+  const progressAnim = useRef(new Animated.Value(0.1)).current
+  const [stepText, setStepText] = useState('Looking closer at the real world…')
+
+  useEffect(() => {
+    const scanLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 1600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 1600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    )
+    scanLoop.start()
+
+    const progressLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progressAnim, {
+          toValue: 0.9,
+          duration: 2500,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(progressAnim, {
+          toValue: 0.2,
+          duration: 400,
+          useNativeDriver: false,
+        }),
+      ]),
+    )
+    progressLoop.start()
+
+    const steps = [
+      'Looking closer at the real world…',
+      'Searching wildlife observation registry…',
+      'Revealing hidden species features…',
+    ]
+    let currentStep = 0
+    const interval = setInterval(() => {
+      currentStep = (currentStep + 1) % steps.length
+      setStepText(steps[currentStep])
+    }, 1200)
+
+    return () => {
+      scanLoop.stop()
+      progressLoop.stop()
+      clearInterval(interval)
+    }
+  }, [scanAnim, progressAnim])
+
+  const translateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, heroHeight - 12],
+  })
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  })
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: '#0F1411' }]} edges={['top', 'left', 'right', 'bottom']}>
+      <View style={styles.checkingContainer}>
+        {/* Photo Container with HUD Corners & Laser Scanner Line */}
+        <View style={[styles.checkingPhotoCard, { height: heroHeight }]}>
+          <Image source={{ uri: photoUri }} style={styles.scanPhotoImage} resizeMode="cover" />
+
+          {/* Laser Scanning Line */}
+          <Animated.View
+            style={[
+              styles.laserScanLine,
+              {
+                transform: [{ translateY }],
+              },
+            ]}
+          />
+
+          {/* HUD Reticle Corners */}
+          <View style={[styles.hudCorner, styles.hudTopLeft]} />
+          <View style={[styles.hudCorner, styles.hudTopRight]} />
+          <View style={[styles.hudCorner, styles.hudBottomLeft]} />
+          <View style={[styles.hudCorner, styles.hudBottomRight]} />
+
+          <View style={styles.hudBadge}>
+            <Text style={styles.hudBadgeText}>✦ DISCOVERING</Text>
+          </View>
+        </View>
+
+        {/* Scanning Info & Progress Card */}
+        <View style={styles.checkingInfoCard}>
+          <View style={styles.checkingHeaderRow}>
+            <View style={styles.scanningBadgeCircle}>
+              <ActivityIndicator color="#B7F34A" size="small" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.checkingEyebrow}>✦ DISCOVERY SIGNAL</Text>
+              <Text style={styles.checkingTitle}>Identifying...</Text>
+            </View>
+          </View>
+
+          {/* Animated Progress Bar */}
+          <View style={styles.checkingTrack}>
+            <Animated.View style={[styles.checkingFill, { width: progressWidth }]} />
+          </View>
+
+          <Text style={styles.checkingSubtext}>{stepText}</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  )
+}

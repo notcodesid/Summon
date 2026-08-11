@@ -13,33 +13,39 @@ function adaptiveColor(light: string, dark: string): string {
  * discovery colors. Colors follow the system appearance; users do not choose
  * an app theme.
  */
+/**
+ * Summon Brand Design System Palette
+ * 70% real world / 20% game / 10% magic
+ * Discovery signal green: #B7F34A
+ */
 export const theme = {
   colors: {
-    background: adaptiveColor('#0B1120', '#0F172A'),
-    surface: adaptiveColor('#1E293B', '#1E293B'),
-    surfaceRaised: adaptiveColor('#334155', '#334155'),
-    glassSurface: adaptiveColor('rgba(30, 41, 59, 0.75)', 'rgba(30, 41, 59, 0.85)'),
-    glassSurfaceStrong: adaptiveColor('rgba(30, 41, 59, 0.92)', 'rgba(15, 23, 42, 0.95)'),
-    glassBorder: adaptiveColor('rgba(56, 189, 248, 0.20)', 'rgba(56, 189, 248, 0.25)'),
-    specimenSurface: adaptiveColor('#334155', '#1E293B'),
-    border: adaptiveColor('rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.15)'),
-    rule: adaptiveColor('rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.10)'),
-    text: adaptiveColor('#F8FAFC', '#F8FAFC'),
-    textMuted: adaptiveColor('#94A3B8', '#94A3B8'),
-    textFaint: adaptiveColor('#64748B', '#64748B'),
-    primary: adaptiveColor('#38BDF8', '#38BDF8'),
-    primaryStrong: adaptiveColor('#0284C7', '#0284C7'),
-    discoverySurface: adaptiveColor('#1E293B', '#0F172A'),
-    discoveryAccent: adaptiveColor('#F59E0B', '#F59E0B'),
-    speciesSurface: adaptiveColor('#1E293B', '#0F172A'),
-    speciesAccent: adaptiveColor('#38BDF8', '#38BDF8'),
-    questSurface: adaptiveColor('#F59E0B', '#F59E0B'),
-    questSurfaceRaised: adaptiveColor('rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.20)'),
-    questText: adaptiveColor('#FEF3C7', '#FEF3C7'),
-    questMuted: adaptiveColor('#FCD34D', '#FCD34D'),
-    viewfinder: '#000000',
-    onDark: '#F8FAFC',
-    onPrimary: '#0F172A',
+    background: adaptiveColor('#F5F2E9', '#0F1411'),
+    surface: adaptiveColor('#FFFFFF', '#182019'),
+    surfaceRaised: adaptiveColor('#DDE1D9', '#222C23'),
+    glassSurface: adaptiveColor('rgba(255, 255, 255, 0.85)', 'rgba(24, 32, 25, 0.88)'),
+    glassSurfaceStrong: adaptiveColor('rgba(245, 242, 233, 0.95)', 'rgba(15, 20, 17, 0.95)'),
+    glassBorder: adaptiveColor('rgba(183, 243, 74, 0.30)', 'rgba(183, 243, 74, 0.35)'),
+    specimenSurface: adaptiveColor('#F5F2E9', '#182019'),
+    border: adaptiveColor('rgba(23, 26, 23, 0.12)', 'rgba(245, 242, 233, 0.12)'),
+    rule: adaptiveColor('rgba(23, 26, 23, 0.08)', 'rgba(245, 242, 233, 0.08)'),
+    text: adaptiveColor('#171A17', '#F5F2E9'),
+    textMuted: adaptiveColor('#68736A', '#9CA69D'),
+    textFaint: adaptiveColor('#9CA69D', '#68736A'),
+    primary: '#B7F34A',
+    primaryStrong: '#9EE02E',
+    discoverySurface: adaptiveColor('#FFFFFF', '#182019'),
+    discoveryAccent: '#B7F34A',
+    speciesSurface: adaptiveColor('#FFFFFF', '#182019'),
+    speciesAccent: '#B7F34A',
+    earth: '#C9A66B',
+    questSurface: '#C9A66B',
+    questSurfaceRaised: 'rgba(201, 166, 107, 0.20)',
+    questText: '#F5F2E9',
+    questMuted: '#C9A66B',
+    viewfinder: '#0F1411',
+    onDark: '#F5F2E9',
+    onPrimary: '#171A17',
   },
 
   /** Radius varies by role on purpose: pills for actions, softer for specimens. */

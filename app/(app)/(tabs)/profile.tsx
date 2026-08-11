@@ -222,7 +222,7 @@ export default function ProfileScreen() {
               setSettingsOpen(true)
             }}
           >
-            <Ionicons name="settings-sharp" size={18} color="#38BDF8" />
+            <Ionicons name="settings-sharp" size={18} color="#B7F34A" />
           </Pressable>
         </View>
 
@@ -242,9 +242,9 @@ export default function ProfileScreen() {
               />
               <View style={styles.cameraBadge} pointerEvents="none">
                 {savingPhoto ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color="#171A17" />
                 ) : (
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  <Ionicons name="camera" size={14} color="#171A17" />
                 )}
               </View>
             </View>
@@ -264,9 +264,9 @@ export default function ProfileScreen() {
 
             {/* Floating Species Saved Pill */}
             <View style={styles.floatingStatsPill}>
-              <Ionicons name="paw" size={14} color="#38BDF8" />
+              <Ionicons name="paw" size={14} color="#B7F34A" />
               <Text style={styles.speciesSavedText}>
-                {creatures.length} {creatures.length === 1 ? 'SPECIES SAVED' : 'SPECIES SAVED'}
+                {creatures.length} {creatures.length === 1 ? 'SPECIES DISCOVERED' : 'SPECIES DISCOVERED'}
               </Text>
             </View>
           </View>
@@ -279,11 +279,7 @@ export default function ProfileScreen() {
                 {activeCompanion.photoUri ? (
                   <Image source={{ uri: activeCompanion.photoUri }} style={styles.companionPhoto} contentFit="cover" />
                 ) : (
-                  <Image
-                    source={require('@/assets/tab-icons-transparent/profile.png')}
-                    style={styles.companionMascotImg}
-                    contentFit="contain"
-                  />
+                  <Ionicons name="paw" size={24} color="#B7F34A" />
                 )}
               </View>
 
@@ -296,7 +292,7 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.companionPowerPill}>
-                <Ionicons name="flash" size={14} color="#F59E0B" />
+                <Ionicons name="flash" size={14} color="#C9A66B" />
                 <Text style={styles.companionPowerVal}>{activeCompanion.stats?.attack || 50}</Text>
               </View>
             </View>
@@ -361,7 +357,7 @@ export default function ProfileScreen() {
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.privacyUrl)}>
                   <View style={styles.modalIconBg}>
-                    <Ionicons name="shield-checkmark-outline" size={17} color="#38BDF8" />
+                    <Ionicons name="shield-checkmark-outline" size={17} color="#B7F34A" />
                   </View>
                   <Text style={styles.modalRowText}>Privacy Policy</Text>
                   <Ionicons name="open-outline" size={15} color="#64748B" />
@@ -371,7 +367,7 @@ export default function ProfileScreen() {
 
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.termsUrl)}>
                   <View style={styles.modalIconBg}>
-                    <Ionicons name="document-text-outline" size={17} color="#38BDF8" />
+                    <Ionicons name="document-text-outline" size={17} color="#B7F34A" />
                   </View>
                   <Text style={styles.modalRowText}>Terms of Service</Text>
                   <Ionicons name="open-outline" size={15} color="#64748B" />
@@ -382,7 +378,7 @@ export default function ProfileScreen() {
                     <View style={styles.modalDivider} />
                     <Pressable style={styles.modalRow} onPress={() => openExternal(`mailto:${AppConfig.supportEmail}`)}>
                       <View style={styles.modalIconBg}>
-                        <Ionicons name="mail-outline" size={17} color="#38BDF8" />
+                        <Ionicons name="mail-outline" size={17} color="#B7F34A" />
                       </View>
                       <Text style={styles.modalRowText}>Contact Support</Text>
                       <Ionicons name="chevron-forward" size={16} color="#64748B" />
@@ -424,7 +420,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
   },
   safe: {
     flex: 1,
@@ -438,11 +434,11 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    backgroundColor: 'rgba(24, 32, 25, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderColor: 'rgba(183, 243, 74, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -463,7 +459,7 @@ const styles = StyleSheet.create({
   floatingPlayerName: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
@@ -471,12 +467,12 @@ const styles = StyleSheet.create({
   },
   floatingLevelCard: {
     width: '94%',
-    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    backgroundColor: 'rgba(24, 32, 25, 0.92)',
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderColor: 'rgba(183, 243, 74, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -492,23 +488,23 @@ const styles = StyleSheet.create({
   levelTitle: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
     letterSpacing: 0.6,
   },
   expText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#38BDF8',
+    color: '#B7F34A',
   },
   expTrack: {
     height: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
     borderRadius: 4,
     overflow: 'hidden',
   },
   expFill: {
     height: '100%',
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#B7F34A',
     borderRadius: 4,
   },
   floatingStatsPill: {
@@ -516,12 +512,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    backgroundColor: 'rgba(24, 32, 25, 0.92)',
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderColor: 'rgba(183, 243, 74, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -531,15 +527,15 @@ const styles = StyleSheet.create({
   speciesSavedText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#B7F34A',
     letterSpacing: 0.6,
   },
   companionCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#182019',
     borderRadius: 24,
     padding: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(183, 243, 74, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -550,7 +546,7 @@ const styles = StyleSheet.create({
   companionSectionTitle: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#B7F34A',
     letterSpacing: 1,
   },
   companionRow: {
@@ -562,9 +558,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderColor: 'rgba(183, 243, 74, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -584,16 +580,16 @@ const styles = StyleSheet.create({
   companionName: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
   },
   companionSpecies: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#9CA69D',
   },
   companionRarityBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(183, 243, 74, 0.15)',
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 6,
@@ -602,31 +598,31 @@ const styles = StyleSheet.create({
   companionRarityText: {
     fontSize: 9,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#B7F34A',
     letterSpacing: 0.5,
   },
   companionPowerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: 'rgba(201, 166, 107, 0.15)',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(201, 166, 107, 0.3)',
   },
   companionPowerVal: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#F59E0B',
+    color: '#C9A66B',
   },
   medalsCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#182019',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(183, 243, 74, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -637,7 +633,7 @@ const styles = StyleSheet.create({
   medalsSectionTitle: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#38BDF8',
+    color: '#B7F34A',
     letterSpacing: 1,
   },
   medalsRow: {
@@ -648,25 +644,25 @@ const styles = StyleSheet.create({
   },
   medalItem: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0F1411',
     borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(245, 242, 233, 0.08)',
   },
   medalIconCircle: {
     position: 'relative',
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#182019',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
     borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(183, 243, 74, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -684,22 +680,22 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#64748B',
+    backgroundColor: '#68736A',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#0F172A',
+    borderColor: '#0F1411',
   },
   medalTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#F8FAFC',
+    color: '#F5F2E9',
     textAlign: 'center',
   },
   medalDesc: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#9CA69D',
     textAlign: 'center',
     marginTop: 2,
   },
@@ -715,11 +711,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#0284C7',
+    backgroundColor: '#B7F34A',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
-    borderColor: '#0F172A',
+    borderColor: '#0F1411',
   },
   modalOverlay: {
     flex: 1,

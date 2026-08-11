@@ -181,42 +181,32 @@ export default function HomeScreen() {
 
       {/* Interactive Drag & Drop Sanctuary Habitat Area */}
       <View style={styles.habitatCompanionArea} pointerEvents="box-none">
-        {activeCompanions.length > 0 ? (
-          activeCompanions.map((creature, idx) => (
-            <DraggableCompanion
-              key={creature.id}
-              creature={creature}
-              initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
-            />
-          ))
-        ) : (
+        {activeCompanions.map((creature, idx) => (
           <DraggableCompanion
-            creature={{
-              id: 'mascot-lee',
-              species: 'Sanctuary Mascot',
-              commonName: 'Lee • Field Guide',
-              rarity: 'common',
-              stats: { hp: 100, attack: 50, defense: 50, speed: 50 },
-              note: 'Ready for field scanning!',
-              photoUri: '',
-              capturedAt: Date.now(),
-            }}
-            initialPos={{ x: 0, y: 30 }}
+            key={creature.id}
+            creature={creature}
+            initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
           />
-        )}
+        ))}
       </View>
 
       {/* Floating Bottom Overlays */}
       <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 115 }]} pointerEvents="box-none">
-        {/* Primary Scan Camera Circular CTA floating above tabs */}
+        {/* Primary Pokéball Scan Camera CTA floating above tabs */}
         <Pressable
           style={({ pressed }) => [styles.scanCircleBtn, pressed && styles.scanBtnPressed]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
             router.push('/camera')
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Open Scan Camera"
         >
-          <Ionicons name="camera" size={28} color="#FFFFFF" />
+          <Image
+            source={require('@/assets/pokeball_btn.jpg')}
+            style={styles.pokeballImg}
+            contentFit="cover"
+          />
         </Pressable>
       </View>
     </View>
@@ -268,7 +258,7 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 3,
-    borderColor: '#38BDF8',
+    borderColor: '#B7F34A',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -285,23 +275,28 @@ const styles = StyleSheet.create({
   },
   scanCircleBtn: {
     alignSelf: 'center',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#38BDF8',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#38BDF8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  pokeballImg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    transform: [{ scale: 1.38 }],
   },
   scanBtnPressed: {
     opacity: 0.88,
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.94 }],
   },
 })
 
