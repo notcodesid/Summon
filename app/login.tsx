@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Image } from 'expo-image'
+import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { Redirect, router } from 'expo-router'
 import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
@@ -78,63 +81,90 @@ function LoginWithPrivy() {
   const oauthError = state.status === 'error' && state.error?.message ? state.error.message : null
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <Animated.View entering={FadeInDown.delay(120).duration(520)} style={styles.headlineBlock}>
-          <Text style={styles.headline}>Pokémon, but real.</Text>
-        </Animated.View>
+    <View style={styles.rootContainer}>
+      {/* Centered Midnight Portal Background with Mascot */}
+      <Image
+        source={require('../assets/login_bg.jpg')}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="fill"
+      />
 
-        <Animated.View entering={FadeInDown.delay(280).duration(520)} style={styles.actions}>
-          <Pressable
-            onPress={() => void onGoogle()}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="Continue with Google"
-            style={({ pressed }) => [
-              styles.googleButton,
-              pressed && styles.googleButtonPressed,
-              loading && styles.googleButtonDisabled,
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#111210" />
-            ) : (
-              <>
-                {/* Left-anchored mark with a centred label — Google's own
-                    button layout. */}
-                <Image source={require('../assets/brand/google-g.png')} style={styles.googleMark} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-              </>
-            )}
-          </Pressable>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.container}>
+          <Animated.View entering={FadeInDown.delay(120).duration(520)} style={styles.headlineBlock}>
+            <Text style={styles.headline}>Pokémon, but real.</Text>
+          </Animated.View>
 
-          {/* Errors still surface here — only the standing caption is gone. */}
-          {errorMessage || oauthError ? (
-            <Animated.Text entering={FadeIn} style={styles.error}>
-              {errorMessage ?? oauthError}
-            </Animated.Text>
-          ) : null}
-          <Text style={styles.consent}>
-            By continuing, you agree to the{' '}
-            <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.termsUrl)}>
-              terms
-            </Text>{' '}
-            and{' '}
-            <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.privacyUrl)}>
-              privacy policy
+          <Animated.View entering={FadeInDown.delay(280).duration(520)} style={styles.actionsCard}>
+            {/* Google Sign-In Button */}
+            <Pressable
+              onPress={() => void onGoogle()}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              style={({ pressed }) => [
+                styles.googleButton,
+                pressed && styles.googleButtonPressed,
+                loading && styles.googleButtonDisabled,
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#111210" />
+              ) : (
+                <>
+                  <Image source={require('../assets/brand/google-g.png')} style={styles.googleMark} contentFit="contain" />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </>
+              )}
+            </Pressable>
+
+            {/* Apple Sign-In Button (UI only) */}
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Apple"
+              style={({ pressed }) => [
+                styles.appleButton,
+                pressed && styles.appleButtonPressed,
+              ]}
+            >
+              <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={styles.appleMark} />
+              <Text style={styles.appleButtonText}>Continue with Apple</Text>
+            </Pressable>
+
+            {errorMessage || oauthError ? (
+              <Animated.Text entering={FadeIn} style={styles.error}>
+                {errorMessage ?? oauthError}
+              </Animated.Text>
+            ) : null}
+
+            <Text style={styles.consent}>
+              By continuing, you agree to the{' '}
+              <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.termsUrl)}>
+                terms
+              </Text>{' '}
+              and{' '}
+              <Text style={styles.consentLink} onPress={() => openLegal(AppConfig.privacyUrl)}>
+                privacy policy
+              </Text>
+              .
             </Text>
-            . Animal photos are sent to Gemini for AI identification.
-          </Text>
-        </Animated.View>
-      </View>
-    </SafeAreaView>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: '#3BBBF3',
+  },
   safe: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   loading: {
     flex: 1,
@@ -144,7 +174,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: theme.space.xl,
-    paddingBottom: theme.space.xxl,
+    paddingBottom: theme.space.xl,
+    justifyContent: 'space-between',
   },
   fallback: {
     flex: 1,
@@ -154,21 +185,51 @@ const styles = StyleSheet.create({
   },
   headlineBlock: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   headline: {
-    // Matched to the reference: ~32pt at 1.28 leading, Bold rather than
-    // Heavy. 800 read as chunky at this size, and -1 tracking was cramped.
-    fontSize: 32,
-    lineHeight: 41,
-    fontWeight: '700',
+    fontSize: 34,
+    lineHeight: 42,
+    fontWeight: '900',
     letterSpacing: -0.5,
     textAlign: 'center',
-    color: theme.colors.text,
+    color: '#18221C',
+    textShadowColor: 'rgba(255, 255, 255, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  actions: {
-    marginTop: 'auto',
-    gap: theme.space.lg,
+  actionsCard: {
+    gap: theme.space.md,
+    marginBottom: 12,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    minHeight: 56,
+    borderRadius: theme.radius.pill,
+    backgroundColor: '#000000',
+    paddingHorizontal: theme.space.xxl,
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  appleMark: {
+    position: 'absolute',
+    left: theme.space.xl,
+  },
+  appleButtonPressed: {
+    opacity: 0.85,
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   googleButton: {
     flexDirection: 'row',
@@ -179,15 +240,13 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: theme.space.xxl,
-    // The page ground is warm off-white, so white alone would not separate.
-    // A soft shadow lifts it; the hairline keeps the edge legible.
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderWidth: 1.5,
+    borderColor: '#EAEFEA',
     shadowColor: '#000000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   googleMark: {
     position: 'absolute',
@@ -197,32 +256,35 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   googleButtonPressed: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#F5F9F6',
   },
   googleButtonDisabled: {
     opacity: 0.5,
   },
   googleButtonText: {
-    color: '#111210',
+    color: '#18221C',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '900',
     letterSpacing: 0.2,
   },
   error: {
     fontSize: 13,
     lineHeight: 19,
-    color: theme.colors.textMuted,
+    color: '#E53935',
     textAlign: 'center',
   },
   consent: {
-    color: theme.colors.textMuted,
+    color: '#FFFFFF',
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   consentLink: {
-    color: theme.colors.text,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '900',
     textDecorationLine: 'underline',
   },
 })

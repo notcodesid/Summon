@@ -61,6 +61,38 @@ export default function ProfileScreen() {
     capturedAt: Date.now(),
   }
 
+  const totalExp = creatures.length * 50
+  const level = Math.floor(totalExp / 100) + 1
+  const currentLevelExp = totalExp % 100
+  const expProgress = currentLevelExp / 100
+
+  const medals = [
+    {
+      id: 'first_scan',
+      title: 'First Scan',
+      desc: 'Scan 1 animal',
+      image: require('@/assets/goal-icons/sunflower.png'),
+      unlocked: creatures.length >= 1,
+      progress: Math.min(creatures.length, 1) / 1,
+    },
+    {
+      id: 'wildlife_scout',
+      title: 'Wildlife Scout',
+      desc: 'Save 5 animals',
+      image: require('@/assets/goal-icons/water.png'),
+      unlocked: creatures.length >= 5,
+      progress: Math.min(creatures.length, 5) / 5,
+    },
+    {
+      id: 'rare_hunter',
+      title: 'Rare Finder',
+      desc: 'Catch a rare species',
+      image: require('@/assets/goal-icons/lead_badge.png'),
+      unlocked: creatures.some((c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary'),
+      progress: creatures.some((c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary') ? 1 : 0,
+    },
+  ]
+
   const onChoosePhoto = useCallback(async () => {
     if (savingPhoto) return
     if (!player.privyUserId) {
@@ -180,9 +212,8 @@ export default function ProfileScreen() {
         style={StyleSheet.absoluteFillObject}
         contentFit="fill"
       />
-
       <SafeAreaView style={styles.safe}>
-        {/* Absolute Top-Right Gear Settings Button */}
+        {/* Top Right Gear Settings Button */}
         <View style={styles.topRightHeader}>
           <Pressable
             style={({ pressed }) => [styles.gearBtn, pressed && styles.pressedOpacity]}
@@ -191,12 +222,15 @@ export default function ProfileScreen() {
               setSettingsOpen(true)
             }}
           >
-            <Ionicons name="settings-sharp" size={20} color="#1A332B" />
+            <Ionicons name="settings-sharp" size={18} color="#38BDF8" />
           </Pressable>
         </View>
 
-        <View style={styles.centerContainer}>
-          {/* Pure Floating Profile (No white box!) */}
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Pure Floating Profile Header (No white box!) */}
           <View style={styles.floatingProfileHeader}>
             <View style={styles.avatarContainer}>
               <Avatar
@@ -217,15 +251,78 @@ export default function ProfileScreen() {
 
             <Text style={styles.floatingPlayerName}>{player.name || 'Explorer'}</Text>
 
-            {/* Clean Single Species Saved Badge */}
+            {/* Floating Glass EXP & Level Bar */}
+            <View style={styles.floatingLevelCard}>
+              <View style={styles.levelHeaderRow}>
+                <Text style={styles.levelTitle}>LEVEL {level} EXPLORER</Text>
+                <Text style={styles.expText}>{currentLevelExp} / 100 EXP</Text>
+              </View>
+              <View style={styles.expTrack}>
+                <View style={[styles.expFill, { width: `${Math.min(Math.max(expProgress * 100, 6), 100)}%` }]} />
+              </View>
+            </View>
+
+            {/* Floating Species Saved Pill */}
             <View style={styles.floatingStatsPill}>
-              <Ionicons name="paw" size={14} color="#2F7D5B" />
+              <Ionicons name="paw" size={14} color="#38BDF8" />
               <Text style={styles.speciesSavedText}>
                 {creatures.length} {creatures.length === 1 ? 'SPECIES SAVED' : 'SPECIES SAVED'}
               </Text>
             </View>
           </View>
-        </View>
+
+          {/* Active Companion / Buddy Card */}
+          <View style={styles.companionCard}>
+            <Text style={styles.companionSectionTitle}>ACTIVE COMPANION</Text>
+            <View style={styles.companionRow}>
+              <View style={styles.companionAvatarCircle}>
+                {activeCompanion.photoUri ? (
+                  <Image source={{ uri: activeCompanion.photoUri }} style={styles.companionPhoto} contentFit="cover" />
+                ) : (
+                  <Image
+                    source={require('@/assets/tab-icons-transparent/profile.png')}
+                    style={styles.companionMascotImg}
+                    contentFit="contain"
+                  />
+                )}
+              </View>
+
+              <View style={styles.companionInfo}>
+                <Text style={styles.companionName}>{activeCompanion.commonName}</Text>
+                <Text style={styles.companionSpecies}>{activeCompanion.species}</Text>
+                <View style={styles.companionRarityBadge}>
+                  <Text style={styles.companionRarityText}>{activeCompanion.rarity.toUpperCase()}</Text>
+                </View>
+              </View>
+
+              <View style={styles.companionPowerPill}>
+                <Ionicons name="flash" size={14} color="#F59E0B" />
+                <Text style={styles.companionPowerVal}>{activeCompanion.stats?.attack || 50}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Achievement Medals Card */}
+          <View style={styles.medalsCard}>
+            <Text style={styles.medalsSectionTitle}>EXPLORER MEDALS</Text>
+            <View style={styles.medalsRow}>
+              {medals.map((m) => (
+                <View key={m.id} style={styles.medalItem}>
+                  <View style={styles.medalIconCircle}>
+                    <Image source={m.image} style={styles.medalBadgeImg} contentFit="contain" />
+                    {!m.unlocked ? (
+                      <View style={styles.lockBadge}>
+                        <Ionicons name="lock-closed" size={10} color="#FFFFFF" />
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.medalTitle}>{m.title}</Text>
+                  <Text style={styles.medalDesc}>{m.desc}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
 
       {/* Settings & Account Modal Sheet */}
@@ -244,7 +341,7 @@ export default function ProfileScreen() {
                 style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedOpacity]}
                 onPress={() => setSettingsOpen(false)}
               >
-                <Ionicons name="close" size={20} color="#1A332B" />
+                <Ionicons name="close" size={20} color="#F8FAFC" />
               </Pressable>
             </View>
 
@@ -252,11 +349,11 @@ export default function ProfileScreen() {
               {/* Account Section */}
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={onSignOut}>
-                  <View style={[styles.modalIconBg, { backgroundColor: '#FDEAEB' }]}>
-                    <Ionicons name="log-out-outline" size={17} color="#E53935" />
+                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                    <Ionicons name="log-out-outline" size={17} color="#EF4444" />
                   </View>
-                  <Text style={[styles.modalRowText, { color: '#E53935' }]}>Sign Out</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#B5C9C1" />
+                  <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Sign Out</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
                 </Pressable>
               </View>
 
@@ -264,20 +361,20 @@ export default function ProfileScreen() {
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.privacyUrl)}>
                   <View style={styles.modalIconBg}>
-                    <Ionicons name="shield-checkmark-outline" size={17} color="#2F7D5B" />
+                    <Ionicons name="shield-checkmark-outline" size={17} color="#38BDF8" />
                   </View>
                   <Text style={styles.modalRowText}>Privacy Policy</Text>
-                  <Ionicons name="open-outline" size={15} color="#9BB4AA" />
+                  <Ionicons name="open-outline" size={15} color="#64748B" />
                 </Pressable>
 
                 <View style={styles.modalDivider} />
 
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.termsUrl)}>
                   <View style={styles.modalIconBg}>
-                    <Ionicons name="document-text-outline" size={17} color="#2F7D5B" />
+                    <Ionicons name="document-text-outline" size={17} color="#38BDF8" />
                   </View>
                   <Text style={styles.modalRowText}>Terms of Service</Text>
-                  <Ionicons name="open-outline" size={15} color="#9BB4AA" />
+                  <Ionicons name="open-outline" size={15} color="#64748B" />
                 </Pressable>
 
                 {AppConfig.supportEmail ? (
@@ -285,10 +382,10 @@ export default function ProfileScreen() {
                     <View style={styles.modalDivider} />
                     <Pressable style={styles.modalRow} onPress={() => openExternal(`mailto:${AppConfig.supportEmail}`)}>
                       <View style={styles.modalIconBg}>
-                        <Ionicons name="mail-outline" size={17} color="#2F7D5B" />
+                        <Ionicons name="mail-outline" size={17} color="#38BDF8" />
                       </View>
                       <Text style={styles.modalRowText}>Contact Support</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#B5C9C1" />
+                      <Ionicons name="chevron-forward" size={16} color="#64748B" />
                     </Pressable>
                   </>
                 ) : null}
@@ -297,23 +394,23 @@ export default function ProfileScreen() {
               {/* Data Management Section */}
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} disabled={deleting} onPress={onClearCollection}>
-                  <View style={[styles.modalIconBg, { backgroundColor: '#FFF2F2' }]}>
-                    <Ionicons name="trash-outline" size={17} color="#D32F2F" />
+                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                    <Ionicons name="trash-outline" size={17} color="#EF4444" />
                   </View>
-                  <Text style={[styles.modalRowText, { color: '#D32F2F' }]}>Delete Saved Collection</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#B5C9C1" />
+                  <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Delete Saved Collection</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
                 </Pressable>
 
                 <View style={styles.modalDivider} />
 
                 <Pressable style={styles.modalRow} disabled={deleting} onPress={onDeleteAccount}>
-                  <View style={[styles.modalIconBg, { backgroundColor: '#FFF2F2' }]}>
-                    <Ionicons name="warning-outline" size={17} color="#D32F2F" />
+                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                    <Ionicons name="warning-outline" size={17} color="#EF4444" />
                   </View>
-                  <Text style={[styles.modalRowText, { color: '#D32F2F' }]}>
+                  <Text style={[styles.modalRowText, { color: '#EF4444' }]}>
                     {deleting ? 'Deleting...' : 'Delete Account Data'}
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#B5C9C1" />
+                  <Ionicons name="chevron-forward" size={16} color="#64748B" />
                 </Pressable>
               </View>
             </ScrollView>
@@ -327,7 +424,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#61B6A9',
+    backgroundColor: '#0F172A',
   },
   safe: {
     flex: 1,
@@ -335,72 +432,276 @@ const styles = StyleSheet.create({
   topRightHeader: {
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 4,
   },
   gearBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
-  mainLayout: {
-    flex: 1,
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    justifyContent: 'space-between',
+    paddingTop: 8,
+    gap: 14,
   },
   floatingProfileHeader: {
     alignItems: 'center',
     gap: 10,
-    marginTop: 12,
+    marginTop: 4,
+    marginBottom: 6,
   },
   floatingPlayerName: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#1A332B',
+    color: '#F8FAFC',
     textAlign: 'center',
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  floatingLevelCard: {
+    width: '94%',
+    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+    gap: 6,
+  },
+  levelHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  levelTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#F8FAFC',
+    letterSpacing: 0.6,
+  },
+  expText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#38BDF8',
+  },
+  expTrack: {
+    height: 8,
+    backgroundColor: '#0F172A',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  expFill: {
+    height: '100%',
+    backgroundColor: '#38BDF8',
+    borderRadius: 4,
   },
   floatingStatsPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+    gap: 6,
+    backgroundColor: 'rgba(30, 41, 59, 0.92)',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
-    marginTop: 4,
   },
   speciesSavedText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 0.6,
+  },
+  companionCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+    gap: 10,
+  },
+  companionSectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 1,
+  },
+  companionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  companionAvatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  companionPhoto: {
+    width: 52,
+    height: 52,
+  },
+  companionMascotImg: {
+    width: 44,
+    height: 44,
+  },
+  companionInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  companionName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#F8FAFC',
+  },
+  companionSpecies: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  companionRarityBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  companionRarityText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 0.5,
+  },
+  companionPowerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  companionPowerVal: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#F59E0B',
+  },
+  medalsCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
+    gap: 12,
+  },
+  medalsSectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#38BDF8',
+    letterSpacing: 1,
+  },
+  medalsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  medalItem: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  medalIconCircle: {
+    position: 'relative',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  medalBadgeImg: {
+    width: 44,
+    height: 44,
+  },
+  lockBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0F172A',
+  },
+  medalTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#2F7D5B',
-    letterSpacing: 0.8,
+    color: '#F8FAFC',
+    textAlign: 'center',
+  },
+  medalDesc: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 2,
   },
   avatarContainer: {
     position: 'relative',
@@ -414,23 +715,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#2F7D5B',
+    backgroundColor: '#0284C7',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: '#0F172A',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1E293B',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 20,
     maxHeight: '75%',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(56, 189, 248, 0.35)',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -439,28 +742,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#EAEFEA',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1A332B',
+    color: '#F8FAFC',
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EEF6F2',
+    backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSection: {
-    backgroundColor: '#F7FAF8',
+    backgroundColor: '#0F172A',
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#EAEFEA',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   modalRow: {
     flexDirection: 'row',
@@ -472,7 +775,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: '#EEF6F2',
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -480,11 +783,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '800',
-    color: '#1A332B',
+    color: '#F8FAFC',
   },
   modalDivider: {
     height: 1,
-    backgroundColor: '#EAEFEA',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   pressedOpacity: {
     opacity: 0.75,
