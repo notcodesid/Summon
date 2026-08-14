@@ -88,7 +88,7 @@ Supporting modules:
   on the linked Supabase project; `0003_storage_and_rls.sql` must be applied to
   production before launch.
 - Camera preview does not work in the iOS Simulator (no camera hardware) — the
-  shutter stays disabled there. Test capture on a physical device or via Revyl.
+  shutter stays disabled there. Test capture on a physical device.
 - `mobile.physical_device_tested` stays `false` until a real device test passes.
 
 ## Seeker / dApp Store release truth
