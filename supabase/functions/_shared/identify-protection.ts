@@ -3,7 +3,7 @@ export const IDENTIFY_LIMITS = {
   userHourLimit: 20,
   userDayLimit: 75,
   ipHourLimit: 60,
-  providerTimeoutMs: 15_000,
+  providerTimeoutMs: 60_000,
 } as const
 
 export type IdentifyRateLimitCode = 'RATE_LIMIT_FREQUENCY' | 'RATE_LIMIT_USER' | 'RATE_LIMIT_IP'

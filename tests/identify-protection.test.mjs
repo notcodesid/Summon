@@ -45,5 +45,5 @@ test('uses bounded beta limits and a finite provider timeout', () => {
   assert.equal(IDENTIFY_LIMITS.userHourLimit, 20)
   assert.equal(IDENTIFY_LIMITS.userDayLimit, 75)
   assert.equal(IDENTIFY_LIMITS.ipHourLimit, 60)
-  assert.equal(IDENTIFY_LIMITS.providerTimeoutMs, 15_000)
+  assert.equal(IDENTIFY_LIMITS.providerTimeoutMs, 60_000)
 })
