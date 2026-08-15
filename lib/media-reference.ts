@@ -64,3 +64,55 @@ export function refreshRemotePhotoUri(input: PhotoMediaInput, remotePhotoUri?: s
     remotePhotoUri: remotePhotoUri || undefined,
   })
 }
+
+export type CutoutMediaReference = {
+  cutoutUri?: string
+  localCutoutUri?: string
+  remoteCutoutUri?: string
+}
+
+export type CutoutMediaInput =
+  | string
+  | null
+  | undefined
+  | {
+      cutoutUri?: unknown
+      localCutoutUri?: unknown
+      remoteCutoutUri?: unknown
+    }
+
+export function normalizeCutoutMediaReference(input: CutoutMediaInput): CutoutMediaReference {
+  const legacyCutoutUri =
+    typeof input === 'string'
+      ? stringValue(input)
+      : input && typeof input === 'object'
+        ? stringValue(input.cutoutUri)
+        : undefined
+  const explicitLocal = input && typeof input === 'object' ? stringValue(input.localCutoutUri) : undefined
+  const explicitRemote = input && typeof input === 'object' ? stringValue(input.remoteCutoutUri) : undefined
+
+  const localCutoutUri =
+    explicitLocal && isDurableLocalMediaUri(explicitLocal)
+      ? explicitLocal
+      : legacyCutoutUri && isDurableLocalMediaUri(legacyCutoutUri)
+        ? legacyCutoutUri
+        : undefined
+  const remoteCutoutUri =
+    explicitRemote || (legacyCutoutUri && !isDurableLocalMediaUri(legacyCutoutUri) ? legacyCutoutUri : undefined)
+
+  const resolved = localCutoutUri || remoteCutoutUri
+  return {
+    ...(resolved ? { cutoutUri: resolved } : {}),
+    ...(localCutoutUri ? { localCutoutUri } : {}),
+    ...(remoteCutoutUri ? { remoteCutoutUri } : {}),
+  }
+}
+
+export function refreshRemoteCutoutUri(input: CutoutMediaInput, remoteCutoutUri?: string | null): CutoutMediaReference {
+  const current = normalizeCutoutMediaReference(input)
+  return normalizeCutoutMediaReference({
+    localCutoutUri: current.localCutoutUri,
+    remoteCutoutUri: remoteCutoutUri || undefined,
+  })
+}
+

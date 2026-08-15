@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizePhotoMediaReference, refreshRemotePhotoUri, resolvePhotoMediaUri } from '../lib/media-reference.ts'
+import {
+  normalizeCutoutMediaReference,
+  normalizePhotoMediaReference,
+  refreshRemoteCutoutUri,
+  refreshRemotePhotoUri,
+  resolvePhotoMediaUri,
+} from '../lib/media-reference.ts'
 
 test('migrates a legacy local creature photo into localPhotoUri', () => {
   assert.deepEqual(
@@ -73,3 +79,21 @@ test('avatar v1 string caches migrate and later retain local media on refresh', 
   assert.equal(refreshed.remotePhotoUri, 'https://example.test/profile.jpg?token=new')
   assert.equal(refreshed.photoUri, refreshed.localPhotoUri)
 })
+
+test('normalizes and refreshes creature cutout references', () => {
+  const localCutout = normalizeCutoutMediaReference({
+    cutoutUri: 'file:///app/Documents/cutouts/fox.png',
+  })
+  assert.deepEqual(localCutout, {
+    cutoutUri: 'file:///app/Documents/cutouts/fox.png',
+    localCutoutUri: 'file:///app/Documents/cutouts/fox.png',
+  })
+
+  const refreshed = refreshRemoteCutoutUri(localCutout, 'https://example.test/fox_cutout.png?token=signed')
+  assert.deepEqual(refreshed, {
+    cutoutUri: 'file:///app/Documents/cutouts/fox.png',
+    localCutoutUri: 'file:///app/Documents/cutouts/fox.png',
+    remoteCutoutUri: 'https://example.test/fox_cutout.png?token=signed',
+  })
+})
+

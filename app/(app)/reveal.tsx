@@ -21,8 +21,9 @@ import * as Haptics from 'expo-haptics'
 import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton } from '@/components/ui'
+import { SpecimenCard } from '@/components/specimen-card'
 import { addToCollection } from '@/lib/collection'
-import { RARITY_COLOR, RARITY_LABEL, type Creature, type Rarity } from '@/lib/creatures'
+import { statsFor, type Creature, type Rarity } from '@/lib/creatures'
 import { IdentifyError, identifyAnimal, isIdentifyLive, toCreature, type Identification } from '@/lib/identify'
 import { clearPendingCapture, peekPendingCapture, takePendingCapture } from '@/lib/pending-capture'
 import { persistCapturePhoto } from '@/lib/persist-photo'
@@ -322,17 +323,21 @@ export default function RevealScreen() {
   const rarity: Rarity = phase.identification.rarity
   const note = phase.identification.note
   const species = phase.identification.species
+  const stats = statsFor(species, rarity)
+
+  const specimenData = {
+    species,
+    commonName: phase.displayName,
+    rarity,
+    stats,
+    note,
+    photoUri,
+  }
 
   const form = (
     <View style={styles.formContent}>
       <View style={styles.formHeader}>
-        <MicroLabel color={theme.colors.textMuted}>identified</MicroLabel>
-        <Text style={styles.title}>{phase.displayName || 'Creature'}</Text>
-        <View style={[styles.rarityPill, { backgroundColor: `${RARITY_COLOR[rarity]}22` }]}>
-          <Text style={[styles.rarityText, { color: RARITY_COLOR[rarity] }]}>{RARITY_LABEL[rarity]}</Text>
-        </View>
-        {species && species !== phase.displayName ? <Text style={styles.speciesText}>{species}</Text> : null}
-        {note ? <Text style={styles.noteText}>{note}</Text> : null}
+        <MicroLabel color={theme.colors.textMuted}>NAME THIS CREATURE</MicroLabel>
       </View>
 
       <TextInput
@@ -372,12 +377,13 @@ export default function RevealScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Interactive 2.5D Holographic Specimen Card */}
           <View style={styles.heroWrap}>
-            <ScanPhoto uri={photoUri} height={Math.min(heroHeight, 360)} liquid={liquid} />
+            <SpecimenCard creature={specimenData} />
           </View>
 
           {liquid ? (
-            <GlassContainer spacing={18} style={styles.stack}>
+            <GlassContainer spacing={14} style={styles.stack}>
               <GlassView style={styles.formCard} glassEffectStyle="regular">
                 {form}
               </GlassView>

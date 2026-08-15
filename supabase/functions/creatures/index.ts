@@ -26,6 +26,7 @@ type CreatureRow = {
   stats: Record<string, number>
   note: string
   photo_uri: string | null
+  cutout_uri?: string | null
   captured_at: string
 }
 
@@ -142,6 +143,7 @@ Deno.serve(async (req) => {
       action?: string
       creature?: CreaturePayload
       imageBase64?: string
+      cutoutBase64?: string
       walletAddress?: string
       email?: string
       photoSource?: 'google' | 'upload'
@@ -268,6 +270,7 @@ Deno.serve(async (req) => {
         ((data ?? []) as CreatureRow[]).map(async (row) => ({
           ...row,
           photo_uri: await signedUrl(supabase, CREATURE_BUCKET, row.photo_uri),
+          cutout_uri: await signedUrl(supabase, CREATURE_BUCKET, row.cutout_uri),
         })),
       )
       return jsonResponse({ creatures })
@@ -276,7 +279,7 @@ Deno.serve(async (req) => {
     if (action === 'clear') {
       const { data, error: readError } = await supabase
         .from('creatures')
-        .select('photo_uri')
+        .select('photo_uri, cutout_uri')
         .eq('privy_user_id', privyUserId)
       if (readError) {
         console.error(readError)
@@ -286,7 +289,7 @@ Deno.serve(async (req) => {
       await deleteStoredObjects(
         supabase,
         CREATURE_BUCKET,
-        (data ?? []).map((row) => row.photo_uri),
+        (data ?? []).flatMap((row) => [row.photo_uri, row.cutout_uri]),
       )
       const { error } = await supabase.from('creatures').delete().eq('privy_user_id', privyUserId)
       if (error) {
@@ -299,7 +302,7 @@ Deno.serve(async (req) => {
     if (action === 'delete_account') {
       const [{ data: player, error: playerError }, { data: creatures, error: creatureError }] = await Promise.all([
         supabase.from('players').select('photo_url').eq('privy_user_id', privyUserId).maybeSingle(),
-        supabase.from('creatures').select('photo_uri').eq('privy_user_id', privyUserId),
+        supabase.from('creatures').select('photo_uri, cutout_uri').eq('privy_user_id', privyUserId),
       ])
       if (playerError || creatureError) {
         console.error(playerError ?? creatureError)
@@ -309,7 +312,7 @@ Deno.serve(async (req) => {
       await deleteStoredObjects(
         supabase,
         CREATURE_BUCKET,
-        (creatures ?? []).map((row) => row.photo_uri),
+        (creatures ?? []).flatMap((row) => [row.photo_uri, row.cutout_uri]),
       )
       await deleteStoredObjects(supabase, PROFILE_BUCKET, [player?.photo_url])
 
@@ -350,6 +353,24 @@ Deno.serve(async (req) => {
         return errorResponse('Could not store photo', 500)
       }
 
+      let cutoutPath: string | null = null
+      if (body.cutoutBase64) {
+        try {
+          const cutoutImage = imageDataFromBase64(body.cutoutBase64)
+          cutoutPath = `${privyUserId}/${creature.id}_cutout.png`
+          const { error: cutoutUploadError } = await supabase.storage.from(CREATURE_BUCKET).upload(cutoutPath, cutoutImage.bytes, {
+            contentType: 'image/png',
+            upsert: true,
+          })
+          if (cutoutUploadError) {
+            console.error('cutout upload', cutoutUploadError)
+            cutoutPath = null
+          }
+        } catch {
+          cutoutPath = null
+        }
+      }
+
       const row = {
         id: creature.id,
         privy_user_id: privyUserId,
@@ -359,6 +380,7 @@ Deno.serve(async (req) => {
         stats: creature.stats ?? {},
         note: creature.note ?? '',
         photo_uri: path,
+        cutout_uri: cutoutPath,
         captured_at: creature.capturedAt ? new Date(creature.capturedAt).toISOString() : new Date().toISOString(),
       }
       const { error } = await supabase.from('creatures').upsert(row, {
@@ -379,6 +401,7 @@ Deno.serve(async (req) => {
           stats: row.stats,
           note: row.note,
           photoUri: await signedUrl(supabase, CREATURE_BUCKET, row.photo_uri),
+          cutoutUri: row.cutout_uri ? await signedUrl(supabase, CREATURE_BUCKET, row.cutout_uri) : null,
           capturedAt: Date.parse(row.captured_at),
         },
       })

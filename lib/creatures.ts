@@ -23,6 +23,10 @@ export type Creature = {
   photoUri: string
   localPhotoUri?: string
   remotePhotoUri?: string
+  /** Isolated subject cutout for 2.5D pop-out and sanctuary habitat rendering. */
+  cutoutUri?: string
+  localCutoutUri?: string
+  remoteCutoutUri?: string
   capturedAt: number
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  Modal,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -13,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { theme } from '@/constants/theme'
+import { SpecimenCard } from '@/components/specimen-card'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
 import { usePlayer } from '@/lib/use-player'
@@ -34,9 +35,11 @@ const DEFAULT_POSITIONS = [
 function DraggableCompanion({
   creature,
   initialPos,
+  onInspect,
 }: {
   creature: Creature
   initialPos: { x: number; y: number }
+  onInspect: (creature: Creature) => void
 }) {
   const pan = useRef(new Animated.ValueXY(initialPos)).current
   const scale = useRef(new Animated.Value(1)).current
@@ -94,10 +97,13 @@ function DraggableCompanion({
 
         if (Math.abs(gestureState.dx) < 6 && Math.abs(gestureState.dy) < 6) {
           triggerPettingAnimation()
+          onInspect(creature)
         }
       },
     }),
   ).current
+
+  const imageUri = creature.cutoutUri || creature.photoUri
 
   return (
     <Animated.View
@@ -129,8 +135,12 @@ function DraggableCompanion({
       </Animated.View>
 
       <View style={styles.companionFrame}>
-        {creature.photoUri ? (
-          <Image source={{ uri: creature.photoUri }} style={styles.companionAvatarPhoto} contentFit="cover" />
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={creature.cutoutUri ? styles.companionCutoutImg : styles.companionAvatarPhoto}
+            contentFit={creature.cutoutUri ? 'contain' : 'cover'}
+          />
         ) : (
           <Image
             source={require('@/assets/tab-icons-transparent/profile.png')}
@@ -145,6 +155,7 @@ function DraggableCompanion({
 
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const [inspectedCreature, setInspectedCreature] = useState<Creature | null>(null)
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
 
@@ -186,6 +197,7 @@ export default function HomeScreen() {
             key={creature.id}
             creature={creature}
             initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
+            onInspect={(c) => setInspectedCreature(c)}
           />
         ))}
       </View>
@@ -209,6 +221,33 @@ export default function HomeScreen() {
           />
         </Pressable>
       </View>
+
+      {/* 2.5D Specimen Companion Inspection Modal */}
+      <Modal
+        visible={Boolean(inspectedCreature)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInspectedCreature(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setInspectedCreature(null)} />
+          {inspectedCreature ? (
+            <View style={[styles.inspectModalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <View style={styles.inspectHeader}>
+                <Text style={styles.inspectTitle}>Companion Specimen</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedOpacity]}
+                  onPress={() => setInspectedCreature(null)}
+                >
+                  <Ionicons name="close" size={20} color="#F5F2E9" />
+                </Pressable>
+              </View>
+
+              <SpecimenCard creature={inspectedCreature} />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -264,6 +303,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
+  companionCutoutImg: {
+    width: 80,
+    height: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
   companionMascotImg: {
     width: 76,
     height: 76,
@@ -298,7 +345,58 @@ const styles = StyleSheet.create({
     opacity: 0.88,
     transform: [{ scale: 0.94 }],
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  inspectModalContent: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#182019',
+    borderRadius: 32,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(183, 243, 74, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  inspectHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 6,
+  },
+  inspectTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#B7F34A',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0F1411',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 242, 233, 0.12)',
+  },
+  pressedOpacity: {
+    opacity: 0.75,
+  },
 })
+
 
 
 

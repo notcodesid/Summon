@@ -77,10 +77,11 @@ Earn the collect moment with real AI scan. Manual rename is fallback/edit only.
 
 High payoff, lower cost than full mesh. Creature *pops* on reveal + collection.
 
-- [ ] background **cutout** after identify (e.g. rembg or similar on server)
-- [ ] **depth map** (e.g. Depth Anything / MiDaS) for parallax / tilt card
-- [ ] glass creature card with rarity + note that feels dimensional
-- [ ] use cutout + depth on home / collection previews
+- [x] background **cutout** media model and backend storage pipeline support
+- [x] interactive **2.5D parallax / tilt card** with Reanimated 3D perspective
+- [x] dynamic **holographic foil & prism sheen** matching creature rarity
+- [x] glass creature card with rarity + stats + note that feels dimensional on reveal
+- [x] use cutout + 2.5D specimen card inspection on home / sanctuary preview
 
 ### phase 3 — scan v2 (optional full 3D)
 

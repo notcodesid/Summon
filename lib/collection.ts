@@ -3,7 +3,12 @@ import { deleteAsync, documentDirectory, EncodingType, readAsStringAsync } from 
 import type { Creature, Rarity } from '@/lib/creatures'
 import { saveWithDurableRetry } from '@/lib/durable-save'
 import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
-import { normalizePhotoMediaReference, refreshRemotePhotoUri } from '@/lib/media-reference'
+import {
+  normalizeCutoutMediaReference,
+  normalizePhotoMediaReference,
+  refreshRemoteCutoutUri,
+  refreshRemotePhotoUri,
+} from '@/lib/media-reference'
 
 /**
  * Collection: local AsyncStorage mirror + server (Edge Function) as source of truth.
@@ -22,6 +27,7 @@ type CreatureRow = {
   stats: Creature['stats']
   note: string | null
   photo_uri: string | null
+  cutout_uri?: string | null
   captured_at: string
 }
 
@@ -38,6 +44,7 @@ type RemoteCreature = {
   stats: Creature['stats']
   note: string
   photoUri: string | null
+  cutoutUri?: string | null
   capturedAt: number
 }
 
@@ -47,8 +54,11 @@ export type CollectionSaveResult =
   | { status: 'failed'; message: string }
 
 function rowToCreature(row: CreatureRow): Creature {
-  const media = normalizePhotoMediaReference({
+  const photoMedia = normalizePhotoMediaReference({
     remotePhotoUri: row.photo_uri ?? undefined,
+  })
+  const cutoutMedia = normalizeCutoutMediaReference({
+    remoteCutoutUri: row.cutout_uri ?? undefined,
   })
   return {
     id: row.id,
@@ -57,7 +67,8 @@ function rowToCreature(row: CreatureRow): Creature {
     rarity: row.rarity as Rarity,
     stats: row.stats,
     note: row.note ?? '',
-    ...media,
+    ...photoMedia,
+    ...cutoutMedia,
     capturedAt: Date.parse(row.captured_at),
   }
 }
@@ -66,6 +77,7 @@ function normalizeCreatureMedia(creature: Creature): Creature {
   return {
     ...creature,
     ...normalizePhotoMediaReference(creature),
+    ...normalizeCutoutMediaReference(creature),
   }
 }
 
@@ -227,6 +239,7 @@ function withRefreshedRemotePhoto(localCreature: Creature, remoteCreature: Remot
   return {
     ...localCreature,
     ...refreshRemotePhotoUri(localCreature, remoteCreature.photoUri),
+    ...refreshRemoteCutoutUri(localCreature, remoteCreature.cutoutUri),
   }
 }
 
@@ -239,6 +252,7 @@ async function storeRemotePhotoRefresh(creature: Creature, remoteCreature: Remot
         ? {
             ...entry,
             ...refreshRemotePhotoUri(entry, remoteCreature.photoUri),
+            ...refreshRemoteCutoutUri(entry, remoteCreature.cutoutUri),
           }
         : entry,
     ),
@@ -304,6 +318,7 @@ export async function loadCollection(privyUserId?: string): Promise<Creature[]> 
           return {
             ...creature,
             ...refreshRemotePhotoUri(existing ?? creature, creature.remotePhotoUri),
+            ...refreshRemoteCutoutUri(existing ?? creature, creature.remoteCutoutUri),
           }
         })
       const remoteIds = new Set(remote.map((c) => c.id))

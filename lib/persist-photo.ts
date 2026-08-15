@@ -16,6 +16,7 @@ import {
  */
 const CAPTURES_DIR = `${documentDirectory ?? ''}captures/`
 const PROFILE_PHOTOS_DIR = `${documentDirectory ?? ''}profile-photos/`
+const CUTOUTS_DIR = `${documentDirectory ?? ''}cutouts/`
 
 async function ensureDirectory(directory: string): Promise<boolean> {
   if (!documentDirectory) return false
@@ -117,3 +118,45 @@ export async function deletePersistedPlayerPhoto(privyUserId: string): Promise<v
     // Cache metadata is still cleared by the caller.
   }
 }
+
+/**
+ * Persist a transparent PNG cutout locally for instant 2.5D rendering and sanctuary roaming.
+ */
+export async function persistCreatureCutout(id: string, base64: string, sourceUri?: string): Promise<string> {
+  const dataUri = base64 ? `data:image/png;base64,${base64}` : ''
+
+  try {
+    const ok = await ensureDirectory(CUTOUTS_DIR)
+    if (ok) {
+      const dest = `${CUTOUTS_DIR}${id}.png`
+
+      if (sourceUri && !sourceUri.startsWith('data:')) {
+        try {
+          await copyAsync({ from: sourceUri, to: dest })
+          return dest
+        } catch {
+          // Fall through to base64 write.
+        }
+      }
+
+      if (base64) {
+        await writeAsStringAsync(dest, base64, { encoding: EncodingType.Base64 })
+        return dest
+      }
+    }
+  } catch {
+    // Fall through to data URI.
+  }
+
+  if (dataUri) return dataUri
+  return sourceUri || ''
+}
+
+export async function deletePersistedCutout(id: string): Promise<void> {
+  try {
+    await deleteAsync(`${CUTOUTS_DIR}${id}.png`, { idempotent: true })
+  } catch {
+    // Local index is cleared by caller.
+  }
+}
+

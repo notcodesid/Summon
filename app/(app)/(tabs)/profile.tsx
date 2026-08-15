@@ -332,7 +332,7 @@ export default function ProfileScreen() {
             ) : (
               <View style={styles.emptyDiscoveriesBox}>
                 <Text style={styles.emptyTitle}>Your field guide is empty.</Text>
-                <Text style={styles.emptySubtitle}>Go see what's around you.</Text>
+                <Text style={styles.emptySubtitle}>Go see what&apos;s around you.</Text>
               </View>
             )}
           </View>
