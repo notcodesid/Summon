@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const TAB_ICONS: Record<string, { activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap; label: string }> = {
   index: {
-    activeIcon: 'compass',
-    inactiveIcon: 'compass-outline',
+    activeIcon: 'leaf',
+    inactiveIcon: 'leaf-outline',
     label: 'Explore',
   },
   profile: {

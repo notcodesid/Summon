@@ -449,6 +449,12 @@ function ScanStage({
           <ScanPhoto uri={photoUri} height={heroHeight} liquid={liquid} fill />
         </View>
 
+        {/* Same lens as the identifying screen, glass dark: it was on while
+            searching, it is off because nothing was found. */}
+        <View style={styles.stageCharacterSlot} pointerEvents="none">
+          <Image source={require('@/assets/scan-miss.png')} style={styles.stageCharacter} resizeMode="contain" />
+        </View>
+
         <View style={styles.stagePanel}>
           <MicroLabel color={theme.colors.textFaint}>{eyebrow}</MicroLabel>
           <Text style={styles.panelTitle} numberOfLines={3}>
@@ -564,6 +570,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 266,
     maxHeight: 494,
+  },
+  stageCharacterSlot: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: -theme.space.xl,
+    marginBottom: -theme.space.lg,
+  },
+  stageCharacter: {
+    width: 150,
+    height: 150,
   },
   stagePanel: {
     gap: theme.space.xs,
@@ -863,6 +879,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.8,
   },
+  checkingCharacterSlot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  checkingCharacter: {
+    width: '92%',
+    // Taller than the slot on purpose: bottom-aligned, so he rises toward the
+    // photo and the signal card overlaps his base — tying him to the readout
+    // instead of floating in the gap.
+    height: 250,
+    marginBottom: -28,
+  },
   checkingInfoCard: {
     backgroundColor: '#182019',
     borderRadius: 24,
@@ -880,16 +909,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-  },
-  scanningBadgeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(183, 243, 74, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.4)',
   },
   checkingEyebrow: {
     fontSize: 10,
@@ -955,37 +974,55 @@ function ScanningCheckingScreen({
     )
     scanLoop.start()
 
-    const progressLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progressAnim, {
-          toValue: 0.9,
-          duration: 2500,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: false,
-        }),
-        Animated.timing(progressAnim, {
-          toValue: 0.2,
-          duration: 400,
-          useNativeDriver: false,
-        }),
-      ]),
-    )
-    progressLoop.start()
+    // Monotonic and decelerating: identify takes an unknown time, so the bar
+    // creeps toward completion and never reaches it or resets. A looping bar
+    // reads as broken, because progress that runs backwards means nothing.
+    const progress = Animated.sequence([
+      Animated.timing(progressAnim, {
+        toValue: 0.55,
+        duration: 900,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: 0.8,
+        duration: 1800,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: 0.93,
+        duration: 4000,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: 0.98,
+        duration: 12000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    ])
+    progress.start()
 
     const steps = [
       'Looking closer at the real world…',
-      'Searching wildlife observation registry…',
-      'Revealing hidden species features…',
+      'Working out what you found…',
+      'Almost there…',
     ]
     let currentStep = 0
     const interval = setInterval(() => {
-      currentStep = (currentStep + 1) % steps.length
+      currentStep += 1
+      if (currentStep >= steps.length) {
+        clearInterval(interval)
+        return
+      }
       setStepText(steps[currentStep])
-    }, 1200)
+    }, 1800)
 
     return () => {
       scanLoop.stop()
-      progressLoop.stop()
+      progress.stop()
       clearInterval(interval)
     }
   }, [scanAnim, progressAnim])
@@ -1028,12 +1065,19 @@ function ScanningCheckingScreen({
           </View>
         </View>
 
+        {/* The player doing the looking. Sits between the photo and the signal
+            card so the readout below reads as what he is seeing. */}
+        <View style={styles.checkingCharacterSlot} pointerEvents="none">
+          <Image
+            source={require('@/assets/scan-identifying.png')}
+            style={styles.checkingCharacter}
+            resizeMode="contain"
+          />
+        </View>
+
         {/* Scanning Info & Progress Card */}
         <View style={styles.checkingInfoCard}>
           <View style={styles.checkingHeaderRow}>
-            <View style={styles.scanningBadgeCircle}>
-              <ActivityIndicator color="#B7F34A" size="small" />
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.checkingEyebrow}>✦ DISCOVERY SIGNAL</Text>
               <Text style={styles.checkingTitle}>Identifying...</Text>

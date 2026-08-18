@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -15,55 +16,44 @@ import { Image } from 'expo-image'
 import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { SpecimenCard } from '@/components/specimen-card'
+import { theme } from '@/constants/theme'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
+import { isMockCreaturesEnabled, mockCreatures } from '@/lib/dev-mock'
+import {
+  clampToBounds,
+  homePositionFor,
+  loadPlacements,
+  savePlacement,
+  type SanctuaryBounds,
+  type SanctuaryPlacements,
+  type SanctuaryPoint,
+} from '@/lib/sanctuary'
 import { usePlayer } from '@/lib/use-player'
 
-const DEFAULT_POSITIONS = [
-  { x: 0, y: 40 },         // 1. Stone bridge center
-  { x: -95, y: -30 },      // 2. Left meadow path
-  { x: 95, y: -10 },       // 3. Right pasture near treehouse
-  { x: 75, y: -140 },      // 4. Treehouse balcony
-  { x: -110, y: -110 },    // 5. High pine forest top left
-  { x: -40, y: -80 },      // 6. Central hill path
-  { x: -100, y: 55 },       // 7. Lower stream bank left
-  { x: 40, y: 20 },        // 8. River bank right
-  { x: 110, y: -90 },      // 9. Treehouse foliage
-  { x: -12, y: -165 },     // 10. Far upper mountain valley
-]
 
 function DraggableCompanion({
   creature,
   initialPos,
   onInspect,
+  onMoved,
 }: {
   creature: Creature
-  initialPos: { x: number; y: number }
+  initialPos: SanctuaryPoint
   onInspect: (creature: Creature) => void
+  onMoved: (creature: Creature, point: SanctuaryPoint) => void
 }) {
   const pan = useRef(new Animated.ValueXY(initialPos)).current
   const scale = useRef(new Animated.Value(1)).current
   const bounceAnim = useRef(new Animated.Value(0)).current
-  const heartTranslateY = useRef(new Animated.Value(0)).current
-  const heartOpacity = useRef(new Animated.Value(0)).current
-  const [heartKey, setHeartKey] = useState(0)
 
   const triggerPettingAnimation = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setHeartKey((prev) => prev + 1)
-    heartTranslateY.setValue(0)
-    heartOpacity.setValue(1)
 
     // Bounce physics
     Animated.sequence([
       Animated.timing(bounceAnim, { toValue: -18, duration: 110, useNativeDriver: false }),
       Animated.spring(bounceAnim, { toValue: 0, friction: 4, tension: 180, useNativeDriver: false }),
-    ]).start()
-
-    // Floating hearts animation
-    Animated.parallel([
-      Animated.timing(heartTranslateY, { toValue: -50, duration: 800, useNativeDriver: false }),
-      Animated.timing(heartOpacity, { toValue: 0, duration: 800, useNativeDriver: false }),
     ]).start()
   }
 
@@ -89,6 +79,11 @@ function DraggableCompanion({
       }),
       onPanResponderRelease: (e, gestureState) => {
         pan.flattenOffset()
+        // Remember where the player put it, so the sanctuary keeps its arrangement.
+        onMoved(creature, {
+          x: (pan.x as any)._value,
+          y: (pan.y as any)._value,
+        })
         Animated.spring(scale, {
           toValue: 1,
           friction: 5,
@@ -119,21 +114,6 @@ function DraggableCompanion({
         },
       ]}
     >
-      {/* Floating Heart Particles Animation */}
-      <Animated.View
-        key={heartKey}
-        style={[
-          styles.floatingHeartContainer,
-          {
-            opacity: heartOpacity,
-            transform: [{ translateY: heartTranslateY }],
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <Text style={styles.floatingHeartText}>❤️</Text>
-      </Animated.View>
-
       <View style={styles.companionFrame}>
         {imageUri ? (
           <Image
@@ -155,15 +135,32 @@ function DraggableCompanion({
 
 export default function HomeScreen() {
   const [creatures, setCreatures] = useState<Creature[] | null>(null)
+  const [placements, setPlacements] = useState<SanctuaryPlacements>({})
   const [inspectedCreature, setInspectedCreature] = useState<Creature | null>(null)
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+
+  // Anchored at 52% of the screen; this band keeps companions on the meadow
+  // between the horizon and the scan button rather than up in the sky.
+  const bounds: SanctuaryBounds = {
+    halfWidth: Math.min(width / 2 - 48, 152),
+    top: -10,
+    bottom: 175,
+    // Only the avatar's lower body is protected: half his width, plus a
+    // companion's radius, plus margin. Companions near his head may overlap —
+    // drawn behind him, that reads as distance rather than collision.
+    reserved: { halfWidth: 88, top: 80, bottom: 175 },
+  }
 
   useFocusEffect(
     useCallback(() => {
       let active = true
-      void loadCollection(privyUserId).then((next) => {
-        if (active) setCreatures(next)
+      void Promise.all([loadCollection(privyUserId), loadPlacements(privyUserId)]).then(([next, saved]) => {
+        if (!active) return
+        // Dev seeding is render-only — never persisted, never uploaded.
+        setCreatures(isMockCreaturesEnabled ? [...next, ...mockCreatures()] : next)
+        setPlacements(saved)
       })
       return () => {
         active = false
@@ -171,15 +168,35 @@ export default function HomeScreen() {
     }, [privyUserId]),
   )
 
+  const onCompanionMoved = (creature: Creature, point: SanctuaryPoint) => {
+    setPlacements((prev) => ({ ...prev, [creature.id]: point }))
+    void savePlacement(privyUserId, creature.id, point)
+  }
+
   if (creatures === null) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator color="#FFFFFF" size="large" />
+        <ActivityIndicator color={theme.colors.primary} size="large" />
       </View>
     )
   }
 
-  const activeCompanions = creatures.slice(0, 10)
+  // Oldest-first arrival order: a new catch appends instead of reshuffling
+  // everyone already living here.
+  const arrivalOrder = new Map(
+    [...creatures].sort((a, b) => a.capturedAt - b.capturedAt).map((creature, index) => [creature.id, index]),
+  )
+
+  // Painter's order: companions lower on the meadow draw in front, so any
+  // overlap reads as depth instead of collision.
+  const placed = creatures
+    .map((creature) => ({
+      creature,
+      position: placements[creature.id]
+        ? clampToBounds(placements[creature.id], bounds)
+        : homePositionFor(creature.id, arrivalOrder.get(creature.id) ?? 0, bounds),
+    }))
+    .sort((a, b) => a.position.y - b.position.y)
 
   return (
     <View style={styles.container}>
@@ -192,19 +209,30 @@ export default function HomeScreen() {
 
       {/* Interactive Drag & Drop Sanctuary Habitat Area */}
       <View style={styles.habitatCompanionArea} pointerEvents="box-none">
-        {activeCompanions.map((creature, idx) => (
+        {placed.map(({ creature, position }) => (
           <DraggableCompanion
             key={creature.id}
             creature={creature}
-            initialPos={DEFAULT_POSITIONS[idx % DEFAULT_POSITIONS.length]}
+            initialPos={position}
             onInspect={(c) => setInspectedCreature(c)}
+            onMoved={onCompanionMoved}
           />
         ))}
       </View>
 
+      {/* The player, standing in their own sanctuary. Drawn above the companions
+          so any behind it read as distance; never intercepts touches, so a
+          companion partly hidden by it is still draggable. */}
+      <Image
+        source={require('@/assets/onboarding-greeting.png')}
+        style={[styles.playerAvatar, { bottom: insets.bottom + 238 }]}
+        contentFit="contain"
+        pointerEvents="none"
+      />
+
       {/* Floating Bottom Overlays */}
       <View style={[styles.bottomContainer, { paddingBottom: insets.bottom + 115 }]} pointerEvents="box-none">
-        {/* Primary Pokéball Scan Camera CTA floating above tabs */}
+        {/* Primary scan CTA floating above the tabs */}
         <Pressable
           style={({ pressed }) => [styles.scanCircleBtn, pressed && styles.scanBtnPressed]}
           onPress={() => {
@@ -212,12 +240,12 @@ export default function HomeScreen() {
             router.push('/camera')
           }}
           accessibilityRole="button"
-          accessibilityLabel="Open Scan Camera"
+          accessibilityLabel="Scan an animal"
         >
           <Image
-            source={require('@/assets/pokeball_btn.jpg')}
-            style={styles.pokeballImg}
-            contentFit="cover"
+            source={require('@/assets/scan-lens.png')}
+            style={styles.scanLensImg}
+            contentFit="contain"
           />
         </Pressable>
       </View>
@@ -255,7 +283,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: theme.colors.viewfinder,
   },
   centered: {
     alignItems: 'center',
@@ -274,18 +302,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  floatingHeartContainer: {
-    position: 'absolute',
-    top: -30,
-    alignSelf: 'center',
-    zIndex: 30,
-  },
-  floatingHeartText: {
-    fontSize: 22,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   companionFrame: {
     position: 'relative',
@@ -333,13 +349,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
-    overflow: 'hidden',
   },
-  pokeballImg: {
+  scanLensImg: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    transform: [{ scale: 1.38 }],
+  },
+  playerAvatar: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 100,
+    height: 150,
+    zIndex: 12,
   },
   scanBtnPressed: {
     opacity: 0.88,

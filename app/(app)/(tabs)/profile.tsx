@@ -283,33 +283,15 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Field Guide Section Entry */}
+          {/* Field guide — the one place discoveries live. Previously this was
+              two cards ("Field Guide" tiles and "Recent Discoveries" rows) both
+              rendering creatures.slice(0, 4): the same animals, twice. */}
           <View style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
-                <Text style={styles.sectionSubtitle}>{speciesMilestone.current} / {speciesMilestone.target} species discovered</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#B7F34A" />
-            </View>
-            <View style={styles.fieldGuideRow}>
-              {fieldGuidePreview.map((item, idx) => (
-                <View key={item?.id || `empty-${idx}`} style={styles.fieldGuideItem}>
-                  {item?.photoUri ? (
-                    <Image source={{ uri: item.photoUri }} style={styles.fieldGuidePhoto} contentFit="cover" />
-                  ) : (
-                    <View style={styles.silhouetteBox}>
-                      <Text style={styles.silhouetteQuestionMark}>?</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
+            <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
+            <Text style={styles.sectionSubtitle}>
+              {speciesMilestone.current} / {speciesMilestone.target} species discovered
+            </Text>
 
-          {/* Recent Discoveries Section */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>RECENT DISCOVERIES</Text>
             {recentDiscoveries.length > 0 ? (
               <View style={styles.recentList}>
                 {recentDiscoveries.map((c) => (
@@ -326,16 +308,29 @@ export default function ProfileScreen() {
                       <Text style={styles.recentSpecies}>{c.species}</Text>
                     </View>
                     <Text style={styles.recentTime}>
-                      {c.capturedAt ? new Date(c.capturedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Today'}
+                      {c.capturedAt
+                        ? new Date(c.capturedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                        : 'Today'}
                     </Text>
                   </View>
                 ))}
               </View>
             ) : (
-              <View style={styles.emptyDiscoveriesBox}>
-                <Text style={styles.emptyTitle}>Your field guide is empty.</Text>
-                <Text style={styles.emptySubtitle}>Go see what&apos;s around you.</Text>
-              </View>
+              <>
+                <View style={styles.fieldGuideRow}>
+                  {fieldGuidePreview.map((item, idx) => (
+                    <View key={item?.id || `empty-${idx}`} style={styles.fieldGuideItem}>
+                      <View style={styles.silhouetteBox}>
+                        <Text style={styles.silhouetteQuestionMark}>?</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.emptyDiscoveriesBox}>
+                  <Text style={styles.emptyTitle}>Nothing discovered yet.</Text>
+                  <Text style={styles.emptySubtitle}>Go see what&apos;s around you.</Text>
+                </View>
+              </>
             )}
           </View>
 
@@ -460,7 +455,7 @@ const styles = StyleSheet.create({
   },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 20, 17, 0.78)',
+    backgroundColor: 'rgba(15, 20, 17, 0.62)',
   },
   safe: {
     flex: 1,
