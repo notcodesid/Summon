@@ -22,6 +22,7 @@ import { AppConfig } from '@/constants/app-config'
 import { deleteAccountData } from '@/lib/account'
 import { clearCollection, loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
+import { nextSpeciesMilestone, uniqueSpeciesCount } from '@/lib/discovery-library'
 import { prepareImageForUpload } from '@/lib/image-processing'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
@@ -49,8 +50,9 @@ export default function ProfileScreen() {
     }, [player.privyUserId]),
   )
 
-  const speciesCount = creatures.length
+  const speciesCount = uniqueSpeciesCount(creatures)
   const discoveriesCount = creatures.length
+  const speciesMilestone = nextSpeciesMilestone(creatures)
   const rareCount = creatures.filter(
     (c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary',
   ).length
@@ -64,19 +66,19 @@ export default function ProfileScreen() {
     {
       id: 'first_scan',
       title: 'First Scan',
-      emoji: '🌻',
+      icon: require('@/assets/goal-icons/sunflower.png'),
       unlocked: creatures.length >= 1,
     },
     {
       id: 'wildlife_scout',
       title: 'Wildlife Scout',
-      emoji: '🧃',
+      icon: require('@/assets/goal-icons/water.png'),
       unlocked: creatures.length >= 5,
     },
     {
       id: 'rare_hunter',
       title: 'Rare Finder',
-      emoji: '🛡️',
+      icon: require('@/assets/goal-icons/lead_badge.png'),
       unlocked: rareCount > 0,
     },
   ]
@@ -286,7 +288,7 @@ export default function ProfileScreen() {
             <View style={styles.sectionHeaderRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
-                <Text style={styles.sectionSubtitle}>{speciesCount} / 386 species discovered</Text>
+                <Text style={styles.sectionSubtitle}>{speciesMilestone.current} / {speciesMilestone.target} species discovered</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#B7F34A" />
             </View>
@@ -343,7 +345,7 @@ export default function ProfileScreen() {
             <View style={styles.compactMedalsRow}>
               {medals.map((m) => (
                 <View key={m.id} style={styles.compactMedalCell}>
-                  <Text style={styles.compactMedalEmoji}>{m.emoji}</Text>
+                  <Image source={m.icon} style={styles.compactMedalIcon} contentFit="contain" />
                   <Text style={styles.compactMedalTitle}>{m.title}</Text>
                   <Text style={[styles.compactMedalBadge, m.unlocked ? styles.badgeUnlocked : styles.badgeLocked]}>
                     {m.unlocked ? '✓' : '🔒'}
@@ -719,8 +721,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 242, 233, 0.08)',
     gap: 4,
   },
-  compactMedalEmoji: {
-    fontSize: 22,
+  compactMedalIcon: {
+    width: 34,
+    height: 34,
     marginBottom: 2,
   },
   compactMedalTitle: {

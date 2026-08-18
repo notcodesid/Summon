@@ -187,7 +187,7 @@ export default function HomeScreen() {
       <Image
         source={require('@/assets/sanctuary.jpg')}
         style={StyleSheet.absoluteFillObject}
-        contentFit="fill"
+        contentFit="cover"
       />
 
       {/* Interactive Drag & Drop Sanctuary Habitat Area */}

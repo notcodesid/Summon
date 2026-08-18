@@ -82,19 +82,18 @@ function LoginWithPrivy() {
 
   return (
     <View style={styles.rootContainer}>
-      {/* Centered Midnight Portal Background with Mascot */}
+      {/* Brand backdrop: deep field ground behind the hero. */}
+      <View style={styles.skyLayer} />
+      <View style={styles.groundLayer} />
+
       <Image
-        source={require('../assets/login_bg.jpg')}
-        style={StyleSheet.absoluteFillObject}
-        contentFit="fill"
+        source={require('../assets/explorer-hero.png')}
+        style={styles.hero}
+        contentFit="contain"
       />
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
-          <Animated.View entering={FadeInDown.delay(120).duration(520)} style={styles.headlineBlock}>
-            <Text style={styles.headline}>Pokémon, but real.</Text>
-          </Animated.View>
-
           <Animated.View entering={FadeInDown.delay(280).duration(520)} style={styles.actionsCard}>
             {/* Google Sign-In Button */}
             <Pressable
@@ -161,7 +160,26 @@ function LoginWithPrivy() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#3BBBF3',
+    backgroundColor: theme.colors.viewfinder,
+  },
+  skyLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.viewfinder,
+  },
+  groundLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '42%',
+    backgroundColor: '#141C16',
+  },
+  hero: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '16%',
+    width: '78%',
+    height: '54%',
   },
   safe: {
     flex: 1,
@@ -175,7 +193,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.space.xl,
     paddingBottom: theme.space.xl,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   fallback: {
     flex: 1,
@@ -183,21 +201,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.xl,
     gap: theme.space.lg,
   },
-  headlineBlock: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headline: {
     fontSize: 34,
     lineHeight: 42,
     fontWeight: '900',
     letterSpacing: -0.5,
     textAlign: 'center',
-    color: '#18221C',
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    color: theme.colors.text,
   },
   actionsCard: {
     gap: theme.space.md,
