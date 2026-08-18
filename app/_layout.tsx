@@ -34,6 +34,7 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: theme.colors.background },
           }}
         >
+          <Stack.Screen name="onboarding" />
           <Stack.Screen name="login" />
           <Stack.Screen name="(app)" />
         </Stack>

@@ -9,6 +9,7 @@ import { Redirect, router } from 'expo-router'
 import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
 import { AppConfig } from '@/constants/app-config'
 import { theme } from '@/constants/theme'
+import { hasSeenOnboarding } from '@/lib/onboarding'
 import { googleOAuthProvider, isAuthBypassed, isPrivyConfigured } from '@/lib/privy-config'
 
 /**
@@ -16,11 +17,37 @@ import { googleOAuthProvider, isAuthBypassed, isPrivyConfigured } from '@/lib/pr
  * collects, and the embedded Solana wallet is created just after.
  */
 export default function LoginScreen() {
+  // undefined = still reading storage; avoids a flash of the sign-in screen
+  // before we know whether this device has seen the intro.
+  const [seenIntro, setSeenIntro] = useState<boolean | undefined>(undefined)
+
+  useEffect(() => {
+    let active = true
+    void hasSeenOnboarding().then((seen) => {
+      if (active) setSeenIntro(seen)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
   if (isAuthBypassed) {
     return <Redirect href="/" />
   }
   if (!isPrivyConfigured) {
     return <PrivyConfigMissing />
+  }
+  if (seenIntro === undefined) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loading}>
+          <ActivityIndicator color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    )
+  }
+  if (!seenIntro) {
+    return <Redirect href="/onboarding" />
   }
   return <LoginWithPrivy />
 }
