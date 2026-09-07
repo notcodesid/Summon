@@ -17,6 +17,10 @@ declare_id!("4qAXXzaqXXREMcWtSxyDG8p7MgVFFGA34wwvZvxxZRgu");
 pub mod summon_battle {
     use super::*;
 
+    pub fn initialize_player(ctx: Context<InitializePlayer>) -> Result<()> {
+        instructions::initialize_player::initialize_player(ctx)
+    }
+
     pub fn create_battle(
         ctx: Context<CreateBattle>,
         battle_id: [u8; 16],
