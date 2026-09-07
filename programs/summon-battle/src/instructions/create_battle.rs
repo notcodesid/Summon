@@ -50,6 +50,7 @@ pub fn create_battle(
         turn: 0,
         status: BattleStatus::Active,
         winner: Winner::None,
+        progression_recorded: false,
         bump: ctx.bumps.battle,
     };
     emit!(BattleCreated {

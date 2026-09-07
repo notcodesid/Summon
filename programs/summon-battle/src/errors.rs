@@ -18,4 +18,8 @@ pub enum BattleError {
     BattleNotFinished,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Battle progression has already been recorded")]
+    ProgressionAlreadyRecorded,
+    #[msg("Battle account is not owned by the Summon program")]
+    InvalidBattleOwner,
 }
