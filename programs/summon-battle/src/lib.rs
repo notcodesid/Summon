@@ -10,8 +10,6 @@ pub mod state;
 
 use instructions::*;
 
-// MagicBlock example address used only as a compile-time placeholder. It must
-// be replaced with Summon's generated program address before deployment.
 declare_id!("4qAXXzaqXXREMcWtSxyDG8p7MgVFFGA34wwvZvxxZRgu");
 
 #[ephemeral]
