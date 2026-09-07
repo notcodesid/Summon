@@ -37,4 +37,8 @@ pub mod summon_battle {
     pub fn settle_battle(ctx: Context<SettleBattle>) -> Result<()> {
         instructions::settle_battle::settle_battle(ctx)
     }
+
+    pub fn update_progression(ctx: Context<UpdateProgression>, battle_id: [u8; 16]) -> Result<()> {
+        instructions::update_progression::update_progression(ctx, battle_id)
+    }
 }
