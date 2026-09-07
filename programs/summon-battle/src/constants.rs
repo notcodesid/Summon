@@ -1,5 +1,8 @@
 pub const BATTLE_SEED: &[u8] = b"battle";
+pub const PLAYER_SEED: &[u8] = b"player";
 pub const BATTLE_ID_LENGTH: usize = 16;
+pub const WIN_XP: u32 = 100;
+pub const LOSS_XP: u32 = 25;
 pub const MAX_HP: u16 = 500;
 pub const MAX_ATTACK: u16 = 250;
 pub const MAX_DEFENSE: u16 = 250;
