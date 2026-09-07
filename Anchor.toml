@@ -16,6 +16,6 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "cargo test --workspace"
+test = "npm run test:anchor"
 
 [hooks]

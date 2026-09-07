@@ -21,7 +21,8 @@
     "seeker:check-release": "node scripts/check-seeker-release.mjs",
     "test:save": "node --test --experimental-strip-types tests/durable-save.test.mjs tests/media-reference.test.mjs",
     "test:protection": "node --test --experimental-strip-types tests/identify-protection.test.mjs",
-    "test:product": "node --test --experimental-strip-types tests/discovery-library.test.mjs tests/sanctuary-position.test.mjs"
+    "test:product": "node --test --experimental-strip-types tests/discovery-library.test.mjs tests/sanctuary-position.test.mjs",
+    "test:anchor": "ts-mocha -p tsconfig.anchor.json -t 1000000 tests/anchor/**/*.ts"
   },
   "displayName": "Summon",
   "description": "Real-world animal collection and battles on Solana — initial mobile shell.",
@@ -89,10 +90,16 @@
     "react-native-worklets": "0.7.4"
   },
   "devDependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
     "@types/react": "~19.2.14",
+    "chai": "^5.2.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~55.0.0",
     "prettier": "^3.6.2",
+    "ts-mocha": "^11.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },
   "private": true
