@@ -73,4 +73,21 @@ mod tests {
             (0, 1, LOSS_XP)
         );
     }
+
+    #[test]
+    fn missing_winner_does_not_change_progression() {
+        let mut profile = profile();
+        assert!(profile.record_result(Winner::None).is_err());
+        assert_eq!(
+            (profile.wins, profile.losses, profile.experience),
+            (0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn progression_overflow_returns_an_error() {
+        let mut profile = profile();
+        profile.wins = u32::MAX;
+        assert!(profile.record_result(Winner::Player).is_err());
+    }
 }

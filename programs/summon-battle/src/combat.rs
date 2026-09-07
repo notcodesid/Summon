@@ -41,4 +41,15 @@ mod tests {
     fn defense_reduces_damage() {
         assert!(damage(100, 100) < damage(100, 0));
     }
+
+    #[test]
+    fn validates_every_stat_boundary() {
+        assert!(validate_stats(1, 1, 0).is_ok());
+        assert!(validate_stats(MAX_HP, MAX_ATTACK, MAX_DEFENSE).is_ok());
+        assert!(validate_stats(0, 1, 0).is_err());
+        assert!(validate_stats(MAX_HP + 1, 1, 0).is_err());
+        assert!(validate_stats(1, 0, 0).is_err());
+        assert!(validate_stats(1, MAX_ATTACK + 1, 0).is_err());
+        assert!(validate_stats(1, 1, MAX_DEFENSE + 1).is_err());
+    }
 }

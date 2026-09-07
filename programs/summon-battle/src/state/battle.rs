@@ -83,4 +83,21 @@ mod tests {
         assert_eq!(battle.claim_progression().unwrap(), Winner::Player);
         assert!(battle.claim_progression().is_err());
     }
+
+    #[test]
+    fn progression_rejects_unfinished_battles() {
+        let mut battle = finished_battle();
+        battle.status = BattleStatus::Active;
+        battle.winner = Winner::None;
+        assert!(battle.claim_progression().is_err());
+        assert!(!battle.progression_recorded);
+    }
+
+    #[test]
+    fn progression_rejects_a_missing_winner() {
+        let mut battle = finished_battle();
+        battle.winner = Winner::None;
+        assert!(battle.claim_progression().is_err());
+        assert!(!battle.progression_recorded);
+    }
 }
