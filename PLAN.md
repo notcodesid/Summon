@@ -99,23 +99,34 @@ photo + cutout → self-hosted TripoSR (or TRELLIS) → GLB → expo-three / R3F
 
 **Do not** require SVG vectorization as a middle step for animals — use mask/cutout, then direct image-to-3D when ready.
 
-### next: battle
+### next: battle (first onchain slice) ← **next**
 
-- [ ] **battle** — pick a creature, fight a canned opponent, resolve on stats
+Scan/collect stay web2; battle is the first thing that goes onchain — turns
+need 10ms + gasless, which base layer can't do. Ephemeral Rollup session per
+match, committed back to base when done.
+
+- [ ] `summon_battle` Anchor program: `battle` PDA (player, creature stats hash, opponent, HP, turn)
+- [ ] `delegate` on match start → `attack` turns on ER via Magic Router → `commit_and_undelegate` on finish
+- [ ] `commit` + Magic Action: update base-layer leaderboard / XP PDA automatically
+- [ ] client: Privy embedded Solana wallet signs; `ConnectionMagicRouter` routes ER vs base txs
+- [ ] canned opponent first (same stat resolve as specced); PvP second if time
+- [ ] stretch: Solana VRF for crit/dodge only (never for pulls — found = what you get), TEE private ER for hidden-move PvP
 
 ### later
 
 - [ ] **Apple** Sign in (iOS)
-- [ ] on-chain design once the core loop is settled (wallet already exists via Privy)
+- [ ] full on-chain collection (mints) only after battle slice lands — wallet already exists via Privy
 
 ## notes
 
-- **web2 for now:** real auth + a real database, no smart contract. the wallet is
-  recorded against the player but nothing is on-chain yet.
+- **web2 for scan/collect, onchain for battle:** real auth + real database for
+  collection; first smart contract is the battle PDA on ER. the wallet is
+  recorded against the player and signs battle txs via Privy.
 - auth: Google via Privy; Solana wallet created after login. the privy user id is
   the database key, so login is required — a bypassed session saves nothing.
 - the gacha program (MagicBlock ER + VRF) was **deleted**, not paused. summon is
   not a random-pull game: what you get is decided by what you actually found.
+  VRF is battle-only (crit/dodge), never for pulls.
 - exploration is real-world only — no coding task for that step
 - image-to-3D needs a **GPU server**; the phone only captures, uploads, and displays
 - free 3D path = open models self-hosted (TripoSR / TRELLIS); hosted APIs only for prototypes
