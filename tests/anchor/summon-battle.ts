@@ -1,5 +1,5 @@
 import * as anchor from '@coral-xyz/anchor'
-import { expect } from 'chai'
+import assert from 'node:assert/strict'
 
 import type { SummonBattle } from '../../target/types/summon_battle'
 
@@ -7,21 +7,28 @@ const PLAYER_SEED = Buffer.from('player')
 const BATTLE_SEED = Buffer.from('battle')
 
 describe('summon-battle base lifecycle', () => {
-  const provider = anchor.AnchorProvider.env()
-  anchor.setProvider(provider)
-  const program = anchor.workspace.SummonBattle as anchor.Program<SummonBattle>
-  const authority = provider.wallet.publicKey
   const battleId = Buffer.from('battle-test-0001')
   const creatureHash = Array.from(Buffer.alloc(32, 7))
+  let provider: anchor.AnchorProvider
+  let program: anchor.Program<SummonBattle>
+  let authority: anchor.web3.PublicKey
+  let playerProfile: anchor.web3.PublicKey
+  let battle: anchor.web3.PublicKey
 
-  const [playerProfile] = anchor.web3.PublicKey.findProgramAddressSync(
-    [PLAYER_SEED, authority.toBuffer()],
-    program.programId,
-  )
-  const [battle] = anchor.web3.PublicKey.findProgramAddressSync(
-    [BATTLE_SEED, authority.toBuffer(), battleId],
-    program.programId,
-  )
+  before(() => {
+    provider = anchor.AnchorProvider.env()
+    anchor.setProvider(provider)
+    program = anchor.workspace.SummonBattle as anchor.Program<SummonBattle>
+    authority = provider.wallet.publicKey
+    ;[playerProfile] = anchor.web3.PublicKey.findProgramAddressSync(
+      [PLAYER_SEED, authority.toBuffer()],
+      program.programId,
+    )
+    ;[battle] = anchor.web3.PublicKey.findProgramAddressSync(
+      [BATTLE_SEED, authority.toBuffer(), battleId],
+      program.programId,
+    )
+  })
 
   async function simulateAndSend(builder: { simulate(): Promise<unknown>; rpc(): Promise<string> }): Promise<string> {
     await builder.simulate()
@@ -31,10 +38,10 @@ describe('summon-battle base lifecycle', () => {
   it('initializes a player profile', async () => {
     await simulateAndSend(program.methods.initializePlayer().accounts({ authority }))
     const profile = await program.account.playerProfile.fetch(playerProfile)
-    expect(profile.authority.equals(authority)).to.equal(true)
-    expect(profile.wins).to.equal(0)
-    expect(profile.losses).to.equal(0)
-    expect(profile.experience).to.equal(0)
+    assert.equal(profile.authority.equals(authority), true)
+    assert.equal(profile.wins, 0)
+    assert.equal(profile.losses, 0)
+    assert.equal(profile.experience, 0)
   })
 
   it('creates a battle with bounded stats', async () => {
@@ -53,11 +60,11 @@ describe('summon-battle base lifecycle', () => {
     )
 
     const account = await program.account.battle.fetch(battle)
-    expect(account.player.equals(authority)).to.equal(true)
-    expect(account.turn).to.equal(0)
-    expect(account.playerHp).to.equal(120)
-    expect(account.opponentHp).to.equal(100)
-    expect(account.progressionRecorded).to.equal(false)
+    assert.equal(account.player.equals(authority), true)
+    assert.equal(account.turn, 0)
+    assert.equal(account.playerHp, 120)
+    assert.equal(account.opponentHp, 100)
+    assert.equal(account.progressionRecorded, false)
   })
 
   it('resolves deterministic turns to a final winner', async () => {
@@ -67,8 +74,8 @@ describe('summon-battle base lifecycle', () => {
       account = await program.account.battle.fetch(battle)
     }
 
-    expect(account.turn).to.be.greaterThan(0)
-    expect(account.turn).to.be.at.most(5)
-    expect('none' in account.winner).to.equal(false)
+    assert.ok(account.turn > 0)
+    assert.ok(account.turn <= 5)
+    assert.equal('none' in account.winner, false)
   })
 })
