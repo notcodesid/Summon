@@ -36,7 +36,7 @@ export type EnsureOnchainResult = {
 }
 
 /** PlayerProfile: 8 discriminator + 32 authority + 4 wins + 4 losses + 4 xp + 1 bump. */
-const PLAYER_PROFILE_SPACE = 53
+export const PLAYER_PROFILE_SPACE = 53
 /** Devnet fallback top-up when the sponsor drip is unreachable. */
 const DEVNET_AIRDROP_LAMPORTS = 100_000_000
 
@@ -46,7 +46,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  * Public RPCs (devnet especially) answer 429 when crowded. Retry a few
  * times with growing waits instead of failing on the first busy signal.
  */
-async function withRpcRetry<T>(label: string, work: () => Promise<T>): Promise<T> {
+export async function withRpcRetry<T>(label: string, work: () => Promise<T>): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
@@ -76,7 +76,7 @@ async function defaultFundWallet(connection: Connection, wallet: PublicKey): Pro
   }
 }
 
-type SignAndSendProvider = {
+export type SignAndSendProvider = {
   request: (args: {
     method: 'signAndSendTransaction'
     params: { transaction: Transaction; connection: Connection; options?: { commitment?: Commitment } }
