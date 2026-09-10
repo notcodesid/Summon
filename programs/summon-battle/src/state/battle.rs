@@ -23,6 +23,16 @@ pub struct Battle {
     pub bump: u8,
 }
 
+#[cfg(test)]
+mod space_tests {
+    use super::*;
+
+    #[test]
+    fn account_space_matches_client_rent_check() {
+        assert_eq!(8 + Battle::INIT_SPACE, 109);
+    }
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, InitSpace, PartialEq, Eq)]
 pub enum BattleStatus {
     Active,
