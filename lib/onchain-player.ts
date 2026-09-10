@@ -35,6 +35,12 @@ export type EnsureOnchainResult = {
   funded?: boolean
 }
 
+export type PlayerProgression = {
+  wins: number
+  losses: number
+  experience: number
+}
+
 /** PlayerProfile: 8 discriminator + 32 authority + 4 wins + 4 losses + 4 xp + 1 bump. */
 export const PLAYER_PROFILE_SPACE = 53
 /** Devnet fallback top-up when the sponsor drip is unreachable. */
@@ -91,6 +97,23 @@ export function playerPdaFor(walletAddress: string): PublicKey {
     program,
   )
   return pda
+}
+
+export async function fetchPlayerProgression(
+  connection: Connection,
+  walletAddress: string,
+): Promise<PlayerProgression | null> {
+  const info = await withRpcRetry('getAccountInfo', () => connection.getAccountInfo(playerPdaFor(walletAddress)))
+  if (!info) return null
+  if (!info.owner.equals(new PublicKey(summonProgramId)) || info.data.length < PLAYER_PROFILE_SPACE) {
+    throw new Error('Player profile account is invalid.')
+  }
+  const data = Buffer.from(info.data)
+  return {
+    wins: data.readUInt32LE(40),
+    losses: data.readUInt32LE(44),
+    experience: data.readUInt32LE(48),
+  }
 }
 
 export async function hasOnchainPlayer(
