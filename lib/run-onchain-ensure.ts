@@ -10,8 +10,8 @@ const attempted = new Set<string>()
 /**
  * Create the on-chain PlayerProfile PDA if it is missing.
  *
- * Call this from the first battle, not from login or Profile. Scan/collect
- * are web2; the PDA is only needed when settle writes wins/losses/XP.
+ * Call this from the first Keep, not from login or Profile. Scan does not
+ * need the player PDA; collecting the animal on-chain does.
  * Fetch-first: no transaction when the account already exists.
  */
 export async function runOnchainEnsure(args: {
