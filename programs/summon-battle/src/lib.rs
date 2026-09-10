@@ -21,6 +21,14 @@ pub mod summon_battle {
         instructions::initialize_player::initialize_player(ctx)
     }
 
+    pub fn collect_creature(
+        ctx: Context<CollectCreature>,
+        catch_id: [u8; 16],
+        args: CollectCreatureArgs,
+    ) -> Result<()> {
+        instructions::collect_creature::collect_creature(ctx, catch_id, args)
+    }
+
     pub fn create_battle(
         ctx: Context<CreateBattle>,
         battle_id: [u8; 16],
