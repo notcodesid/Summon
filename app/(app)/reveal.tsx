@@ -18,12 +18,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
+import { useEmbeddedSolanaWallet } from '@privy-io/expo'
 import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { SpecimenCard } from '@/components/specimen-card'
+import { newCatchIdHex } from '@/lib/catch-id'
 import { addToCollection } from '@/lib/collection'
+import { keepCreatureOnchain } from '@/lib/collect-onchain'
 import { statsFor, type Creature, type Rarity } from '@/lib/creatures'
+import type { SignAndSendProvider } from '@/lib/onchain-player'
 import { IdentifyError, identifyAnimal, isIdentifyLive, toCreature, type Identification } from '@/lib/identify'
 import { clearPendingCapture, peekPendingCapture, takePendingCapture } from '@/lib/pending-capture'
 import { persistCapturePhoto } from '@/lib/persist-photo'
@@ -55,7 +59,9 @@ export default function RevealScreen() {
   const activeCaptureIdRef = useRef<string | null>(null)
   /** Keeps retries idempotent after a failed or pending remote save. */
   const saveAttemptRef = useRef<SaveAttempt | null>(null)
-  const { privyUserId } = usePlayer()
+  const { privyUserId, walletAddress } = usePlayer()
+  const solana = useEmbeddedSolanaWallet()
+  const embeddedWallet = 'wallets' in solana ? (solana.wallets ?? [])[0] : undefined
   const liquid = isLiquidGlassAvailable()
   const { height: windowHeight } = useWindowDimensions()
   const heroHeight = Math.min(Math.round(windowHeight * 0.49), 456)
@@ -174,6 +180,14 @@ export default function RevealScreen() {
       species: phase.identification.species || name,
     }
 
+    if (!privyUserId || !walletAddress || !embeddedWallet) {
+      setSaveNotice({
+        kind: 'failed',
+        message: 'Wallet is still opening. Wait a second and tap Keep again.',
+      })
+      return
+    }
+
     setSaving(true)
     setSaveNotice(null)
     try {
@@ -187,10 +201,11 @@ export default function RevealScreen() {
               species: identification.species,
               rarity: identification.rarity,
               note: identification.note,
+              stats: statsFor(identification.species, identification.rarity),
             },
           }
         : (() => {
-            const id = `${Date.now()}-${Math.round(Math.random() * 1e6)}`
+            const id = newCatchIdHex()
             return {
               creature: toCreature(identification, '', id),
               imageBase64: phase.capture.base64,
@@ -208,9 +223,24 @@ export default function RevealScreen() {
       }
       saveAttemptRef.current = attempt
 
+      const wallet = embeddedWallet
+      const chain = await keepCreatureOnchain({
+        walletAddress,
+        creature: attempt.creature,
+        imageBase64: attempt.imageBase64,
+        getProvider: () => wallet.getProvider() as Promise<SignAndSendProvider>,
+      })
+
+      if (!chain.ok) {
+        setSaving(false)
+        setSaveNotice({ kind: 'failed', message: chain.message })
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+        return
+      }
+
       const result = await addToCollection(attempt.creature, privyUserId, attempt.imageBase64)
 
-      if (result.status === 'saved') {
+      if (result.status === 'saved' || result.status === 'pending') {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
         saveAttemptRef.current = null
         router.replace('/')
@@ -219,9 +249,7 @@ export default function RevealScreen() {
 
       setSaving(false)
       setSaveNotice({ kind: result.status, message: result.message })
-      void Haptics.notificationAsync(
-        result.status === 'pending' ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Error,
-      )
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     } catch {
       setSaving(false)
       setSaveNotice({
@@ -230,7 +258,7 @@ export default function RevealScreen() {
       })
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
-  }, [phase, privyUserId, saving])
+  }, [embeddedWallet, phase, privyUserId, saving, walletAddress])
 
   if (phase.status === 'boot') {
     return (
