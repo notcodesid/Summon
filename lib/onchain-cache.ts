@@ -31,7 +31,7 @@ type ReadyListener = () => void
 
 const readyListeners = new Set<ReadyListener>()
 
-/** Profile subscribes; the background ensure shouts when the account lands. */
+/** First-battle ensure shouts when the PlayerProfile PDA lands. */
 export function subscribeOnchainReady(listener: ReadyListener): () => void {
   readyListeners.add(listener)
   return () => {

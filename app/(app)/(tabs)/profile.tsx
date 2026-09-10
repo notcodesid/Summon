@@ -16,7 +16,7 @@ import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { router, useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { usePrivy, useEmbeddedSolanaWallet } from '@privy-io/expo'
+import { usePrivy } from '@privy-io/expo'
 import { Avatar } from '@/components/ui'
 import { AppConfig } from '@/constants/app-config'
 import { deleteAccountData } from '@/lib/account'
@@ -26,19 +26,13 @@ import { nextSpeciesMilestone, uniqueSpeciesCount } from '@/lib/discovery-librar
 import { prepareImageForUpload } from '@/lib/image-processing'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
-import { useOnchainStatus } from '@/lib/use-onchain-status'
-import { runOnchainEnsure } from '@/lib/run-onchain-ensure'
 
 export default function ProfileScreen() {
   const { logout } = usePrivy()
   const player = usePlayer()
-  const solana = useEmbeddedSolanaWallet()
-  const embeddedWallet =
-    'wallets' in solana ? (solana.wallets ?? [])[0] : undefined
   const insets = useSafeAreaInsets()
   const { photoUrl, refresh } = usePlayerPhoto(player.privyUserId)
   const avatarUrl = photoUrl ?? player.googlePhotoUrl
-  const onchain = useOnchainStatus(player.privyUserId, player.walletAddress)
   const [creatures, setCreatures] = useState<Creature[]>([])
   const [savingPhoto, setSavingPhoto] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -50,20 +44,10 @@ export default function ProfileScreen() {
       void loadCollection(player.privyUserId).then((next) => {
         if (active) setCreatures(next)
       })
-      // On-chain account is ensured here — not at login — so its RPC calls
-      // never pile onto login traffic against the crowded public RPC.
-      if (player.privyUserId && player.walletAddress && embeddedWallet) {
-        const wallet = embeddedWallet
-        void runOnchainEnsure({
-          privyUserId: player.privyUserId,
-          walletAddress: player.walletAddress,
-          getProvider: () => wallet.getProvider() as unknown as never,
-        })
-      }
       return () => {
         active = false
       }
-    }, [player.privyUserId, player.walletAddress, embeddedWallet]),
+    }, [player.privyUserId]),
   )
 
   const speciesCount = uniqueSpeciesCount(creatures)
@@ -256,14 +240,6 @@ export default function ProfileScreen() {
             <View style={styles.namesColumn}>
               <Text style={styles.displayName}>{player.name || 'Explorer'}</Text>
               <Text style={styles.handleText}>{handleName}</Text>
-              {onchain.status === 'ready' ? (
-                <Text style={styles.onchainReady}>● onchain account ready</Text>
-              ) : player.walletAddress ? (
-                <View style={styles.onchainPendingRow}>
-                  <ActivityIndicator size="small" color="#B7F34A" />
-                  <Text style={styles.onchainPending}>setting up onchain account…</Text>
-                </View>
-              ) : null}
               <Text style={styles.levelBadge}>✦ Level {level} Explorer</Text>
             </View>
 
@@ -534,21 +510,6 @@ const styles = StyleSheet.create({
   },
   handleText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#9CA69D',
-  },
-  onchainReady: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#B7F34A',
-  },
-  onchainPendingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  onchainPending: {
-    fontSize: 11,
     fontWeight: '600',
     color: '#9CA69D',
   },

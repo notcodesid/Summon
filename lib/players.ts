@@ -2,8 +2,9 @@ import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
 
 /**
  * A player is identified by their Privy user id. The embedded Solana wallet
- * address is stored alongside it so we have the user's wallet on record even
- * though nothing is on-chain yet.
+ * is created at login and stored on this row so battle can sign later.
+ * The on-chain PlayerProfile PDA is not created here — that happens on the
+ * first battle.
  *
  * Writes go through the creatures Edge Function (upsert_player) so RLS-locked
  * tables are only touched with a verified Privy session + service role.

@@ -4,10 +4,9 @@ import { readOnchainCache, subscribeOnchainReady } from '@/lib/onchain-cache'
 export type OnchainStatus = 'unknown' | 'pending' | 'ready'
 
 /**
- * Lightweight status for the profile indicator.
- * Source of truth is the chain (fetch-first in runOnchainEnsure);
- * this hook reads the local cache on mount, on wallet change, and live
- * whenever the background ensure shouts that the account landed.
+ * Local cache of whether this player's battle PDA exists.
+ * Login and Profile do not create that account; first battle does,
+ * via runOnchainEnsure.
  */
 export function useOnchainStatus(privyUserId?: string, walletAddress?: string): {
   status: OnchainStatus

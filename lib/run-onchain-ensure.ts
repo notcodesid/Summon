@@ -8,11 +8,11 @@ import { requestSponsorDrip } from '@/lib/sponsor'
 const attempted = new Set<string>()
 
 /**
- * Ensure the on-chain account for this wallet, silently.
+ * Create the on-chain PlayerProfile PDA if it is missing.
  *
- * Runs on Profile focus (not at login) so its RPC calls don't pile onto
- * login traffic against the crowded public RPC. Fetch-first: no
- * transaction when the account already exists.
+ * Call this from the first battle, not from login or Profile. Scan/collect
+ * are web2; the PDA is only needed when settle writes wins/losses/XP.
+ * Fetch-first: no transaction when the account already exists.
  */
 export async function runOnchainEnsure(args: {
   privyUserId: string
