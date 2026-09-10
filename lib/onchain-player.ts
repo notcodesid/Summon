@@ -15,7 +15,7 @@ import { solanaRpcUrl, summonProgramId, isDevnetRpc } from '@/lib/solana-config'
  * The Privy embedded wallet gives the user an address (the pocket).
  * The Summon program owns a separate PDA account per wallet
  * (the game file: wins / losses / XP). Create that PDA on the first
- * battle, not at login — scan never needs it.
+ * Keep, not at login — scan never needs it.
  *
  * Uses raw web3.js instead of @coral-xyz/anchor in the mobile bundle:
  * one instruction, fetch-first idempotency, signed via Privy's provider.
