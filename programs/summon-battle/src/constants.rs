@@ -1,6 +1,8 @@
 pub const BATTLE_SEED: &[u8] = b"battle";
 pub const PLAYER_SEED: &[u8] = b"player";
+pub const CREATURE_SEED: &[u8] = b"creature";
 pub const BATTLE_ID_LENGTH: usize = 16;
+pub const CATCH_ID_LENGTH: usize = 16;
 pub const WIN_XP: u32 = 100;
 pub const LOSS_XP: u32 = 25;
 pub const ACTION_ESCROW_INDEX: u8 = 255;
