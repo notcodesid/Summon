@@ -22,3 +22,13 @@ pub struct Creature {
     pub captured_at: i64,
     pub bump: u8,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn account_space_matches_client_rent_check() {
+        assert_eq!(8 + Creature::INIT_SPACE, 242);
+    }
+}
