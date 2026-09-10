@@ -1,9 +1,12 @@
 # Local Supabase config for Summon Edge Functions.
-# Deploy: supabase functions deploy identify creatures
-# Secrets: supabase secrets set GEMINI_API_KEY=... PRIVY_APP_ID=... PRIVY_APP_SECRET=...
+# Deploy: supabase functions deploy identify creatures drip
+# Secrets: supabase secrets set GEMINI_API_KEY=... PRIVY_APP_ID=... PRIVY_APP_SECRET=... SPONSOR_PRIVATE_KEY=... SOLANA_RPC_URL=...
 
 [functions.identify]
 verify_jwt = false
 
 [functions.creatures]
+verify_jwt = false
+
+[functions.drip]
 verify_jwt = false
