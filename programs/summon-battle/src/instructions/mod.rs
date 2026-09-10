@@ -1,9 +1,11 @@
+pub mod collect_creature;
 pub mod create_battle;
 pub mod delegate_battle;
 pub mod initialize_player;
 pub mod play_turn;
 pub mod settle_battle;
 pub mod update_progression;
+pub use collect_creature::*;
 pub use create_battle::*;
 pub use delegate_battle::*;
 pub use initialize_player::*;
