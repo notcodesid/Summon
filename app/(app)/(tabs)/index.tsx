@@ -19,6 +19,7 @@ import { SpecimenCard } from '@/components/specimen-card'
 import { theme } from '@/constants/theme'
 import { loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
+import { setPendingBattle } from '@/lib/pending-battle'
 import { isMockCreaturesEnabled, mockCreatures } from '@/lib/dev-mock'
 import {
   clampToBounds,
@@ -272,6 +273,19 @@ export default function HomeScreen() {
               </View>
 
               <SpecimenCard creature={inspectedCreature} />
+              <Pressable
+                style={({ pressed }) => [styles.battleBtn, pressed && styles.pressedOpacity]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  setPendingBattle(inspectedCreature)
+                  setInspectedCreature(null)
+                  router.push('/battle')
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Fight with this companion"
+              >
+                <Text style={styles.battleBtnText}>fight</Text>
+              </Pressable>
             </View>
           ) : null}
         </View>
@@ -400,6 +414,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#B7F34A',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  battleBtn: {
+    marginTop: 16,
+    alignSelf: 'center',
+    backgroundColor: '#B7F34A',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  battleBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#171A17',
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   closeBtn: {

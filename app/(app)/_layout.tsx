@@ -28,6 +28,7 @@ function AppStack() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="camera" options={{ contentStyle: { backgroundColor: theme.colors.viewfinder } }} />
       <Stack.Screen name="reveal" />
+      <Stack.Screen name="battle" />
     </Stack>
   )
 }
