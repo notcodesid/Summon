@@ -9,7 +9,13 @@ const config = getDefaultConfig(__dirname)
  * @see https://docs.privy.io/basics/react-native/installation
  */
 const resolveRequestWithPackageExports = (context, moduleName, platform) => {
-  if (moduleName === 'isows') {
+  if (
+    moduleName === 'isows' ||
+    moduleName === 'rpc-websockets' ||
+    moduleName === '@noble/hashes/crypto' ||
+    moduleName === '@noble/hashes/crypto.js' ||
+    moduleName.endsWith('/node_modules/@noble/hashes/crypto.js')
+  ) {
     const ctx = { ...context, unstable_enablePackageExports: false }
     return ctx.resolveRequest(ctx, moduleName, platform)
   }

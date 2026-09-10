@@ -91,6 +91,19 @@ Supporting modules:
   shutter stays disabled there. Test capture on a physical device.
 - `mobile.physical_device_tested` stays `false` until a real device test passes.
 
+## Debug
+
+- `issues_resolved`:
+  - Error: `Transaction simulation failed: Blockhash not found` during battle startup.
+  - Cause: the Magic Router returned a blockhash from a different rollup bank
+    than the configured US validator, while base-chain and ER operations shared
+    one connection.
+  - Fix: create and delegate through the configured base Solana RPC; wait for
+    the delegated account and execute/settle through the matching direct US ER
+    endpoint. Rebuild once with a fresh same-RPC blockhash if mobile signing
+    outlives the first one.
+- `last_debug_session`: `2026-09-11`
+
 ## Seeker / dApp Store release truth
 
 - A Seeker device is not required to build or submit the APK.
