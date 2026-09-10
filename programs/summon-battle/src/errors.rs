@@ -22,4 +22,16 @@ pub enum BattleError {
     ProgressionAlreadyRecorded,
     #[msg("Battle account is not owned by the Summon program")]
     InvalidBattleOwner,
+    #[msg("Rarity must be between 0 (common) and 4 (legendary)")]
+    InvalidRarity,
+    #[msg("Species name is empty or longer than 64 bytes")]
+    InvalidSpecies,
+    #[msg("Common name is empty or longer than 64 bytes")]
+    InvalidCommonName,
+    #[msg("Speed must be between 1 and 250")]
+    InvalidSpeed,
+    #[msg("Photo hash cannot be empty")]
+    InvalidPhotoHash,
+    #[msg("Capture time must be greater than zero")]
+    InvalidCatchTime,
 }
