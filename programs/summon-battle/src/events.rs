@@ -1,4 +1,7 @@
-use crate::{constants::BATTLE_ID_LENGTH, state::Winner};
+use crate::{
+    constants::{BATTLE_ID_LENGTH, CATCH_ID_LENGTH},
+    state::Winner,
+};
 use anchor_lang::prelude::*;
 
 #[event]
@@ -17,4 +20,12 @@ pub struct TurnResolved {
     pub player_hp: u16,
     pub opponent_hp: u16,
     pub winner: Winner,
+}
+
+#[event]
+pub struct CreatureCollected {
+    pub creature: Pubkey,
+    pub owner: Pubkey,
+    pub catch_id: [u8; CATCH_ID_LENGTH],
+    pub rarity: u8,
 }
