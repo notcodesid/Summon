@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { deleteAsync, documentDirectory, EncodingType, readAsStringAsync } from 'expo-file-system/legacy'
 import type { Creature, Rarity } from '@/lib/creatures'
+import { parseCreaturePersonality } from '@/lib/creature-personality'
 import { saveWithDurableRetry } from '@/lib/durable-save'
 import { callEdgeFunction, isEdgeConfigured } from '@/lib/edge'
 import {
@@ -23,12 +24,18 @@ type CreatureRow = {
   privy_user_id?: string
   species: string
   common_name: string
+  nickname?: string | null
   rarity: string
   stats: Creature['stats']
   note: string | null
   photo_uri: string | null
   cutout_uri?: string | null
   captured_at: string
+  capture_grade?: Creature['captureGrade'] | null
+  capture_bonus_xp?: number | null
+  capture_trait?: string | null
+  personality?: unknown
+  bond_level?: number | null
 }
 
 type PendingSave = {
@@ -40,12 +47,18 @@ type RemoteCreature = {
   id: string
   species: string
   commonName: string
+  nickname?: string
   rarity: string
   stats: Creature['stats']
   note: string
   photoUri: string | null
   cutoutUri?: string | null
   capturedAt: number
+  captureGrade?: Creature['captureGrade']
+  captureBonusXp?: number
+  captureTrait?: string
+  personality?: Creature['personality']
+  bondLevel?: number
 }
 
 export type CollectionSaveResult =
@@ -60,16 +73,23 @@ function rowToCreature(row: CreatureRow): Creature {
   const cutoutMedia = normalizeCutoutMediaReference({
     remoteCutoutUri: row.cutout_uri ?? undefined,
   })
+  const personality = parseCreaturePersonality(row.personality)
   return {
     id: row.id,
     species: row.species,
     commonName: row.common_name,
+    ...(row.nickname ? { nickname: row.nickname } : {}),
     rarity: row.rarity as Rarity,
     stats: row.stats,
     note: row.note ?? '',
     ...photoMedia,
     ...cutoutMedia,
     capturedAt: Date.parse(row.captured_at),
+    ...(row.capture_grade ? { captureGrade: row.capture_grade } : {}),
+    ...(typeof row.capture_bonus_xp === 'number' ? { captureBonusXp: row.capture_bonus_xp } : {}),
+    ...(row.capture_trait ? { captureTrait: row.capture_trait } : {}),
+    ...(personality ? { personality } : {}),
+    ...(typeof row.bond_level === 'number' ? { bondLevel: row.bond_level } : {}),
   }
 }
 
@@ -191,10 +211,16 @@ function creaturePayload(creature: Creature) {
     id: creature.id,
     species: creature.species,
     commonName: creature.commonName,
+    nickname: creature.nickname,
     rarity: creature.rarity,
     stats: creature.stats,
     note: creature.note,
     capturedAt: creature.capturedAt,
+    captureGrade: creature.captureGrade,
+    captureBonusXp: creature.captureBonusXp,
+    captureTrait: creature.captureTrait,
+    personality: creature.personality,
+    bondLevel: creature.bondLevel,
   }
 }
 
@@ -441,6 +467,21 @@ export async function clearLocalCollection(privyUserId?: string): Promise<void> 
   await AsyncStorage.removeItem(STORAGE_KEY)
   if (privyUserId) {
     await AsyncStorage.removeItem(pendingSaveKey(privyUserId))
+  }
+}
+
+/**
+ * Records a creature's bond level. The server only ever raises it, so a failed
+ * call costs a sync, never progress — the sanctuary's interaction log is the
+ * real source and can be replayed on the next successful call.
+ */
+export async function saveBondLevel(creatureId: string, bondLevel: number): Promise<boolean> {
+  if (!isEdgeConfigured() || !creatureId) return false
+  try {
+    await callEdgeFunction('creatures', { action: 'bond', creatureId, bondLevel })
+    return true
+  } catch {
+    return false
   }
 }
 

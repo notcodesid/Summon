@@ -90,13 +90,7 @@ test('returns saved only after the server acknowledges the upload', async () => 
     entity: { id: 'owl' },
     remote: { id: 'owl', photoUri: 'https://example.test/owl.jpg' },
   })
-  assert.deepEqual(events, [
-    'local',
-    'queued',
-    'uploaded',
-    'local-refreshed',
-    'dequeued',
-  ])
+  assert.deepEqual(events, ['local', 'queued', 'uploaded', 'local-refreshed', 'dequeued'])
 })
 
 test('keeps a confirmed server save truthful if local cleanup later fails', async () => {

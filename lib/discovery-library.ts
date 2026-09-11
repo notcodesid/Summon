@@ -54,7 +54,7 @@ export function filterCollection(creatures: Creature[], query: string, filter: C
     if (filter !== 'all' && creature.rarity !== filter) return false
     if (!normalizedQuery) return true
 
-    return [creature.commonName, creature.species, creature.note]
+    return [creature.nickname ?? '', creature.commonName, creature.species, creature.note]
       .map(normalized)
       .some((value) => value.includes(normalizedQuery))
   })

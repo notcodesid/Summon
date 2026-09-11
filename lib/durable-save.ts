@@ -20,9 +20,7 @@ type DurableSaveOptions<T, R> = {
  * upload. A network failure can therefore only result in an explicit pending
  * state, never a false "saved" result.
  */
-export async function saveWithDurableRetry<T, R>(
-  options: DurableSaveOptions<T, R>,
-): Promise<DurableSaveResult<T, R>> {
+export async function saveWithDurableRetry<T, R>(options: DurableSaveOptions<T, R>): Promise<DurableSaveResult<T, R>> {
   const {
     entity,
     persistLocal,

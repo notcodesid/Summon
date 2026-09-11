@@ -69,7 +69,7 @@ test('moves to the next milestone after a target is reached', () => {
 
 test('searches custom names, species, and notes while applying rarity filters', () => {
   const creatures = [
-    creature({ id: 'dog', commonName: 'Milo', rarity: 'common' }),
+    creature({ id: 'dog', commonName: 'Dog', nickname: 'Milo', rarity: 'common' }),
     creature({ id: 'dog-2', commonName: 'Pepper', rarity: 'common' }),
     creature({
       id: 'fox',
@@ -80,6 +80,10 @@ test('searches custom names, species, and notes while applying rarity filters', 
     }),
   ]
 
+  assert.deepEqual(
+    filterCollection(creatures, 'milo', 'all').map((item) => item.id),
+    ['dog'],
+  )
   assert.deepEqual(
     filterCollection(creatures, 'ember', 'all').map((item) => item.id),
     ['fox'],

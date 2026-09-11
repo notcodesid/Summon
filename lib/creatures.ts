@@ -1,9 +1,12 @@
+import type { CreaturePersonality } from '@/lib/creature-personality'
+
 /**
  * Creature model. Stats are derived from the species name, not stored on a
  * server — the same animal always yields the same creature, so a fox you
  * scan today matches the fox someone else scanned last week.
  */
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+export type CaptureGrade = 'good' | 'great' | 'perfect'
 
 export type Stats = {
   hp: number
@@ -16,6 +19,8 @@ export type Creature = {
   id: string
   species: string
   commonName: string
+  /** Optional name chosen by the player; species identity remains intact. */
+  nickname?: string
   rarity: Rarity
   stats: Stats
   note: string
@@ -28,6 +33,12 @@ export type Creature = {
   localCutoutUri?: string
   remoteCutoutUri?: string
   capturedAt: number
+  /** Cosmetic field-craft earned while framing the discovery. */
+  captureGrade?: CaptureGrade
+  captureBonusXp?: number
+  captureTrait?: string
+  personality?: CreaturePersonality
+  bondLevel?: number
 }
 
 export const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary']

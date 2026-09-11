@@ -96,4 +96,3 @@ test('normalizes and refreshes creature cutout references', () => {
     remoteCutoutUri: 'https://example.test/fox_cutout.png?token=signed',
   })
 })
-

@@ -115,4 +115,3 @@ export function refreshRemoteCutoutUri(input: CutoutMediaInput, remoteCutoutUri?
     remoteCutoutUri: remoteCutoutUri || undefined,
   })
 }
-
