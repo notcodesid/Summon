@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  AccessibilityInfo,
   Animated,
   Easing,
   Image,
@@ -23,19 +24,36 @@ import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-ef
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { SpecimenCard } from '@/components/specimen-card'
+import { playSound, revealSoundFor } from '@/lib/audio'
 import { newCatchIdHex } from '@/lib/catch-id'
 import { addToCollection } from '@/lib/collection'
 import { keepCreatureOnchain } from '@/lib/collect-onchain'
-import { statsFor, type Creature, type Rarity } from '@/lib/creatures'
+import { personalityFor, type CreaturePersonality } from '@/lib/creature-personality'
+import { RARITY_COLOR, statsFor, type CaptureGrade, type Creature, type Rarity } from '@/lib/creatures'
 import type { SignAndSendProvider } from '@/lib/onchain-player'
 import { IdentifyError, identifyAnimal, isIdentifyLive, toCreature, type Identification } from '@/lib/identify'
 import { clearPendingCapture, peekPendingCapture, takePendingCapture } from '@/lib/pending-capture'
 import { persistCapturePhoto } from '@/lib/persist-photo'
 import { usePlayer } from '@/lib/use-player'
 
-type Capture = { id: string; photoUri: string; base64: string }
+type Capture = {
+  id: string
+  photoUri: string
+  base64: string
+  captureGrade: CaptureGrade
+  captureBonusXp: number
+  captureTrait: string
+}
 type SaveNotice = { kind: 'pending' | 'failed'; message: string }
 type SaveAttempt = { creature: Creature; imageBase64: string }
+
+const GRADE_REWARD: Record<CaptureGrade, number> = { good: 10, great: 25, perfect: 50 }
+const GRADE_RANK: CaptureGrade[] = ['good', 'great', 'perfect']
+
+function combinedGrade(timing: CaptureGrade, quality: CaptureGrade): CaptureGrade {
+  const average = Math.round((GRADE_RANK.indexOf(timing) + GRADE_RANK.indexOf(quality)) / 2)
+  return GRADE_RANK[average]
+}
 
 type Phase =
   | { status: 'boot' }
@@ -101,11 +119,22 @@ export default function RevealScreen() {
         return
       }
 
+      const captureGrade = combinedGrade(capture.captureGrade, identification.photoQuality)
+      const gradedCapture: Capture = {
+        ...capture,
+        captureGrade,
+        captureBonusXp: GRADE_REWARD[captureGrade],
+        captureTrait: identification.qualityNote || capture.captureTrait,
+      }
+
+      // The sting scales with the tier, so a legendary announces itself before
+      // a single word of the card has been read.
+      playSound(revealSoundFor(identification.rarity))
       setPhase({
         status: 'found',
-        capture,
+        capture: gradedCapture,
         identification,
-        displayName: identification.commonName || identification.label || identification.species,
+        displayName: '',
       })
     } catch (error) {
       if (activeCaptureIdRef.current !== capture.id) return
@@ -146,6 +175,9 @@ export default function RevealScreen() {
         id: taken.id,
         photoUri: taken.uri,
         base64: taken.base64,
+        captureGrade: taken.captureGrade,
+        captureBonusXp: taken.captureBonusXp,
+        captureTrait: taken.captureTrait,
       })
     }, [runIdentify]),
   )
@@ -174,11 +206,7 @@ export default function RevealScreen() {
     const name = phase.displayName.trim()
     if (!name) return
 
-    const identification: Identification = {
-      ...phase.identification,
-      commonName: name,
-      species: phase.identification.species || name,
-    }
+    const identification = phase.identification
 
     if (!privyUserId || !walletAddress || !embeddedWallet) {
       setSaveNotice({
@@ -197,7 +225,8 @@ export default function RevealScreen() {
             ...previous,
             creature: {
               ...previous.creature,
-              commonName: identification.commonName,
+              nickname: name,
+              commonName: identification.commonName || identification.label,
               species: identification.species,
               rarity: identification.rarity,
               note: identification.note,
@@ -207,7 +236,18 @@ export default function RevealScreen() {
         : (() => {
             const id = newCatchIdHex()
             return {
-              creature: toCreature(identification, '', id),
+              creature: {
+                ...toCreature(identification, '', id),
+                captureGrade: phase.capture.captureGrade,
+                captureBonusXp: phase.capture.captureBonusXp,
+                captureTrait: phase.capture.captureTrait,
+                personality: personalityFor({
+                  captureId: phase.capture.id,
+                  species: identification.species,
+                  captureGrade: phase.capture.captureGrade,
+                }),
+                bondLevel: 1,
+              },
               imageBase64: phase.capture.base64,
             }
           })()
@@ -271,12 +311,7 @@ export default function RevealScreen() {
   }
 
   if (phase.status === 'identifying') {
-    return (
-      <ScanningCheckingScreen
-        photoUri={phase.capture.photoUri}
-        heroHeight={heroHeight}
-      />
-    )
+    return <ScanningCheckingScreen photoUri={phase.capture.photoUri} heroHeight={heroHeight} />
   }
 
   if (phase.status === 'no-capture') {
@@ -352,14 +387,22 @@ export default function RevealScreen() {
   const note = phase.identification.note
   const species = phase.identification.species
   const stats = statsFor(species, rarity)
+  const personality = personalityFor({
+    captureId: phase.capture.id,
+    species,
+    captureGrade: phase.capture.captureGrade,
+  })
 
   const specimenData = {
     species,
-    commonName: phase.displayName,
+    commonName: phase.identification.commonName,
+    nickname: phase.displayName || undefined,
     rarity,
     stats,
     note,
     photoUri,
+    personality,
+    bondLevel: 1,
   }
 
   const form = (
@@ -371,14 +414,14 @@ export default function RevealScreen() {
       <TextInput
         value={phase.displayName}
         onChangeText={(value) => setPhase((prev) => (prev.status === 'found' ? { ...prev, displayName: value } : prev))}
-        placeholder="Animal name"
+        placeholder={`Nickname your ${phase.identification.commonName.toLowerCase()}`}
         placeholderTextColor={theme.colors.textFaint}
         autoCapitalize="words"
         autoCorrect={false}
         returnKeyType="done"
         onSubmitEditing={() => void onKeep()}
         style={styles.nameInput}
-        accessibilityLabel="Animal name"
+        accessibilityLabel="Creature nickname"
       />
       {saveNotice ? (
         <View
@@ -406,8 +449,29 @@ export default function RevealScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* Interactive 2.5D Holographic Specimen Card */}
-          <View style={styles.heroWrap}>
+          <FoundHero rarity={rarity} grade={phase.capture.captureGrade}>
             <SpecimenCard creature={specimenData} />
+          </FoundHero>
+
+          <View style={styles.discoverySummary}>
+            <View style={styles.discoveryHeading}>
+              <View style={[styles.rarityDot, { backgroundColor: RARITY_COLOR[rarity] }]} />
+              <Text style={styles.discoveryEyebrow}>{rarity.toUpperCase()} ENCOUNTER</Text>
+            </View>
+            <Text style={styles.discoveryTitle}>{phase.displayName || phase.identification.commonName}</Text>
+            <Text style={styles.discoverySpecies}>{species}</Text>
+            <Text style={styles.discoveryNote}>{note || 'A new individual for your field collection.'}</Text>
+            <View style={styles.rewardRows}>
+              <RewardRow icon="sparkles-outline" label="Field craft" value={phase.capture.captureTrait} />
+              <RewardRow
+                icon="ribbon-outline"
+                label="Capture grade"
+                value={`${phase.capture.captureGrade} · +${phase.capture.captureBonusXp} XP`}
+              />
+              <RewardRow icon="lock-open-outline" label="Unlocked" value="Collection card" />
+            </View>
+            <PersonalityGrid personality={personality} bondLevel={1} />
+            <Text style={styles.nextHint}>Next: name it, then add it to your collection.</Text>
           </View>
 
           {liquid ? (
@@ -449,6 +513,175 @@ export default function RevealScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  )
+}
+
+function RewardRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.rewardRow}>
+      <Ionicons name={icon} size={18} color={theme.colors.textMuted} />
+      <Text style={styles.rewardLabel}>{label}</Text>
+      <Text style={styles.rewardValue}>{value}</Text>
+    </View>
+  )
+}
+
+function PersonalityGrid({ personality, bondLevel }: { personality: CreaturePersonality; bondLevel: number }) {
+  const items = [
+    { label: 'Temperament', value: personality.temperament },
+    { label: 'Build', value: personality.sizeVariation },
+    { label: 'Passive', value: personality.passiveTrait },
+    { label: 'Affinity', value: personality.habitatAffinity },
+    { label: 'Card finish', value: personality.cardVariation },
+    { label: 'Bond', value: `Level ${bondLevel}` },
+  ]
+
+  return (
+    <View style={styles.personalitySection}>
+      <Text style={styles.personalityTitle}>THIS INDIVIDUAL</Text>
+      <View style={styles.personalityGrid}>
+        {items.map((item) => (
+          <View key={item.label} style={styles.personalityItem}>
+            <Text style={styles.personalityLabel}>{item.label}</Text>
+            <Text style={styles.personalityValue} numberOfLines={1}>
+              {item.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.personalityFootnote}>
+        Game traits describe this collectible, not the animal’s real behavior.
+      </Text>
+    </View>
+  )
+}
+
+/**
+ * How much of a moment each tier gets. A common should feel like a good find;
+ * a legendary should stop you where you stand.
+ */
+const REVEAL_TIERS: Record<Rarity, { particles: number; rings: number; flash: number }> = {
+  common: { particles: 6, rings: 0, flash: 0 },
+  uncommon: { particles: 9, rings: 0, flash: 0 },
+  rare: { particles: 12, rings: 1, flash: 0 },
+  epic: { particles: 16, rings: 1, flash: 0.16 },
+  legendary: { particles: 22, rings: 2, flash: 0.3 },
+}
+
+/**
+ * Sparks on a loose ring around the card. Deterministic, so a species always
+ * celebrates the same way instead of reshuffling on every re-render.
+ */
+function sparkPositions(count: number): { left: `${number}%`; top: `${number}%` }[] {
+  return Array.from({ length: count }, (_, index) => {
+    const angle = (index / count) * Math.PI * 2 + (index % 3) * 0.45
+    const radius = 40 + ((index * 37) % 20)
+    return {
+      left: `${50 + Math.cos(angle) * radius}%`,
+      top: `${50 + Math.sin(angle) * radius * 0.8}%`,
+    }
+  })
+}
+
+function FoundHero({ rarity, grade, children }: { rarity: Rarity; grade: CaptureGrade; children: ReactNode }) {
+  const entrance = useRef(new Animated.Value(0)).current
+  const particle = useRef(new Animated.Value(0)).current
+  const ring = useRef(new Animated.Value(0)).current
+  const flash = useRef(new Animated.Value(0)).current
+  const [reduceMotion, setReduceMotion] = useState(false)
+
+  const tier = REVEAL_TIERS[rarity]
+  const sparks = sparkPositions(tier.particles)
+
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+    return () => subscription.remove()
+  }, [])
+
+  useEffect(() => {
+    entrance.setValue(reduceMotion ? 1 : 0)
+    particle.setValue(0)
+    ring.setValue(0)
+    flash.setValue(reduceMotion ? 0 : tier.flash)
+    if (reduceMotion) return
+
+    Animated.parallel([
+      Animated.spring(entrance, {
+        toValue: 1,
+        damping: 18,
+        stiffness: rarity === 'legendary' || rarity === 'epic' ? 150 : 190,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(particle, {
+        toValue: 1,
+        duration: grade === 'perfect' ? 900 : 650,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(ring, {
+        toValue: 1,
+        duration: rarity === 'legendary' ? 1000 : 820,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(flash, {
+        toValue: 0,
+        duration: 560,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [entrance, flash, grade, particle, rarity, reduceMotion, ring, tier.flash])
+
+  const translateY = entrance.interpolate({ inputRange: [0, 1], outputRange: [28, 0] })
+  const scale = entrance.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] })
+  const particleScale = particle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.25] })
+  const particleOpacity = particle.interpolate({ inputRange: [0, 0.32, 1], outputRange: [0, 0.9, 0] })
+  const outerRingScale = ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 2.3] })
+  const innerRingScale = ring.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1.75] })
+  const ringOpacity = ring.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0.55, 0] })
+
+  return (
+    <View style={styles.heroWrap}>
+      {/* A tint of the tier's own colour, so even the edge of the screen tells
+          you what you found before the card finishes arriving. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.revealFlash, { backgroundColor: RARITY_COLOR[rarity], opacity: flash }]}
+      />
+
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.particleField, { opacity: particleOpacity, transform: [{ scale: particleScale }] }]}
+      >
+        {sparks.map((position, index) => (
+          <View key={index} style={[styles.particle, position, { backgroundColor: RARITY_COLOR[rarity] }]} />
+        ))}
+      </Animated.View>
+
+      {!reduceMotion && tier.rings > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.revealRing,
+            { borderColor: RARITY_COLOR[rarity], opacity: ringOpacity, transform: [{ scale: outerRingScale }] },
+          ]}
+        />
+      ) : null}
+      {!reduceMotion && tier.rings > 1 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.revealRing,
+            { borderColor: RARITY_COLOR[rarity], opacity: ringOpacity, transform: [{ scale: innerRingScale }] },
+          ]}
+        />
+      ) : null}
+
+      <Animated.View style={{ opacity: entrance, transform: [{ translateY }, { scale }] }}>{children}</Animated.View>
+    </View>
   )
 }
 
@@ -699,6 +932,156 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.space.lg,
     width: '100%',
+    position: 'relative',
+  },
+  particleField: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
+  },
+  particle: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  revealFlash: {
+    position: 'absolute',
+    top: -theme.space.lg,
+    left: -theme.space.lg,
+    right: -theme.space.lg,
+    bottom: -theme.space.lg,
+    zIndex: 0,
+  },
+  revealRing: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 240,
+    height: 240,
+    marginLeft: -120,
+    marginTop: -120,
+    borderRadius: 120,
+    borderWidth: 2,
+    zIndex: 1,
+  },
+  discoverySummary: {
+    borderRadius: theme.radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    padding: theme.space.lg,
+    marginBottom: theme.space.md,
+  },
+  discoveryHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.sm,
+  },
+  rarityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  discoveryEyebrow: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+  },
+  discoveryTitle: {
+    marginTop: theme.space.sm,
+    color: theme.colors.text,
+    fontSize: 28,
+    lineHeight: 33,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  discoverySpecies: {
+    marginTop: 2,
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  discoveryNote: {
+    marginTop: theme.space.md,
+    color: theme.colors.textMuted,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  rewardRows: {
+    marginTop: theme.space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border,
+  },
+  rewardRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  rewardLabel: {
+    flex: 1,
+    color: theme.colors.textMuted,
+    fontSize: 14,
+  },
+  rewardValue: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  personalitySection: {
+    marginTop: theme.space.lg,
+  },
+  personalityTitle: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  personalityGrid: {
+    marginTop: theme.space.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border,
+  },
+  personalityItem: {
+    width: '50%',
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingVertical: theme.space.sm,
+    paddingRight: theme.space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
+  },
+  personalityLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+  },
+  personalityValue: {
+    marginTop: 2,
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  personalityFootnote: {
+    marginTop: theme.space.sm,
+    color: theme.colors.textFaint,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  nextHint: {
+    marginTop: theme.space.md,
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
   },
   stack: {
     gap: theme.space.md,
@@ -908,17 +1291,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   checkingCharacterSlot: {
-    flex: 1,
+    height: 168,
     alignItems: 'center',
     justifyContent: 'flex-end',
+    marginTop: -12,
+    marginBottom: -12,
+    overflow: 'visible',
+    zIndex: 5,
   },
   checkingCharacter: {
-    width: '92%',
-    // Taller than the slot on purpose: bottom-aligned, so he rises toward the
-    // photo and the signal card overlaps his base — tying him to the readout
-    // instead of floating in the gap.
-    height: 250,
-    marginBottom: -28,
+    width: 220,
+    height: 298,
+    // The transparent artwork is taller than its stage so the explorer rises
+    // over the photo while the signal card visually anchors his lower edge.
+    marginBottom: -36,
   },
   checkingInfoCard: {
     backgroundColor: '#182019',
@@ -972,13 +1358,7 @@ const styles = StyleSheet.create({
   },
 })
 
-function ScanningCheckingScreen({
-  photoUri,
-  heroHeight,
-}: {
-  photoUri: string
-  heroHeight: number
-}) {
+function ScanningCheckingScreen({ photoUri, heroHeight }: { photoUri: string; heroHeight: number }) {
   const scanAnim = useRef(new Animated.Value(0)).current
   const progressAnim = useRef(new Animated.Value(0.1)).current
   const [stepText, setStepText] = useState('Looking closer at the real world…')
@@ -1033,11 +1413,7 @@ function ScanningCheckingScreen({
     ])
     progress.start()
 
-    const steps = [
-      'Looking closer at the real world…',
-      'Working out what you found…',
-      'Almost there…',
-    ]
+    const steps = ['Looking closer at the real world…', 'Working out what you found…', 'Almost there…']
     let currentStep = 0
     const interval = setInterval(() => {
       currentStep += 1
@@ -1095,7 +1471,12 @@ function ScanningCheckingScreen({
 
         {/* The player doing the looking. Sits between the photo and the signal
             card so the readout below reads as what he is seeing. */}
-        <View style={styles.checkingCharacterSlot} pointerEvents="none">
+        <View
+          style={styles.checkingCharacterSlot}
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <Image
             source={require('@/assets/scan-identifying.png')}
             style={styles.checkingCharacter}
