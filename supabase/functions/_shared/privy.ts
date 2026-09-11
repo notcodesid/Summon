@@ -22,9 +22,7 @@ export async function requirePrivyUserId(req: Request): Promise<string> {
   }
 
   try {
-    const JWKS = createRemoteJWKSet(
-      new URL(`https://auth.privy.io/api/v1/apps/${appId}/jwks.json`),
-    )
+    const JWKS = createRemoteJWKSet(new URL(`https://auth.privy.io/api/v1/apps/${appId}/jwks.json`))
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: 'privy.io',
       audience: appId,

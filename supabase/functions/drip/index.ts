@@ -1,10 +1,4 @@
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from 'npm:@solana/web3.js@1.98.4'
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from 'npm:@solana/web3.js@1.98.4'
 import bs58 from 'npm:bs58@6.0.0'
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
 import { AuthError, requirePrivyUserId } from '../_shared/privy.ts'
@@ -110,9 +104,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     if (error instanceof AuthError) return errorResponse(error.message, 401)
     console.error('drip failed', error)
-    const message = error instanceof Error && error.message.includes('SPONSOR_PRIVATE_KEY')
-      ? 'Drip is not configured yet'
-      : 'Drip failed'
+    const message =
+      error instanceof Error && error.message.includes('SPONSOR_PRIVATE_KEY')
+        ? 'Drip is not configured yet'
+        : 'Drip failed'
     return errorResponse(message, 500)
   }
 })

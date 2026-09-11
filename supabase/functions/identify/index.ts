@@ -38,6 +38,12 @@ fish, reptile, etc.):
   legendary = extraordinary wild animal
 - note: one short vivid sentence for the collection card
 - message: optional short flavor line, or empty
+- photoQuality: good | great | perfect, based on clarity, framing, lighting,
+  and how confidently the animal can be seen. A recognizable animal remains
+  collectible even when photoQuality is only good.
+- qualityNote: a short positive observation about this individual or the shot,
+  such as "Bright winter coat" or "Crisp side profile". Do not invent a trait
+  that is not visible.
 
 If it is NOT a collectible real animal (code, UI, screenshot, object, person,
 plant only, toy, drawing, food, blurry mess, empty scene, etc.):
@@ -49,6 +55,8 @@ plant only, toy, drawing, food, blurry mess, empty scene, etc.):
 - note: empty
 - message: one friendly sentence naming what you saw and telling the player
   to photograph a real living animal instead. Write this yourself.
+- photoQuality: good
+- qualityNote: empty
   Never mention APIs, models, JSON, or errors.
 
 Respond only with JSON matching the schema.`
@@ -66,8 +74,10 @@ const RESPONSE_SCHEMA = {
     },
     note: { type: 'string' },
     message: { type: 'string' },
+    photoQuality: { type: 'string', enum: ['good', 'great', 'perfect'] },
+    qualityNote: { type: 'string' },
   },
-  required: ['isAnimal', 'label', 'species', 'commonName', 'rarity', 'note', 'message'],
+  required: ['isAnimal', 'label', 'species', 'commonName', 'rarity', 'note', 'message', 'photoQuality', 'qualityNote'],
 }
 
 type RequestContext = {
@@ -257,6 +267,8 @@ Deno.serve(async (req) => {
       rarity?: string
       note?: string
       message?: string
+      photoQuality?: string
+      qualityNote?: string
     }
     try {
       parsed = JSON.parse(text)
@@ -285,14 +297,23 @@ Deno.serve(async (req) => {
           (label
             ? `That looks like ${label} — try photographing a real living animal.`
             : 'No real animal found — try again with a living animal.'),
+        photoQuality: 'good',
+        qualityNote: '',
       })
     }
 
     const commonName = (parsed.commonName || label || parsed.species || '').trim()
     const species = (parsed.species || commonName).trim()
 
+    // The species and rarity are recorded as the server's attestation of what
+    // the model actually reported. The save endpoint reads this back to refuse
+    // a creature claiming a rarity that was never scanned — see
+    // creatures/index.ts `attestedRarity`.
     await finishRequest(context, 'succeeded', 200, undefined, geminiRes.status, {
       isAnimal: true,
+      species,
+      commonName,
+      rarity,
     })
     return jsonResponse({
       isAnimal: true,
@@ -302,6 +323,8 @@ Deno.serve(async (req) => {
       rarity,
       note: (parsed.note || '').trim(),
       message,
+      photoQuality: parsed.photoQuality === 'great' || parsed.photoQuality === 'perfect' ? parsed.photoQuality : 'good',
+      qualityNote: (parsed.qualityNote || '').trim(),
     })
   } catch (err) {
     if (err instanceof AuthError) {

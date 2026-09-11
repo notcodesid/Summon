@@ -1,4 +1,6 @@
+import { isRarity, normalizeSpecies, statsFor, type Rarity } from '../_shared/creature-stats.ts'
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
+import { hashIdentifier } from '../_shared/identify-protection.ts'
 import { imageDataFromBase64, ImageValidationError, MAX_IMAGE_BYTES } from '../_shared/image.ts'
 import { AuthError, requirePrivyUserId } from '../_shared/privy.ts'
 import { serviceClient } from '../_shared/supabase.ts'
@@ -7,27 +9,85 @@ const CREATURE_BUCKET = 'creature-photos'
 const PROFILE_BUCKET = 'profile-photos'
 const SIGNED_URL_SECONDS = 10 * 60
 
+/** How far back a scan can still authorise a save — long enough for an offline
+ * catch to sync, short enough that it is not a standing licence. */
+const ATTESTATION_WINDOW_DAYS = 14
+
+/** Matches the check constraint on creatures.bond_level (migration 0009). */
+const BOND_FLOOR = 1
+const BOND_CEILING = 100
+
+/**
+ * The rarity the identify function recorded for this species, if it recorded one.
+ *
+ * Returns null when there is no scan on record, and the caller lets those
+ * through: a legacy catch, or one queued before this check existed, must not
+ * lock a player out of their own collection. What it will not allow is a
+ * creature that contradicts a scan the server itself performed.
+ */
+async function attestedRarity(
+  supabase: ReturnType<typeof serviceClient>,
+  privyUserId: string,
+  species: string,
+): Promise<Rarity | null> {
+  const userHash = await hashIdentifier(privyUserId)
+  const since = new Date(Date.now() - ATTESTATION_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('identify_request_log')
+    .select('detail')
+    .eq('user_hash', userHash)
+    .eq('outcome', 'succeeded')
+    .gte('requested_at', since)
+    .order('requested_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error('attestation lookup failed', error)
+    return null
+  }
+
+  const wanted = normalizeSpecies(species)
+  const match = (data ?? []).find(
+    (row) => normalizeSpecies((row.detail as Record<string, unknown> | null)?.species) === wanted,
+  )
+  const rarity = (match?.detail as Record<string, unknown> | null)?.rarity
+  return isRarity(rarity) ? rarity : null
+}
+
 type CreaturePayload = {
   id: string
   species: string
   commonName: string
+  nickname?: string
   rarity: string
   stats: Record<string, number>
   note?: string
   photoUri?: string
   capturedAt?: number
+  captureGrade?: 'good' | 'great' | 'perfect'
+  captureBonusXp?: number
+  captureTrait?: string
+  personality?: Record<string, string>
+  bondLevel?: number
 }
 
 type CreatureRow = {
   id: string
   species: string
   common_name: string
+  nickname?: string | null
   rarity: string
   stats: Record<string, number>
   note: string
   photo_uri: string | null
   cutout_uri?: string | null
   captured_at: string
+  capture_grade?: string | null
+  capture_bonus_xp?: number | null
+  capture_trait?: string | null
+  personality?: Record<string, string> | null
+  bond_level?: number | null
 }
 
 function storagePath(value: string | null | undefined, bucket: string): string | null {
@@ -324,11 +384,90 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true })
     }
 
+    if (action === 'bond') {
+      const creatureId = typeof body.creatureId === 'string' ? body.creatureId : ''
+      const level = Number(body.bondLevel)
+      if (!creatureId || !Number.isFinite(level)) {
+        return errorResponse('Invalid bond payload', 400, 'INVALID_BOND')
+      }
+      if (level < BOND_FLOOR || level > BOND_CEILING) {
+        return errorResponse('Bond level out of range', 400, 'INVALID_BOND')
+      }
+
+      const { data: existing, error: lookupError } = await supabase
+        .from('creatures')
+        .select('privy_user_id, bond_level')
+        .eq('id', creatureId)
+        .maybeSingle()
+      if (lookupError) {
+        console.error(lookupError)
+        return errorResponse('Could not read that catch', 500)
+      }
+      if (!existing) return errorResponse('That catch is not on record.', 404, 'CREATURE_UNKNOWN')
+      if (existing.privy_user_id !== privyUserId) {
+        return errorResponse('That catch belongs to another player.', 409, 'CREATURE_OWNED')
+      }
+
+      // A bond only ever deepens. A client reporting a lower level is ignored
+      // rather than allowed to erase time the player already spent.
+      const next = Math.max(existing.bond_level ?? BOND_FLOOR, Math.round(level))
+      if (next === existing.bond_level) {
+        return jsonResponse({ ok: true, bondLevel: next, changed: false })
+      }
+
+      const { error } = await supabase.from('creatures').update({ bond_level: next }).eq('id', creatureId)
+      if (error) {
+        console.error(error)
+        return errorResponse('Could not update that bond', 500)
+      }
+      return jsonResponse({ ok: true, bondLevel: next, changed: true })
+    }
+
     if (action === 'save') {
       const creature = body.creature
       if (!creature?.id || !creature.species || !creature.commonName) {
         return errorResponse('Invalid creature payload', 400)
       }
+
+      // Rarity decides stats, and stats decide fights. Reject anything outside
+      // the five tiers rather than letting the database constraint turn it into
+      // an opaque 500.
+      if (!isRarity(creature.rarity)) {
+        return errorResponse('Unknown rarity', 400, 'INVALID_RARITY')
+      }
+      const rarity: Rarity = creature.rarity
+
+      // A catch id is unguessable, but it is not a secret once it has been
+      // returned in a list. Without this check a leaked id would let anyone
+      // upsert the row and take ownership of someone else's creature.
+      const { data: existing, error: lookupError } = await supabase
+        .from('creatures')
+        .select('privy_user_id')
+        .eq('id', creature.id)
+        .maybeSingle()
+      if (lookupError) {
+        console.error(lookupError)
+        return errorResponse('Could not verify this catch', 500)
+      }
+      if (existing && existing.privy_user_id !== privyUserId) {
+        return errorResponse('That catch belongs to another player.', 409, 'CREATURE_OWNED')
+      }
+
+      // What the scanner reported, not what the client claims. A client can
+      // still name its own species, but it cannot claim a rarity the model
+      // never gave it for that species.
+      const attested = await attestedRarity(supabase, privyUserId, creature.species)
+      if (attested && attested !== rarity) {
+        return errorResponse('That does not match the scan on record.', 403, 'RARITY_MISMATCH')
+      }
+      if (!attested) {
+        // No scan on record: a legacy catch, or one queued before this check.
+        // Allowed, but noted — a run of these is worth looking at.
+        console.warn('save without an identify attestation', { species: creature.species, rarity })
+      }
+
+      // Derived, never trusted. The client renders these; the server owns them.
+      const stats = statsFor(creature.species, rarity)
 
       const { error: playerError } = await supabase.from('players').upsert(
         {
@@ -358,10 +497,12 @@ Deno.serve(async (req) => {
         try {
           const cutoutImage = imageDataFromBase64(body.cutoutBase64)
           cutoutPath = `${privyUserId}/${creature.id}_cutout.png`
-          const { error: cutoutUploadError } = await supabase.storage.from(CREATURE_BUCKET).upload(cutoutPath, cutoutImage.bytes, {
-            contentType: 'image/png',
-            upsert: true,
-          })
+          const { error: cutoutUploadError } = await supabase.storage
+            .from(CREATURE_BUCKET)
+            .upload(cutoutPath, cutoutImage.bytes, {
+              contentType: 'image/png',
+              upsert: true,
+            })
           if (cutoutUploadError) {
             console.error('cutout upload', cutoutUploadError)
             cutoutPath = null
@@ -376,12 +517,18 @@ Deno.serve(async (req) => {
         privy_user_id: privyUserId,
         species: creature.species,
         common_name: creature.commonName,
-        rarity: creature.rarity || 'common',
-        stats: creature.stats ?? {},
+        nickname: (creature.nickname ?? '').trim().slice(0, 48) || null,
+        rarity,
+        stats,
         note: creature.note ?? '',
         photo_uri: path,
         cutout_uri: cutoutPath,
         captured_at: creature.capturedAt ? new Date(creature.capturedAt).toISOString() : new Date().toISOString(),
+        capture_grade: creature.captureGrade ?? null,
+        capture_bonus_xp: Math.max(0, Math.min(50, Math.round(creature.captureBonusXp ?? 0))),
+        capture_trait: (creature.captureTrait ?? '').slice(0, 48) || null,
+        personality: creature.personality ?? null,
+        bond_level: Math.max(1, Math.min(100, Math.round(creature.bondLevel ?? 1))),
       }
       const { error } = await supabase.from('creatures').upsert(row, {
         onConflict: 'id',
@@ -397,12 +544,18 @@ Deno.serve(async (req) => {
           id: row.id,
           species: row.species,
           commonName: row.common_name,
+          nickname: row.nickname ?? undefined,
           rarity: row.rarity,
           stats: row.stats,
           note: row.note,
           photoUri: await signedUrl(supabase, CREATURE_BUCKET, row.photo_uri),
           cutoutUri: row.cutout_uri ? await signedUrl(supabase, CREATURE_BUCKET, row.cutout_uri) : null,
           capturedAt: Date.parse(row.captured_at),
+          captureGrade: row.capture_grade ?? undefined,
+          captureBonusXp: row.capture_bonus_xp ?? undefined,
+          captureTrait: row.capture_trait ?? undefined,
+          personality: row.personality ?? undefined,
+          bondLevel: row.bond_level ?? 1,
         },
       })
     }
