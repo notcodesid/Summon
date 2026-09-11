@@ -15,7 +15,6 @@ import { deletePersistedPlayerPhoto, persistPlayerPhoto } from '@/lib/persist-ph
  * Server holds the durable copy (via Edge + RLS); AsyncStorage mirrors it so
  * the avatar renders immediately on launch.
  */
-export type PhotoSource = 'google' | 'upload'
 export type PlayerPhotoInput =
   | { source: 'google'; sourceUrl: string }
   | {

@@ -24,7 +24,8 @@ import { GlassContainer, GlassView, isLiquidGlassAvailable } from 'expo-glass-ef
 import { theme } from '@/constants/theme'
 import { MicroLabel, PrimaryButton } from '@/components/ui'
 import { SpecimenCard } from '@/components/specimen-card'
-import { playSound, revealSoundFor } from '@/lib/audio'
+import { playSound } from '@/lib/audio'
+import { revealSoundFor } from '@/lib/feedback-cues'
 import { newCatchIdHex } from '@/lib/catch-id'
 import { addToCollection } from '@/lib/collection'
 import { keepCreatureOnchain } from '@/lib/collect-onchain'
@@ -889,33 +890,6 @@ const styles = StyleSheet.create({
     gap: theme.space.md,
     marginTop: theme.space.sm,
   },
-  scanningFooter: {
-    gap: theme.space.sm,
-    minHeight: 58,
-    marginTop: theme.space.sm,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: theme.radius.pill,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.surfaceRaised,
-  },
-  progressFill: {
-    width: '68%',
-    height: '100%',
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary,
-  },
-  scanStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.space.sm,
-  },
-  scanningHint: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.textMuted,
-  },
   textLink: {
     alignSelf: 'center',
     paddingVertical: theme.space.md,
@@ -1101,38 +1075,6 @@ const styles = StyleSheet.create({
   },
   formHeader: {
     gap: theme.space.xs,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    color: theme.colors.text,
-  },
-  rarityPill: {
-    alignSelf: 'flex-start',
-    marginTop: theme.space.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: theme.radius.pill,
-  },
-  rarityText: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  speciesText: {
-    marginTop: 4,
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.textMuted,
-    fontStyle: 'italic',
-  },
-  noteText: {
-    marginTop: theme.space.sm,
-    fontSize: 15,
-    lineHeight: 21,
-    color: theme.colors.textMuted,
   },
   nameInput: {
     minHeight: 58,
