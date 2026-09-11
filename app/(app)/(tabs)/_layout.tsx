@@ -4,7 +4,10 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const TAB_ICONS: Record<string, { activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap; label: string }> = {
+const TAB_ICONS: Record<
+  string,
+  { activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap; label: string }
+> = {
   index: {
     activeIcon: 'leaf',
     inactiveIcon: 'leaf-outline',
@@ -60,9 +63,7 @@ function AnimatedTabItem({
       <View style={styles.iconContainer}>
         <Ionicons name={iconName} size={24} color={iconColor} />
       </View>
-      <Text style={[styles.label, isFocused ? styles.labelActive : styles.labelInactive]}>
-        {itemConfig.label}
-      </Text>
+      <Text style={[styles.label, isFocused ? styles.labelActive : styles.labelInactive]}>{itemConfig.label}</Text>
     </Pressable>
   )
 }
@@ -179,5 +180,3 @@ const styles = StyleSheet.create({
     color: '#9CA69D',
   },
 })
-
-

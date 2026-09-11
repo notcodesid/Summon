@@ -113,11 +113,7 @@ function LoginWithPrivy() {
       <View style={styles.skyLayer} />
       <View style={styles.groundLayer} />
 
-      <Image
-        source={require('../assets/explorer-hero.png')}
-        style={styles.hero}
-        contentFit="contain"
-      />
+      <Image source={require('../assets/explorer-hero.png')} style={styles.hero} contentFit="contain" />
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
@@ -138,7 +134,11 @@ function LoginWithPrivy() {
                 <ActivityIndicator color="#111210" />
               ) : (
                 <>
-                  <Image source={require('../assets/brand/google-g.png')} style={styles.googleMark} contentFit="contain" />
+                  <Image
+                    source={require('../assets/brand/google-g.png')}
+                    style={styles.googleMark}
+                    contentFit="contain"
+                  />
                   <Text style={styles.googleButtonText}>Continue with Google</Text>
                 </>
               )}
@@ -151,10 +151,7 @@ function LoginWithPrivy() {
               }}
               accessibilityRole="button"
               accessibilityLabel="Continue with Apple"
-              style={({ pressed }) => [
-                styles.appleButton,
-                pressed && styles.appleButtonPressed,
-              ]}
+              style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
             >
               <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={styles.appleMark} />
               <Text style={styles.appleButtonText}>Continue with Apple</Text>

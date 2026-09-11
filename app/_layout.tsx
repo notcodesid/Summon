@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { LogBox, useColorScheme } from 'react-native'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import 'react-native-reanimated'
 import { AppProviders } from '@/components/app-providers'
 import { theme } from '@/constants/theme'
+import { initAudio, loadMutePreference, preloadAudio } from '@/lib/audio'
 
 // web3.js already retries crowded-RPC (429) answers internally with backoff.
 // The retry chatter is handled: keep it out of the red box (device) and out
@@ -22,6 +23,17 @@ console.error = (...args: unknown[]) => {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme()
+
+  useEffect(() => {
+    // Session first, then the preference, then warm the sounds that have to
+    // land instantly — a lock-on blip that arrives late is worse than none.
+    void (async () => {
+      await loadMutePreference()
+      await initAudio()
+      preloadAudio(['lock-on', 'shutter', 'hit', 'guard', 'instinct'])
+    })()
+  }, [])
+
   const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme
   const navigationTheme = useMemo(
     () => ({
