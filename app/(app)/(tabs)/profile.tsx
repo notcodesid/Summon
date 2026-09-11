@@ -1,15 +1,5 @@
 import { useCallback, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
@@ -19,11 +9,15 @@ import * as Haptics from 'expo-haptics'
 import { usePrivy } from '@privy-io/expo'
 import { Avatar } from '@/components/ui'
 import { AppConfig } from '@/constants/app-config'
+import { FieldGuide } from '@/components/field-guide'
 import { deleteAccountData } from '@/lib/account'
+import { isMuted, playSound, setMuted } from '@/lib/audio'
 import { clearCollection, loadCollection } from '@/lib/collection'
 import type { Creature } from '@/lib/creatures'
 import { nextSpeciesMilestone, uniqueSpeciesCount } from '@/lib/discovery-library'
+import { expeditionXpTotal, loadExpeditionLog } from '@/lib/expedition-log'
 import { prepareImageForUpload } from '@/lib/image-processing'
+import { captureXpFor, explorerProgress, nextUnlock } from '@/lib/progression'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
 
@@ -34,16 +28,25 @@ export default function ProfileScreen() {
   const { photoUrl, refresh } = usePlayerPhoto(player.privyUserId)
   const avatarUrl = photoUrl ?? player.googlePhotoUrl
   const [creatures, setCreatures] = useState<Creature[]>([])
+  const [expeditionXp, setExpeditionXp] = useState(0)
   const [savingPhoto, setSavingPhoto] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [soundOn, setSoundOn] = useState(!isMuted())
 
   useFocusEffect(
     useCallback(() => {
       let active = true
-      void loadCollection(player.privyUserId).then((next) => {
-        if (active) setCreatures(next)
-      })
+      void (async () => {
+        const [next, log] = await Promise.all([
+          loadCollection(player.privyUserId),
+          loadExpeditionLog(player.privyUserId),
+        ])
+        if (!active) return
+        setCreatures(next)
+        setExpeditionXp(expeditionXpTotal(log))
+      })()
       return () => {
         active = false
       }
@@ -57,10 +60,10 @@ export default function ProfileScreen() {
     (c) => c.rarity === 'rare' || c.rarity === 'epic' || c.rarity === 'legendary',
   ).length
 
-  const totalExp = creatures.length * 50
-  const level = Math.floor(totalExp / 100) + 1
-  const currentLevelExp = totalExp % 100
-  const expProgress = currentLevelExp / 100
+  // Explorer level is earned from framing good photos and finishing daily
+  // expeditions — the same numbers the home screen pays out.
+  const progress = explorerProgress(captureXpFor(creatures) + expeditionXp)
+  const upcomingUnlock = nextUnlock(progress.level)
 
   const medals = [
     {
@@ -87,9 +90,7 @@ export default function ProfileScreen() {
   // Fill up field guide preview slots (up to 4 items)
   const fieldGuidePreview = Array.from({ length: 4 }).map((_, i) => creatures[i] || null)
 
-  const handleName = player.name
-    ? `@${player.name.toLowerCase().replace(/\s+/g, '')}`
-    : '@explorer'
+  const handleName = player.name ? `@${player.name.toLowerCase().replace(/\s+/g, '')}` : '@explorer'
 
   const onChoosePhoto = useCallback(async () => {
     if (savingPhoto) return
@@ -205,11 +206,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       {/* Background Artwork */}
-      <Image
-        source={require('@/assets/sanctuary.jpg')}
-        style={StyleSheet.absoluteFillObject}
-        contentFit="cover"
-      />
+      <Image source={require('@/assets/sanctuary.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
       {/* Darkened readability overlay */}
       <View style={styles.darkOverlay} />
 
@@ -240,7 +237,7 @@ export default function ProfileScreen() {
             <View style={styles.namesColumn}>
               <Text style={styles.displayName}>{player.name || 'Explorer'}</Text>
               <Text style={styles.handleText}>{handleName}</Text>
-              <Text style={styles.levelBadge}>✦ Level {level} Explorer</Text>
+              <Text style={styles.levelBadge}>✦ Level {progress.level} Explorer</Text>
             </View>
 
             <Pressable
@@ -258,11 +255,18 @@ export default function ProfileScreen() {
           <View style={styles.compactXpCard}>
             <View style={styles.xpHeaderRow}>
               <Text style={styles.xpTitle}>PROGRESSION</Text>
-              <Text style={styles.xpVal}>{currentLevelExp} / 100 XP</Text>
+              <Text style={styles.xpVal}>
+                {progress.xpIntoLevel} / {progress.xpForLevel} XP
+              </Text>
             </View>
             <View style={styles.xpTrack}>
-              <View style={[styles.xpFill, { width: `${Math.min(Math.max(expProgress * 100, 5), 100)}%` }]} />
+              <View style={[styles.xpFill, { width: `${Math.min(Math.max(progress.progress * 100, 5), 100)}%` }]} />
             </View>
+            <Text style={styles.xpFootnote}>
+              {upcomingUnlock
+                ? `${progress.xpToNextLevel} XP to level ${progress.level + 1} · unlocks ${upcomingUnlock.label}`
+                : `${progress.totalXp.toLocaleString()} XP earned · every unlock claimed`}
+            </Text>
           </View>
 
           {/* Primary Discovery Stats Grid */}
@@ -287,10 +291,23 @@ export default function ProfileScreen() {
               two cards ("Field Guide" tiles and "Recent Discoveries" rows) both
               rendering creatures.slice(0, 4): the same animals, twice. */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
-            <Text style={styles.sectionSubtitle}>
-              {speciesMilestone.current} / {speciesMilestone.target} species discovered
-            </Text>
+            <Pressable
+              style={styles.sectionHeaderRow}
+              onPress={() => {
+                void Haptics.selectionAsync()
+                setGuideOpen(true)
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Open the field guide"
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>FIELD GUIDE</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {speciesMilestone.current} / {speciesMilestone.target} species discovered
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color="#68736A" />
+            </Pressable>
 
             {recentDiscoveries.length > 0 ? (
               <View style={styles.recentList}>
@@ -353,12 +370,7 @@ export default function ProfileScreen() {
       </SafeAreaView>
 
       {/* Settings & Account Modal Sheet */}
-      <Modal
-        visible={settingsOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSettingsOpen(false)}
-      >
+      <Modal visible={settingsOpen} animationType="slide" transparent onRequestClose={() => setSettingsOpen(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setSettingsOpen(false)} />
           <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -373,6 +385,31 @@ export default function ProfileScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+              {/* Preferences */}
+              <View style={styles.modalSection}>
+                <Pressable
+                  style={styles.modalRow}
+                  onPress={() => {
+                    void Haptics.selectionAsync()
+                    const next = !soundOn
+                    setSoundOn(next)
+                    void setMuted(!next)
+                    // Play the cue on the way back on, so the toggle confirms
+                    // itself without needing a second trip to the camera.
+                    if (next) playSound('lock-on')
+                  }}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: soundOn }}
+                  accessibilityLabel="Sound effects"
+                >
+                  <View style={styles.modalIconBg}>
+                    <Ionicons name={soundOn ? 'volume-high' : 'volume-mute'} size={17} color="#B7F34A" />
+                  </View>
+                  <Text style={styles.modalRowText}>Sound effects</Text>
+                  <Text style={styles.modalRowValue}>{soundOn ? 'On' : 'Off'}</Text>
+                </Pressable>
+              </View>
+
               {/* Account Section */}
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={onSignOut}>
@@ -444,6 +481,8 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      <FieldGuide visible={guideOpen} onClose={() => setGuideOpen(false)} creatures={creatures} />
     </View>
   )
 }
@@ -556,6 +595,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#B7F34A',
     borderRadius: 3,
   },
+  xpFootnote: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9CA69D',
+    marginTop: 7,
+    letterSpacing: 0.2,
+  },
   statsGrid: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -599,6 +645,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
+    minHeight: 36,
   },
   sectionTitle: {
     fontSize: 11,
@@ -802,6 +850,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#F5F2E9',
+  },
+  modalRowValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#B7F34A',
+    fontVariant: ['tabular-nums'],
   },
   modalDivider: {
     height: 1,
