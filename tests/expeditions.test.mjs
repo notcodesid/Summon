@@ -7,6 +7,7 @@ import {
   finishedMission,
   suggestedHabitat,
 } from '../lib/expeditions.ts'
+import { localDayKey } from '../lib/sanctuary-life.ts'
 
 const creature = (id, species, capturedAt) => ({
   id,
@@ -86,6 +87,21 @@ test("yesterday's discoveries do not finish today's expedition", () => {
     ),
     null,
   )
+})
+
+test('both day-key helpers agree, so mixing them up is harmless', () => {
+  // expeditions.discoveryDayKey and sanctuary-life.localDayKey key different
+  // stores, but they must produce the same string for the same moment. They
+  // once disagreed on month indexing; nothing would have caught that.
+  const moments = [
+    new Date(2026, 0, 1, 0, 0, 1),
+    new Date(2026, 8, 12, 12, 0),
+    new Date(2026, 11, 31, 23, 59, 59),
+    new Date(2027, 1, 28, 6, 30),
+  ]
+  for (const moment of moments) {
+    assert.equal(discoveryDayKey(moment), localDayKey(moment), `day keys diverged at ${moment.toISOString()}`)
+  }
 })
 
 test('the day key is stable within a day and rolls over at midnight', () => {

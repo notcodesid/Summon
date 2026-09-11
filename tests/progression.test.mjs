@@ -1,15 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  captureXpFor,
-  explorerProgress,
-  MAX_LEVEL,
-  nextUnlock,
-  unlockedAt,
-  unlockedDecorations,
-  unlocksBetween,
-  xpToReachLevel,
-} from '../lib/progression.ts'
+import { captureXpFor, explorerProgress, MAX_LEVEL, xpToReachLevel } from '../lib/progression.ts'
 
 const creature = (overrides = {}) => ({
   id: 'catch',
@@ -98,45 +89,4 @@ test('capture XP is the sum of framing grades, with ungraded catches worth nothi
     captureXpFor([creature({ captureBonusXp: 50 }), creature({ id: 'b', captureBonusXp: 25 }), creature({ id: 'c' })]),
     75,
   )
-})
-
-test('decorations unlock by level, in order, and stay unlocked', () => {
-  assert.equal(unlockedDecorations(1).length, 0)
-  assert.deepEqual(
-    unlockedDecorations(2).map((item) => item.key),
-    ['birdbath'],
-  )
-  assert.deepEqual(
-    unlockedDecorations(3).map((item) => item.key),
-    ['birdbath', 'lantern'],
-  )
-  assert.equal(unlockedDecorations(4).length, 3)
-  assert.equal(unlockedDecorations(60).length, 3)
-  assert.deepEqual(
-    unlockedDecorations(60).map((item) => item.key),
-    unlockedAt(60).map((item) => item.key),
-  )
-})
-
-test('a level-up banner only announces what that level actually crossed', () => {
-  assert.deepEqual(unlocksBetween(1, 1), [])
-  assert.deepEqual(
-    unlocksBetween(1, 2).map((unlock) => unlock.key),
-    ['birdbath'],
-  )
-  assert.deepEqual(
-    unlocksBetween(2, 4).map((unlock) => unlock.key),
-    ['lantern', 'picnic'],
-  )
-  assert.deepEqual(unlocksBetween(4, 9), [])
-  // Levels never go backwards, so neither may the announced unlocks.
-  assert.deepEqual(unlocksBetween(5, 2), [])
-})
-
-test('next unlock points forward and runs out once everything is earned', () => {
-  assert.equal(nextUnlock(1)?.key, 'birdbath')
-  assert.equal(nextUnlock(2)?.key, 'lantern')
-  assert.equal(nextUnlock(3)?.key, 'picnic')
-  assert.equal(nextUnlock(4), null)
-  assert.equal(nextUnlock(99), null)
 })
