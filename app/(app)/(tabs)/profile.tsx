@@ -1,5 +1,16 @@
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
@@ -17,7 +28,7 @@ import type { Creature } from '@/lib/creatures'
 import { nextSpeciesMilestone, uniqueSpeciesCount } from '@/lib/discovery-library'
 import { expeditionXpTotal, loadExpeditionLog } from '@/lib/expedition-log'
 import { prepareImageForUpload } from '@/lib/image-processing'
-import { captureXpFor, explorerProgress, nextUnlock } from '@/lib/progression'
+import { captureXpFor, explorerProgress } from '@/lib/progression'
 import { savePlayerPhoto, usePlayerPhoto } from '@/lib/player-photo'
 import { initialsFor, usePlayer } from '@/lib/use-player'
 
@@ -63,7 +74,6 @@ export default function ProfileScreen() {
   // Explorer level is earned from framing good photos and finishing daily
   // expeditions — the same numbers the home screen pays out.
   const progress = explorerProgress(captureXpFor(creatures) + expeditionXp)
-  const upcomingUnlock = nextUnlock(progress.level)
 
   const medals = [
     {
@@ -87,9 +97,6 @@ export default function ProfileScreen() {
   ]
 
   const recentDiscoveries = creatures.slice(0, 4)
-  // Fill up field guide preview slots (up to 4 items)
-  const fieldGuidePreview = Array.from({ length: 4 }).map((_, i) => creatures[i] || null)
-
   const handleName = player.name ? `@${player.name.toLowerCase().replace(/\s+/g, '')}` : '@explorer'
 
   const onChoosePhoto = useCallback(async () => {
@@ -247,7 +254,7 @@ export default function ProfileScreen() {
                 setSettingsOpen(true)
               }}
             >
-              <Ionicons name="settings-sharp" size={18} color="#B7F34A" />
+              <Ionicons name="settings-outline" size={20} color="#F5F2E9" />
             </Pressable>
           </View>
 
@@ -263,9 +270,7 @@ export default function ProfileScreen() {
               <View style={[styles.xpFill, { width: `${Math.min(Math.max(progress.progress * 100, 5), 100)}%` }]} />
             </View>
             <Text style={styles.xpFootnote}>
-              {upcomingUnlock
-                ? `${progress.xpToNextLevel} XP to level ${progress.level + 1} · unlocks ${upcomingUnlock.label}`
-                : `${progress.totalXp.toLocaleString()} XP earned · every unlock claimed`}
+              {progress.xpToNextLevel} XP to level {progress.level + 1}
             </Text>
           </View>
 
@@ -306,7 +311,7 @@ export default function ProfileScreen() {
                   {speciesMilestone.current} / {speciesMilestone.target} species discovered
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={17} color="#68736A" />
+              <Ionicons name="chevron-forward" size={17} color="#9CA69D" />
             </Pressable>
 
             {recentDiscoveries.length > 0 ? (
@@ -333,21 +338,13 @@ export default function ProfileScreen() {
                 ))}
               </View>
             ) : (
-              <>
-                <View style={styles.fieldGuideRow}>
-                  {fieldGuidePreview.map((item, idx) => (
-                    <View key={item?.id || `empty-${idx}`} style={styles.fieldGuideItem}>
-                      <View style={styles.silhouetteBox}>
-                        <Text style={styles.silhouetteQuestionMark}>?</Text>
-                      </View>
-                    </View>
-                  ))}
+              <View style={styles.emptyDiscoveriesBox}>
+                <Ionicons name="search-outline" size={26} color="#9CA69D" />
+                <View style={styles.emptyCopy}>
+                  <Text style={styles.emptyTitle}>Nothing discovered yet</Text>
+                  <Text style={styles.emptySubtitle}>Your first real-world find will appear here.</Text>
                 </View>
-                <View style={styles.emptyDiscoveriesBox}>
-                  <Text style={styles.emptyTitle}>Nothing discovered yet.</Text>
-                  <Text style={styles.emptySubtitle}>Go see what&apos;s around you.</Text>
-                </View>
-              </>
+              </View>
             )}
           </View>
 
@@ -359,9 +356,11 @@ export default function ProfileScreen() {
                 <View key={m.id} style={styles.compactMedalCell}>
                   <Image source={m.icon} style={styles.compactMedalIcon} contentFit="contain" />
                   <Text style={styles.compactMedalTitle}>{m.title}</Text>
-                  <Text style={[styles.compactMedalBadge, m.unlocked ? styles.badgeUnlocked : styles.badgeLocked]}>
-                    {m.unlocked ? '✓' : '🔒'}
-                  </Text>
+                  <Ionicons
+                    name={m.unlocked ? 'checkmark-circle' : 'lock-closed-outline'}
+                    size={14}
+                    color={m.unlocked ? '#B7F34A' : '#9CA69D'}
+                  />
                 </View>
               ))}
             </View>
@@ -377,56 +376,49 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Settings</Text>
               <Pressable
-                style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedOpacity]}
+                style={({ pressed }) => pressed && styles.pressedOpacity}
                 onPress={() => setSettingsOpen(false)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close settings"
               >
-                <Ionicons name="close" size={20} color="#F5F2E9" />
+                <Text style={styles.doneText}>Done</Text>
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
-              {/* Preferences */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.settingsContent}>
+              <Text style={styles.modalSectionLabel}>GENERAL</Text>
               <View style={styles.modalSection}>
-                <Pressable
-                  style={styles.modalRow}
-                  onPress={() => {
-                    void Haptics.selectionAsync()
-                    const next = !soundOn
-                    setSoundOn(next)
-                    void setMuted(!next)
-                    // Play the cue on the way back on, so the toggle confirms
-                    // itself without needing a second trip to the camera.
-                    if (next) playSound('lock-on')
-                  }}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: soundOn }}
-                  accessibilityLabel="Sound effects"
-                >
-                  <View style={styles.modalIconBg}>
-                    <Ionicons name={soundOn ? 'volume-high' : 'volume-mute'} size={17} color="#B7F34A" />
-                  </View>
+                <View style={styles.modalRow}>
+                  <Ionicons name={soundOn ? 'volume-high-outline' : 'volume-mute-outline'} size={20} color="#F5F2E9" />
                   <Text style={styles.modalRowText}>Sound effects</Text>
-                  <Text style={styles.modalRowValue}>{soundOn ? 'On' : 'Off'}</Text>
-                </Pressable>
+                  <Switch
+                    value={soundOn}
+                    onValueChange={(next) => {
+                      void Haptics.selectionAsync()
+                      setSoundOn(next)
+                      void setMuted(!next)
+                      if (next) playSound('lock-on')
+                    }}
+                    accessibilityLabel="Sound effects"
+                    trackColor={{ false: '#4A544C', true: '#7FAF2E' }}
+                    thumbColor="#F5F2E9"
+                  />
+                </View>
               </View>
 
-              {/* Account Section */}
+              <Text style={styles.modalSectionLabel}>ACCOUNT</Text>
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={onSignOut}>
-                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                    <Ionicons name="log-out-outline" size={17} color="#EF4444" />
-                  </View>
+                  <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Sign Out</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
               </View>
 
-              {/* Legal Section */}
+              <Text style={styles.modalSectionLabel}>ABOUT</Text>
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.privacyUrl)}>
-                  <View style={styles.modalIconBg}>
-                    <Ionicons name="shield-checkmark-outline" size={17} color="#B7F34A" />
-                  </View>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#AAB3AB" />
                   <Text style={styles.modalRowText}>Privacy Policy</Text>
                   <Ionicons name="open-outline" size={15} color="#68736A" />
                 </Pressable>
@@ -434,9 +426,7 @@ export default function ProfileScreen() {
                 <View style={styles.modalDivider} />
 
                 <Pressable style={styles.modalRow} onPress={() => openExternal(AppConfig.termsUrl)}>
-                  <View style={styles.modalIconBg}>
-                    <Ionicons name="document-text-outline" size={17} color="#B7F34A" />
-                  </View>
+                  <Ionicons name="document-text-outline" size={20} color="#AAB3AB" />
                   <Text style={styles.modalRowText}>Terms of Service</Text>
                   <Ionicons name="open-outline" size={15} color="#68736A" />
                 </Pressable>
@@ -445,9 +435,7 @@ export default function ProfileScreen() {
                   <>
                     <View style={styles.modalDivider} />
                     <Pressable style={styles.modalRow} onPress={() => openExternal(`mailto:${AppConfig.supportEmail}`)}>
-                      <View style={styles.modalIconBg}>
-                        <Ionicons name="mail-outline" size={17} color="#B7F34A" />
-                      </View>
+                      <Ionicons name="mail-outline" size={20} color="#AAB3AB" />
                       <Text style={styles.modalRowText}>Contact Support</Text>
                       <Ionicons name="chevron-forward" size={16} color="#68736A" />
                     </Pressable>
@@ -455,26 +443,20 @@ export default function ProfileScreen() {
                 ) : null}
               </View>
 
-              {/* Data Management Section */}
+              <Text style={styles.modalSectionLabel}>DATA</Text>
               <View style={styles.modalSection}>
                 <Pressable style={styles.modalRow} disabled={deleting} onPress={onClearCollection}>
-                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                    <Ionicons name="trash-outline" size={17} color="#EF4444" />
-                  </View>
+                  <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>Delete Saved Collection</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
 
                 <View style={styles.modalDivider} />
 
                 <Pressable style={styles.modalRow} disabled={deleting} onPress={onDeleteAccount}>
-                  <View style={[styles.modalIconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                    <Ionicons name="warning-outline" size={17} color="#EF4444" />
-                  </View>
+                  <Ionicons name="warning-outline" size={20} color="#FF6B6B" />
                   <Text style={[styles.modalRowText, { color: '#EF4444' }]}>
                     {deleting ? 'Deleting...' : 'Delete Account Data'}
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#68736A" />
                 </Pressable>
               </View>
             </ScrollView>
@@ -494,15 +476,15 @@ const styles = StyleSheet.create({
   },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 20, 17, 0.62)',
+    backgroundColor: 'rgba(15, 20, 17, 0.58)',
   },
   safe: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 14,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    gap: 24,
   },
   topBarRow: {
     flexDirection: 'row',
@@ -515,11 +497,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(24, 32, 25, 0.9)',
+    backgroundColor: 'rgba(15, 20, 17, 0.58)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 243, 74, 0.3)',
   },
   avatarContainer: {
     position: 'relative',
@@ -535,7 +515,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0F1411',
+    borderColor: '#182019',
   },
   namesColumn: {
     flex: 1,
@@ -543,14 +523,14 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#F5F2E9',
     letterSpacing: -0.3,
   },
   handleText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9CA69D',
+    color: '#AAB3AB',
   },
   levelBadge: {
     fontSize: 11,
@@ -560,13 +540,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   compactXpCard: {
-    backgroundColor: 'rgba(24, 32, 25, 0.88)',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(183, 243, 74, 0.25)',
-    gap: 6,
+    paddingHorizontal: 4,
+    gap: 8,
   },
   xpHeaderRow: {
     flexDirection: 'row',
@@ -575,7 +550,7 @@ const styles = StyleSheet.create({
   },
   xpTitle: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#F5F2E9',
     letterSpacing: 0.8,
   },
@@ -586,7 +561,7 @@ const styles = StyleSheet.create({
   },
   xpTrack: {
     height: 6,
-    backgroundColor: '#0F1411',
+    backgroundColor: 'rgba(245, 242, 233, 0.16)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -598,19 +573,14 @@ const styles = StyleSheet.create({
   xpFootnote: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#9CA69D',
-    marginTop: 7,
+    color: '#AAB3AB',
+    marginTop: 4,
     letterSpacing: 0.2,
   },
   statsGrid: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#182019',
-    borderRadius: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.3)',
+    paddingVertical: 8,
   },
   statCell: {
     flex: 1,
@@ -619,27 +589,26 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#F5F2E9',
   },
   statLabel: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#B7F34A',
     letterSpacing: 1,
   },
   statDivider: {
     width: 1,
     height: 32,
-    backgroundColor: 'rgba(245, 242, 233, 0.12)',
+    backgroundColor: 'rgba(245, 242, 233, 0.16)',
   },
   sectionCard: {
-    backgroundColor: '#182019',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.25)',
-    gap: 12,
+    paddingHorizontal: 4,
+    paddingTop: 20,
+    gap: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(245, 242, 233, 0.16)',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -650,45 +619,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#B7F34A',
     letterSpacing: 1,
   },
   sectionSubtitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9CA69D',
+    color: '#AAB3AB',
     marginTop: 2,
-  },
-  fieldGuideRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
-  },
-  fieldGuideItem: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 14,
-    backgroundColor: '#0F1411',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 242, 233, 0.08)',
-  },
-  fieldGuidePhoto: {
-    width: '100%',
-    height: '100%',
-  },
-  silhouetteBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  silhouetteQuestionMark: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#68736A',
   },
   recentList: {
     gap: 8,
@@ -697,20 +636,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#0F1411',
-    padding: 10,
-    borderRadius: 14,
+    paddingVertical: 8,
   },
   recentPhotoWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#182019',
+    backgroundColor: 'rgba(15, 20, 17, 0.38)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(183, 243, 74, 0.3)',
+    borderColor: 'rgba(245, 242, 233, 0.14)',
   },
   recentPhoto: {
     width: 40,
@@ -718,33 +655,39 @@ const styles = StyleSheet.create({
   },
   recentName: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F5F2E9',
   },
   recentSpecies: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#9CA69D',
+    color: '#AAB3AB',
   },
   recentTime: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#68736A',
+    color: '#9CA69D',
   },
   emptyDiscoveriesBox: {
-    paddingVertical: 14,
+    minHeight: 72,
+    paddingVertical: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
+  },
+  emptyCopy: {
+    flex: 1,
+    gap: 2,
   },
   emptyTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F5F2E9',
   },
   emptySubtitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA69D',
+    fontWeight: '400',
+    color: '#AAB3AB',
   },
   compactMedalsRow: {
     flexDirection: 'row',
@@ -756,12 +699,10 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F1411',
-    paddingVertical: 12,
+    backgroundColor: 'rgba(15, 20, 17, 0.42)',
+    paddingVertical: 14,
     paddingHorizontal: 6,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 242, 233, 0.08)',
     gap: 4,
   },
   compactMedalIcon: {
@@ -771,95 +712,74 @@ const styles = StyleSheet.create({
   },
   compactMedalTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F5F2E9',
     textAlign: 'center',
     lineHeight: 14,
   },
-  compactMedalBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  badgeUnlocked: {
-    color: '#B7F34A',
-  },
-  badgeLocked: {
-    color: '#68736A',
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#182019',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 20,
-    maxHeight: '75%',
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(183, 243, 74, 0.35)',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderCurve: 'continuous',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    maxHeight: '78%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(245, 242, 233, 0.1)',
+    marginBottom: 12,
+    minHeight: 44,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     color: '#F5F2E9',
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0F1411',
-    alignItems: 'center',
-    justifyContent: 'center',
+  doneText: {
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#B7F34A',
+  },
+  settingsContent: {
+    paddingBottom: 8,
+    gap: 0,
+  },
+  modalSectionLabel: {
+    marginTop: 16,
+    marginBottom: 4,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    color: '#9CA69D',
   },
   modalSection: {
-    backgroundColor: '#0F1411',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 242, 233, 0.08)',
+    paddingHorizontal: 4,
   },
   modalRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
     gap: 12,
-  },
-  modalIconBg: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: 'rgba(183, 243, 74, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   modalRowText: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '400',
     color: '#F5F2E9',
   },
-  modalRowValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#B7F34A',
-    fontVariant: ['tabular-nums'],
-  },
   modalDivider: {
-    height: 1,
-    backgroundColor: 'rgba(245, 242, 233, 0.08)',
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 32,
+    backgroundColor: 'rgba(245, 242, 233, 0.12)',
   },
   pressedOpacity: {
     opacity: 0.75,

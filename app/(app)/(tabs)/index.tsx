@@ -19,12 +19,11 @@ import { router, useFocusEffect } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import * as Haptics from 'expo-haptics'
 import { LevelUpBanner } from '@/components/level-up-banner'
-import { SpecimenCard } from '@/components/specimen-card'
 import { theme } from '@/constants/theme'
 import { playSound } from '@/lib/audio'
 import { bondProgress } from '@/lib/bond'
 import { loadCollection, saveBondLevel } from '@/lib/collection'
-import type { Creature } from '@/lib/creatures'
+import { powerOf, RARITY_LABEL, type Creature } from '@/lib/creatures'
 import {
   EMPTY_EXPEDITION_LOG,
   expeditionXpTotal,
@@ -37,14 +36,7 @@ import {
   type ExpeditionLog,
 } from '@/lib/expedition-log'
 import { dailyMission, discoveryStreak, HABITATS, suggestedHabitat } from '@/lib/expeditions'
-import {
-  captureXpFor,
-  explorerProgress,
-  unlockedDecorations,
-  unlocksBetween,
-  type ExplorerUnlock,
-} from '@/lib/progression'
-import { weeklyDiscoveryPrompt } from '@/lib/discovery-library'
+import { captureXpFor, explorerProgress } from '@/lib/progression'
 import { setPendingBattle } from '@/lib/pending-battle'
 import {
   clampToBounds,
@@ -58,7 +50,7 @@ import {
   type SanctuaryPoint,
   type SanctuaryLifeState,
 } from '@/lib/sanctuary'
-import { daysTogether, interactionMessage, localDayKey, sanctuaryBehavior } from '@/lib/sanctuary-life'
+import { daysTogether, localDayKey, sanctuaryBehavior } from '@/lib/sanctuary-life'
 import { usePlayer } from '@/lib/use-player'
 
 function DraggableCompanion({
@@ -212,7 +204,7 @@ export default function HomeScreen() {
   const [reduceMotion, setReduceMotion] = useState(false)
   const [arrivalName, setArrivalName] = useState<string | null>(null)
   const [expeditionLog, setExpeditionLog] = useState<ExpeditionLog>(EMPTY_EXPEDITION_LOG)
-  const [levelUp, setLevelUp] = useState<{ level: number; unlocks: ExplorerUnlock[] } | null>(null)
+  const [levelUp, setLevelUp] = useState<{ level: number } | null>(null)
   const { privyUserId } = usePlayer()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
@@ -273,7 +265,7 @@ export default function HomeScreen() {
         const announced = await loadAnnouncedLevel(privyUserId)
         if (!active) return
         if (level > announced) {
-          setLevelUp({ level, unlocks: unlocksBetween(announced, level) })
+          setLevelUp({ level })
         } else if (finished) {
           // The banner plays its own sting, so the quieter expedition chime
           // only sounds when there is no level-up to celebrate.
@@ -346,7 +338,6 @@ export default function HomeScreen() {
   const suggested = suggestedHabitat()
   const progress = explorerProgress(captureXpFor(creatures) + expeditionXpTotal(expeditionLog))
   const expeditionDone = isExpeditionCompleteToday(expeditionLog)
-  const decorations = unlockedDecorations(progress.level)
   const selectedInteracted = inspectedCreature ? todaysInteractions.includes(inspectedCreature.id) : false
   const trailFocus = todaysInteractions.length
   const selectedBond = bondProgress(inspectedCreature ? daysTogether(life, inspectedCreature.id) : 0)
@@ -355,20 +346,6 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {/* Full-Screen Outdoor Sanctuary Background */}
       <Image source={require('@/assets/sanctuary.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-
-      <View style={styles.decorationsLayer} pointerEvents="none">
-        {decorations.map((decoration, index) => (
-          <View
-            key={decoration.key}
-            style={[
-              styles.decoration,
-              index === 0 ? styles.decorationLeft : index === 1 ? styles.decorationRight : styles.decorationCenter,
-            ]}
-          >
-            <Ionicons name={decoration.icon as keyof typeof Ionicons.glyphMap} size={22} color="#F5F2E9" />
-          </View>
-        ))}
-      </View>
 
       {arrivalName ? (
         <Pressable
@@ -408,10 +385,10 @@ export default function HomeScreen() {
               <Text style={styles.levelChipText}>LV {progress.level}</Text>
             </View>
             <View style={styles.streakPill}>
-              <Ionicons name="flame" size={14} color="#C9A66B" />
+              <Ionicons name="flame" size={14} color="#5C4218" />
               <Text style={styles.streakText}>{streak}</Text>
               <View style={styles.hudDivider} />
-              <Ionicons name="sparkles" size={13} color={theme.colors.primary} />
+              <Ionicons name="sparkles" size={13} color="#37520F" />
               <Text style={styles.streakText}>{trailFocus}</Text>
             </View>
           </View>
@@ -524,16 +501,33 @@ export default function HomeScreen() {
           {inspectedCreature ? (
             <View style={[styles.inspectModalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
               <View style={styles.inspectHeader}>
-                <Text style={styles.inspectTitle}>Companion Specimen</Text>
+                <Text style={styles.inspectTitle}>Companion</Text>
                 <Pressable
-                  style={({ pressed }) => [styles.closeBtn, pressed && styles.pressedOpacity]}
+                  style={({ pressed }) => pressed && styles.pressedOpacity}
                   onPress={() => setInspectedCreature(null)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close companion"
                 >
-                  <Ionicons name="close" size={20} color="#F5F2E9" />
+                  <Text style={styles.inspectDone}>Done</Text>
                 </Pressable>
               </View>
 
-              <SpecimenCard creature={{ ...inspectedCreature, bondLevel: selectedBond.level }} />
+              <View style={styles.companionHero}>
+                <Image
+                  source={{ uri: inspectedCreature.photoUri }}
+                  style={styles.companionHeroPhoto}
+                  contentFit="cover"
+                  transition={180}
+                  accessibilityLabel={`Photo of ${inspectedCreature.nickname || inspectedCreature.commonName}`}
+                />
+                <Text style={styles.companionName} numberOfLines={1}>
+                  {inspectedCreature.nickname || inspectedCreature.commonName}
+                </Text>
+                <Text style={styles.companionSummary}>
+                  {RARITY_LABEL[inspectedCreature.rarity]} · CP {powerOf(inspectedCreature.stats)}
+                </Text>
+              </View>
               <View style={styles.lifePanel}>
                 <View style={styles.lifeStatusRow}>
                   <View>
@@ -545,8 +539,6 @@ export default function HomeScreen() {
                     <Text style={styles.lifeValue}>{selectedBond.label}</Text>
                   </View>
                 </View>
-                <Text style={styles.lifeMessage}>{interactionMessage(inspectedCreature)}</Text>
-
                 {/* Bond is earned by days spent together, so it shows its work
                     rather than appearing as an unexplained number. */}
                 <View style={styles.bondRow}>
@@ -561,43 +553,39 @@ export default function HomeScreen() {
                       : 'as close as it gets'}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={interactWithCreature}
-                  disabled={selectedInteracted}
-                  style={({ pressed }) => [
-                    styles.dailyInteraction,
-                    selectedInteracted && styles.dailyInteractionDone,
-                    pressed && !selectedInteracted && styles.pressedOpacity,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={selectedInteracted ? 'Daily moment completed' : 'Spend a moment together'}
-                >
-                  <Ionicons name={selectedInteracted ? 'checkmark' : 'heart'} size={17} color="#171A17" />
-                  <Text style={styles.dailyInteractionText}>
-                    {selectedInteracted ? 'moment shared today' : 'spend a moment'}
-                  </Text>
-                </Pressable>
-                <Text style={styles.bonusText}>
-                  {selectedInteracted
-                    ? `Trail focus today: ${trailFocus} · ${selectedBond.days} ${
-                        selectedBond.days === 1 ? 'day' : 'days'
-                      } together`
-                    : 'Reward: +1 trail focus · +1 day together'}
-                </Text>
+                <View style={styles.companionActions}>
+                  <Pressable
+                    onPress={interactWithCreature}
+                    disabled={selectedInteracted}
+                    style={({ pressed }) => [
+                      styles.dailyInteraction,
+                      selectedInteracted && styles.dailyInteractionDone,
+                      pressed && !selectedInteracted && styles.pressedOpacity,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={selectedInteracted ? 'Daily moment completed' : 'Spend a moment together'}
+                  >
+                    <Ionicons name={selectedInteracted ? 'checkmark' : 'heart'} size={16} color="#171A17" />
+                    <Text style={styles.dailyInteractionText}>
+                      {selectedInteracted ? 'Shared today' : 'Spend time'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.battleBtn, pressed && styles.pressedOpacity]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                      setPendingBattle(inspectedCreature)
+                      setInspectedCreature(null)
+                      router.push('/battle')
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Battle with this companion"
+                  >
+                    <Ionicons name="flash-outline" size={16} color="#F5F2E9" />
+                    <Text style={styles.battleBtnText}>Battle</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.battleBtn, pressed && styles.pressedOpacity]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  setPendingBattle(inspectedCreature)
-                  setInspectedCreature(null)
-                  router.push('/battle')
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Fight with this companion"
-              >
-                <Text style={styles.battleBtnText}>fight</Text>
-              </Pressable>
             </View>
           ) : null}
         </View>
@@ -606,101 +594,93 @@ export default function HomeScreen() {
       <Modal
         visible={expeditionOpen}
         animationType="slide"
-        presentationStyle="pageSheet"
-        allowSwipeDismissal
+        presentationStyle="overFullScreen"
+        transparent
         onRequestClose={() => setExpeditionOpen(false)}
       >
-        <SafeAreaView style={styles.expeditionPage} edges={['top', 'bottom']}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Explore</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close expeditions"
-              onPress={() => setExpeditionOpen(false)}
-              hitSlop={10}
-            >
-              <Text style={styles.doneText}>Done</Text>
-            </Pressable>
-          </View>
+        <View style={styles.expeditionModal}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setExpeditionOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close expeditions"
+          />
+          <SafeAreaView style={styles.expeditionPage} edges={['bottom']}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Explore</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close expeditions"
+                onPress={() => setExpeditionOpen(false)}
+                hitSlop={10}
+              >
+                <Text style={styles.doneText}>Done</Text>
+              </Pressable>
+            </View>
 
-          <ScrollView
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={styles.expeditionContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.sectionLabel}>TODAY</Text>
-            <View style={styles.missionSection}>
-              <View style={styles.missionHeader}>
-                <View style={styles.missionSymbol}>
-                  <Ionicons name="compass" size={21} color="#171A17" />
+            <ScrollView
+              contentInsetAdjustmentBehavior="automatic"
+              contentContainerStyle={styles.expeditionContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.sectionLabel}>TODAY</Text>
+              <View style={styles.missionSection}>
+                <View style={styles.missionHeader}>
+                  <View style={styles.missionSymbol}>
+                    <Ionicons name="compass" size={21} color="#171A17" />
+                  </View>
+                  <View style={styles.dailyCopy}>
+                    <Text style={styles.dailyTitle}>{mission.title}</Text>
+                    <Text style={styles.dailyPrompt}>{mission.prompt}</Text>
+                  </View>
+                  <Text style={styles.dailyCount}>
+                    {mission.current}/{mission.target}
+                  </Text>
                 </View>
-                <View style={styles.dailyCopy}>
-                  <Text style={styles.dailyTitle}>{mission.title}</Text>
-                  <Text style={styles.dailyPrompt}>{mission.prompt}</Text>
+                <View style={styles.sheetProgressTrack}>
+                  <View style={[styles.sheetProgressFill, { width: `${Math.round(missionProgress * 100)}%` }]} />
                 </View>
-                <Text style={styles.dailyCount}>
-                  {mission.current}/{mission.target}
+                <Text style={styles.dailyReward}>
+                  {expeditionDone
+                    ? `Earned ${mission.rewardXp} Explorer XP today`
+                    : `Earn ${mission.rewardXp} Explorer XP`}
                 </Text>
               </View>
-              <View style={styles.sheetProgressTrack}>
-                <View style={[styles.sheetProgressFill, { width: `${Math.round(missionProgress * 100)}%` }]} />
-              </View>
-              <Text style={styles.dailyReward}>
-                {expeditionDone
-                  ? `Earned ${mission.rewardXp} Explorer XP today`
-                  : `Earn ${mission.rewardXp} Explorer XP`}
-              </Text>
-            </View>
 
-            <Text style={styles.sectionLabel}>CHOOSE A HABITAT</Text>
-            <View style={styles.habitatList}>
-              {HABITATS.map((habitat, index) => (
-                <Pressable
-                  key={habitat.key}
-                  onPress={() => {
-                    void Haptics.selectionAsync()
-                    setExpeditionOpen(false)
-                    router.push('/camera')
-                  }}
-                  style={({ pressed }) => [styles.habitatRow, pressed && styles.rowPressed]}
-                >
-                  <View style={styles.habitatIcon}>
-                    <Ionicons name={habitat.icon} size={20} color={theme.colors.text} />
-                  </View>
-                  <View style={[styles.habitatCopy, index < HABITATS.length - 1 && styles.rowSeparator]}>
-                    <View style={styles.habitatTitleRow}>
-                      <Text style={styles.habitatName}>{habitat.label}</Text>
-                      {habitat.key === suggested ? <Text style={styles.suggestedText}>Suggested now</Text> : null}
+              <Text style={styles.sectionLabel}>CHOOSE A HABITAT</Text>
+              <View style={styles.habitatList}>
+                {HABITATS.map((habitat, index) => (
+                  <Pressable
+                    key={habitat.key}
+                    onPress={() => {
+                      void Haptics.selectionAsync()
+                      setExpeditionOpen(false)
+                      router.push('/camera')
+                    }}
+                    style={({ pressed }) => [styles.habitatRow, pressed && styles.rowPressed]}
+                  >
+                    <View style={styles.habitatIcon}>
+                      <Ionicons name={habitat.icon} size={20} color={theme.colors.text} />
                     </View>
-                    <Text style={styles.habitatHint}>{habitat.hint}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={17} color={theme.colors.textFaint} />
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={styles.sectionLabel}>THIS WEEK</Text>
-            <View style={styles.weeklyRow}>
-              <View style={styles.weeklyIcon}>
-                <Ionicons name="calendar-outline" size={20} color={theme.colors.earth} />
+                    <View style={[styles.habitatCopy, index < HABITATS.length - 1 && styles.rowSeparator]}>
+                      <View style={styles.habitatTitleRow}>
+                        <Text style={styles.habitatName}>{habitat.label}</Text>
+                        {habitat.key === suggested ? <Text style={styles.suggestedText}>Suggested now</Text> : null}
+                      </View>
+                      <Text style={styles.habitatHint}>{habitat.hint}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={17} color={theme.colors.textFaint} />
+                  </Pressable>
+                ))}
               </View>
-              <Text style={styles.weeklyPrompt}>{weeklyDiscoveryPrompt()}</Text>
-            </View>
-
-            <View style={styles.safetyNote}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={theme.colors.textMuted} />
-              <Text style={styles.safetyText}>
-                Keep your distance from wildlife and stay on public paths. Summon never shows exact animal locations.
-              </Text>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       </Modal>
 
       <LevelUpBanner
         visible={levelUp !== null}
         progress={progress}
-        unlocks={levelUp?.unlocks ?? []}
         onDismiss={() => setLevelUp(null)}
         reduceMotion={reduceMotion}
       />
@@ -726,22 +706,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  decorationsLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 4,
-  },
-  decoration: {
-    position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 20, 17, 0.58)',
-  },
-  decorationLeft: { left: 24, top: '58%' },
-  decorationRight: { right: 28, top: '49%' },
-  decorationCenter: { alignSelf: 'center', top: '67%' },
   arrivalBanner: {
     position: 'absolute',
     alignSelf: 'center',
@@ -758,12 +722,9 @@ const styles = StyleSheet.create({
   arrivalText: { color: '#171A17', fontSize: 14, fontWeight: '700' },
   expeditionHud: { position: 'absolute', left: 16, right: 16, zIndex: 30 },
   expeditionCard: {
-    borderRadius: 22,
-    padding: 14,
-    gap: 9,
-    backgroundColor: 'rgba(15, 20, 17, 0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(183, 243, 74, 0.32)',
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    gap: 8,
   },
   expeditionTopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   expeditionIcon: {
@@ -775,92 +736,126 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   expeditionCopy: { flex: 1 },
-  expeditionEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: '#9CA69D' },
-  expeditionTitle: { fontSize: 17, fontWeight: '900', color: '#F5F2E9' },
+  expeditionEyebrow: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#17231D',
+    textShadowColor: 'rgba(255, 255, 255, 0.72)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  expeditionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#17231D',
+    textShadowColor: 'rgba(255, 255, 255, 0.72)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderRadius: 99,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(201, 166, 107, 0.16)',
+    paddingVertical: 4,
   },
-  streakText: { fontSize: 12, fontWeight: '900', color: '#F5F2E9' },
-  hudDivider: { width: StyleSheet.hairlineWidth, height: 14, backgroundColor: 'rgba(245,242,233,0.24)' },
-  expeditionPrompt: { fontSize: 13, color: '#DDE1D9' },
+  streakText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#17231D',
+    textShadowColor: 'rgba(255, 255, 255, 0.72)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  hudDivider: { width: StyleSheet.hairlineWidth, height: 14, backgroundColor: 'rgba(23, 35, 29, 0.28)' },
+  expeditionPrompt: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#17231D',
+    textShadowColor: 'rgba(255, 255, 255, 0.76)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   missionProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   missionTrack: {
     flex: 1,
     height: 5,
     borderRadius: 3,
     overflow: 'hidden',
-    backgroundColor: 'rgba(245, 242, 233, 0.14)',
+    backgroundColor: 'rgba(15, 20, 17, 0.38)',
   },
   missionFill: { height: '100%', borderRadius: 3, backgroundColor: theme.colors.primary },
   missionFillDone: { backgroundColor: theme.colors.primaryStrong },
-  missionCount: { fontSize: 11, fontWeight: '900', color: theme.colors.primary },
-  missionCountDone: { fontSize: 11, fontWeight: '900', color: theme.colors.primaryStrong },
+  missionCount: { fontSize: 11, fontWeight: '700', color: '#17231D' },
+  missionCountDone: { fontSize: 11, fontWeight: '700', color: '#17231D' },
   levelChip: {
-    borderRadius: 99,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(183, 243, 74, 0.16)',
+    paddingVertical: 4,
   },
-  levelChipText: { fontSize: 11, fontWeight: '900', color: theme.colors.primary, letterSpacing: 0.4 },
+  levelChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#17231D',
+    letterSpacing: 0.4,
+    textShadowColor: 'rgba(255, 255, 255, 0.72)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   xpFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 1,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(245, 242, 233, 0.12)',
+    marginTop: 4,
+    paddingTop: 4,
   },
-  xpFooterLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.1, color: '#9CA69D' },
+  xpFooterLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.1, color: '#17231D' },
   xpFooterTrack: {
     flex: 1,
     height: 3,
     borderRadius: 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(245, 242, 233, 0.14)',
+    backgroundColor: 'rgba(15, 20, 17, 0.34)',
   },
   xpFooterFill: { height: '100%', borderRadius: 2, backgroundColor: theme.colors.earth },
-  xpFooterValue: { fontSize: 9, fontWeight: '800', color: '#9CA69D', letterSpacing: 0.3 },
-  expeditionPage: { flex: 1, backgroundColor: theme.colors.background },
+  xpFooterValue: { fontSize: 9, fontWeight: '700', color: '#17231D', letterSpacing: 0.3 },
+  expeditionModal: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 20, 17, 0.22)',
+  },
+  expeditionPage: {
+    height: '78%',
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+  },
   sheetHeader: {
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
   },
-  sheetTitle: { fontSize: 17, fontWeight: '700', color: theme.colors.text },
-  doneText: { fontSize: 17, fontWeight: '600', color: theme.colors.primaryStrong },
-  expeditionContent: { paddingHorizontal: 20, paddingTop: 26, paddingBottom: 32, gap: 10 },
+  sheetTitle: { fontSize: 22, fontWeight: '700', color: theme.colors.text },
+  doneText: { fontSize: 17, fontWeight: '500', color: '#007AFF' },
+  expeditionContent: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 32, gap: 12 },
   sectionLabel: {
-    paddingTop: 12,
-    paddingHorizontal: 12,
-    fontSize: 12,
+    paddingTop: 16,
+    fontSize: 11,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0.4,
     color: theme.colors.textMuted,
   },
   missionSection: {
-    padding: 16,
+    paddingVertical: 8,
     gap: 12,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    backgroundColor: theme.colors.surface,
   },
   missionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   missionSymbol: {
     width: 38,
     height: 38,
-    borderRadius: 10,
-    borderCurve: 'continuous',
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primary,
@@ -884,20 +879,14 @@ const styles = StyleSheet.create({
   sheetProgressFill: { height: '100%', borderRadius: 3, backgroundColor: theme.colors.primary },
   habitatList: {
     overflow: 'hidden',
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    backgroundColor: theme.colors.surface,
   },
-  habitatRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', paddingLeft: 14, gap: 12 },
-  rowPressed: { backgroundColor: theme.colors.surfaceRaised },
+  habitatRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 12 },
+  rowPressed: { opacity: 0.5 },
   habitatIcon: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.questSurfaceRaised,
   },
   habitatCopy: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', gap: 2 },
   rowSeparator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
@@ -905,28 +894,6 @@ const styles = StyleSheet.create({
   habitatName: { fontSize: 16, fontWeight: '500', color: theme.colors.text },
   habitatHint: { fontSize: 13, color: theme.colors.textMuted },
   suggestedText: { fontSize: 12, fontWeight: '500', color: theme.colors.primaryStrong },
-  weeklyRow: {
-    minHeight: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    backgroundColor: theme.colors.surface,
-  },
-  weeklyIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.questSurfaceRaised,
-  },
-  weeklyPrompt: { flex: 1, fontSize: 15, lineHeight: 20, color: theme.colors.text },
-  safetyNote: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 8 },
-  safetyText: { flex: 1, fontSize: 12, lineHeight: 17, color: theme.colors.textMuted },
   draggableFrame: {
     position: 'absolute',
     alignItems: 'center',
@@ -996,46 +963,62 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   inspectModalContent: {
     width: '100%',
-    maxWidth: 380,
     backgroundColor: '#182019',
-    borderRadius: 32,
-    padding: 16,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderCurve: 'continuous',
+    paddingHorizontal: 20,
+    paddingTop: 16,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(183, 243, 74, 0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    maxHeight: '92%',
   },
   inspectHeader: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 6,
+    minHeight: 40,
+    marginBottom: 4,
   },
   inspectTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#B7F34A',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#F5F2E9',
+  },
+  inspectDone: { fontSize: 17, fontWeight: '500', color: '#B7F34A' },
+  companionHero: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  companionHeroPhoto: {
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(245, 242, 233, 0.08)',
+  },
+  companionName: {
+    maxWidth: 280,
+    marginTop: 12,
+    color: '#F5F2E9',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  companionSummary: {
+    marginTop: 3,
+    color: '#9CA69D',
+    fontSize: 13,
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   lifePanel: {
     width: '100%',
-    marginTop: 8,
-    paddingHorizontal: 8,
-    gap: 10,
+    marginTop: 16,
+    gap: 8,
   },
   lifeStatusRow: {
     flexDirection: 'row',
@@ -1044,8 +1027,7 @@ const styles = StyleSheet.create({
   },
   lifeStatusRight: { alignItems: 'flex-end' },
   lifeLabel: { color: '#9CA69D', fontSize: 10, fontWeight: '700' },
-  lifeValue: { marginTop: 2, color: '#F5F2E9', fontSize: 15, fontWeight: '700', textTransform: 'capitalize' },
-  lifeMessage: { color: '#C3C9C4', fontSize: 13, lineHeight: 18 },
+  lifeValue: { marginTop: 2, color: '#F5F2E9', fontSize: 15, fontWeight: '600', textTransform: 'capitalize' },
   bondRow: { gap: 6 },
   bondTrack: {
     height: 4,
@@ -1056,6 +1038,7 @@ const styles = StyleSheet.create({
   bondFill: { height: '100%', borderRadius: 2, backgroundColor: '#C9A66B' },
   bondHint: { color: '#9CA69D', fontSize: 11 },
   dailyInteraction: {
+    flex: 1,
     minHeight: 44,
     borderRadius: 21,
     flexDirection: 'row',
@@ -1066,31 +1049,22 @@ const styles = StyleSheet.create({
   },
   dailyInteractionDone: { opacity: 0.5 },
   dailyInteractionText: { color: '#171A17', fontSize: 14, fontWeight: '700' },
-  bonusText: { color: '#9CA69D', fontSize: 11, textAlign: 'center' },
+  companionActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   battleBtn: {
-    marginTop: 16,
-    alignSelf: 'center',
-    backgroundColor: '#B7F34A',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 20,
-  },
-  battleBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#171A17',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#0F1411',
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 21,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(245, 242, 233, 0.12)',
+    borderColor: 'rgba(245, 242, 233, 0.24)',
+  },
+  battleBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F5F2E9',
   },
   pressedOpacity: {
     opacity: 0.75,
