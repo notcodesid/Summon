@@ -34,4 +34,10 @@ pub enum BattleError {
     InvalidPhotoHash,
     #[msg("Capture time must be greater than zero")]
     InvalidCatchTime,
+    #[msg("Instinct requires two energy")]
+    InsufficientEnergy,
+    #[msg("Ecological class must be between 0 and 5")]
+    InvalidEcologicalClass,
+    #[msg("Passive trait must be between 0 and 4")]
+    InvalidPassiveTrait,
 }

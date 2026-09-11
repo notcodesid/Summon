@@ -68,9 +68,7 @@ describe('summon collect creature', () => {
   }
 
   it('records a caught animal on the owner wallet', async () => {
-    await simulateAndSend(
-      program.methods.collectCreature(Array.from(catchId), validArgs).accounts({ owner }),
-    )
+    await simulateAndSend(program.methods.collectCreature(Array.from(catchId), validArgs).accounts({ owner }))
 
     const account = await program.account.creature.fetch(creature)
     assert.equal(account.owner.equals(owner), true)

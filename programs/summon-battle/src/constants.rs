@@ -12,4 +12,6 @@ pub const MAX_HP: u16 = 500;
 pub const MAX_ATTACK: u16 = 250;
 pub const MAX_DEFENSE: u16 = 250;
 pub const MAX_SPEED: u16 = 250;
-pub const MAX_TURNS: u8 = 5;
+pub const MAX_TURNS: u8 = 8;
+pub const MAX_ENERGY: u8 = 3;
+pub const INSTINCT_COST: u8 = 2;

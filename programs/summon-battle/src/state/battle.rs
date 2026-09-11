@@ -12,10 +12,16 @@ pub struct Battle {
     pub player_max_hp: u16,
     pub player_attack: u16,
     pub player_defense: u16,
+    pub player_speed: u16,
+    pub player_energy: u8,
+    pub player_class: u8,
+    pub player_trait: u8,
     pub opponent_hp: u16,
     pub opponent_max_hp: u16,
     pub opponent_attack: u16,
     pub opponent_defense: u16,
+    pub opponent_speed: u16,
+    pub opponent_class: u8,
     pub turn: u8,
     pub status: BattleStatus,
     pub winner: Winner,
@@ -29,7 +35,7 @@ mod space_tests {
 
     #[test]
     fn account_space_matches_client_rent_check() {
-        assert_eq!(8 + Battle::INIT_SPACE, 109);
+        assert_eq!(8 + Battle::INIT_SPACE, 117);
     }
 }
 
@@ -44,6 +50,13 @@ pub enum Winner {
     None,
     Player,
     Opponent,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, InitSpace, PartialEq, Eq)]
+pub enum BattleAction {
+    Strike,
+    Guard,
+    Instinct,
 }
 
 impl Battle {
@@ -75,10 +88,16 @@ mod tests {
             player_max_hp: 1,
             player_attack: 1,
             player_defense: 1,
+            player_speed: 1,
+            player_energy: 0,
+            player_class: 0,
+            player_trait: 0,
             opponent_hp: 0,
             opponent_max_hp: 1,
             opponent_attack: 1,
             opponent_defense: 1,
+            opponent_speed: 1,
+            opponent_class: 0,
             turn: 1,
             status: BattleStatus::Finished,
             winner: Winner::Player,

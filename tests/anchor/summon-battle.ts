@@ -78,9 +78,14 @@ describe('summon-battle base lifecycle', () => {
           playerHp: 120,
           playerAttack: 90,
           playerDefense: 45,
+          playerSpeed: 80,
+          playerClass: 0,
+          playerTrait: 0,
           opponentHp: 100,
           opponentAttack: 60,
           opponentDefense: 30,
+          opponentSpeed: 60,
+          opponentClass: 5,
         })
         .accounts({ player: authority }),
     )
@@ -104,9 +109,14 @@ describe('summon-battle base lifecycle', () => {
             playerHp: 0,
             playerAttack: 90,
             playerDefense: 45,
+            playerSpeed: 80,
+            playerClass: 0,
+            playerTrait: 0,
             opponentHp: 100,
             opponentAttack: 60,
             opponentDefense: 30,
+            opponentSpeed: 60,
+            opponentClass: 5,
           })
           .accounts({ player: authority })
           .simulate(),
@@ -123,12 +133,12 @@ describe('summon-battle base lifecycle', () => {
   it('resolves deterministic turns to a final winner', async () => {
     let account = await program.account.battle.fetch(battle)
     while ('active' in account.status) {
-      await simulateAndSend(program.methods.attack().accountsPartial({ player: authority, battle }))
+      await simulateAndSend(program.methods.attack({ strike: {} }).accountsPartial({ player: authority, battle }))
       account = await program.account.battle.fetch(battle)
     }
 
     assert.ok(account.turn > 0)
-    assert.ok(account.turn <= 5)
+    assert.ok(account.turn <= 8)
     assert.equal('none' in account.winner, false)
   })
 
@@ -136,7 +146,7 @@ describe('summon-battle base lifecycle', () => {
     const before = await program.account.battle.fetch(battle)
 
     await expectAnchorError(
-      () => program.methods.attack().accountsPartial({ player: authority, battle }).simulate(),
+      () => program.methods.attack({ strike: {} }).accountsPartial({ player: authority, battle }).simulate(),
       'BattleNotActive',
     )
 

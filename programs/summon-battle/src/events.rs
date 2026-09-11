@@ -1,6 +1,6 @@
 use crate::{
     constants::{BATTLE_ID_LENGTH, CATCH_ID_LENGTH},
-    state::Winner,
+    state::{BattleAction, Winner},
 };
 use anchor_lang::prelude::*;
 
@@ -20,6 +20,8 @@ pub struct TurnResolved {
     pub player_hp: u16,
     pub opponent_hp: u16,
     pub winner: Winner,
+    pub action: BattleAction,
+    pub player_energy: u8,
 }
 
 #[event]

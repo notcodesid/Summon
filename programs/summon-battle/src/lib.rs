@@ -9,8 +9,9 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
+use state::BattleAction;
 
-declare_id!("31PMrc54Z6aZ8YHbm47FugFKpzUc6PJ92vNJtinBUPxN");
+declare_id!("6YdQKUGoeaT1LmuF4PJMRYMMQo1dvW7JNYzAS3CZgoeA");
 
 #[ephemeral]
 #[program]
@@ -39,8 +40,8 @@ pub mod summon_battle {
     pub fn delegate_battle(ctx: Context<DelegateBattle>, battle_id: [u8; 16]) -> Result<()> {
         instructions::delegate_battle::delegate_battle(ctx, battle_id)
     }
-    pub fn attack(ctx: Context<PlayTurn>) -> Result<()> {
-        instructions::play_turn::play_turn(ctx)
+    pub fn attack(ctx: Context<PlayTurn>, action: BattleAction) -> Result<()> {
+        instructions::play_turn::play_turn(ctx, action)
     }
     pub fn settle_battle(ctx: Context<SettleBattle>) -> Result<()> {
         instructions::settle_battle::settle_battle(ctx)
