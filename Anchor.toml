@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-summon_battle = "31PMrc54Z6aZ8YHbm47FugFKpzUc6PJ92vNJtinBUPxN"
+summon_battle = "6YdQKUGoeaT1LmuF4PJMRYMMQo1dvW7JNYzAS3CZgoeA"
 
 [programs.localnet]
-summon_battle = "31PMrc54Z6aZ8YHbm47FugFKpzUc6PJ92vNJtinBUPxN"
+summon_battle = "6YdQKUGoeaT1LmuF4PJMRYMMQo1dvW7JNYzAS3CZgoeA"
 
 [provider]
 cluster = "localnet"
