@@ -24,7 +24,7 @@ function BindPrivyAccessToken() {
 }
 
 /**
- * Root providers. Privy owns Google/Apple auth + embedded Solana wallets.
+ * Root providers. Privy owns Google auth + embedded Solana wallets.
  */
 export function AppProviders({ children }: PropsWithChildren) {
   if (!isPrivyConfigured) {

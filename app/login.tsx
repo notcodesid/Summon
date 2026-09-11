@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
-import { Ionicons } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
 import { Redirect, router } from 'expo-router'
 import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
@@ -144,19 +142,6 @@ function LoginWithPrivy() {
               )}
             </Pressable>
 
-            {/* Apple Sign-In Button (UI only) */}
-            <Pressable
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Continue with Apple"
-              style={({ pressed }) => [styles.appleButton, pressed && styles.appleButtonPressed]}
-            >
-              <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={styles.appleMark} />
-              <Text style={styles.appleButtonText}>Continue with Apple</Text>
-            </Pressable>
-
             {errorMessage || oauthError ? (
               <Animated.Text entering={FadeIn} style={styles.error}>
                 {errorMessage ?? oauthError}
@@ -236,34 +221,6 @@ const styles = StyleSheet.create({
   actionsCard: {
     gap: theme.space.md,
     marginBottom: 12,
-  },
-  appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'stretch',
-    minHeight: 56,
-    borderRadius: theme.radius.pill,
-    backgroundColor: '#000000',
-    paddingHorizontal: theme.space.xxl,
-    shadowColor: '#000000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  appleMark: {
-    position: 'absolute',
-    left: theme.space.xl,
-  },
-  appleButtonPressed: {
-    opacity: 0.85,
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.2,
   },
   googleButton: {
     flexDirection: 'row',
