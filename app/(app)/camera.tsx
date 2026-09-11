@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  AccessibilityInfo,
   Animated,
   Easing,
   Image,
@@ -19,11 +20,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { prepareImageForUpload } from '@/lib/image-processing'
 import { clearPendingCapture, setPendingCapture } from '@/lib/pending-capture'
 import { theme } from '@/constants/theme'
+import { playSound } from '@/lib/audio'
+import type { CaptureGrade } from '@/lib/creatures'
 
 type Shot = {
   id: string
   uri: string
   base64: string
+  captureGrade: CaptureGrade
+  captureBonusXp: number
+  captureTrait: string
+}
+
+type LockState = 'searching' | 'framing' | 'locked'
+
+const GRADE_DETAILS: Record<CaptureGrade, { xp: number; trait: string }> = {
+  good: { xp: 10, trait: 'Quick eye' },
+  great: { xp: 25, trait: 'Steady sight' },
+  perfect: { xp: 50, trait: 'Field focus' },
 }
 
 type Phase = { status: 'live' } | { status: 'capturing' } | { status: 'review'; shot: Shot }
@@ -40,10 +54,14 @@ export default function CameraScreen() {
   const [ready, setReady] = useState(false)
   const [flash, setFlash] = useState<FlashMode>('off')
   const [phase, setPhase] = useState<Phase>({ status: 'live' })
+  const [lockState, setLockState] = useState<LockState>('searching')
+  const [reduceMotion, setReduceMotion] = useState(false)
+  const lockedAtRef = useRef<number | null>(null)
 
   const flashOpacity = useRef(new Animated.Value(0)).current
   const shutterScale = useRef(new Animated.Value(1)).current
-  const framePulse = useRef(new Animated.Value(0.55)).current
+  const lockProgress = useRef(new Animated.Value(0.06)).current
+  const lockScale = useRef(new Animated.Value(0.92)).current
 
   const scanWidth = Math.min(width - 32, 432)
   const scanHeight = Math.min(scanWidth * 1.16, height * 0.58)
@@ -64,26 +82,54 @@ export default function CameraScreen() {
   )
 
   useEffect(() => {
-    if (phase.status !== 'live') return
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(framePulse, {
-          toValue: 1,
-          duration: 1100,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(framePulse, {
-          toValue: 0.55,
-          duration: 1100,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    )
-    loop.start()
-    return () => loop.stop()
-  }, [framePulse, phase.status])
+    void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion)
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion)
+    return () => subscription.remove()
+  }, [])
+
+  useEffect(() => {
+    lockProgress.stopAnimation()
+    lockedAtRef.current = null
+    if (!ready || phase.status !== 'live') {
+      setLockState('searching')
+      lockProgress.setValue(0.06)
+      lockScale.setValue(0.92)
+      return
+    }
+
+    setLockState('framing')
+    lockProgress.setValue(reduceMotion ? 1 : 0.08)
+    lockScale.setValue(reduceMotion ? 1 : 0.92)
+    if (reduceMotion) {
+      setLockState('locked')
+      lockedAtRef.current = Date.now()
+      return
+    }
+
+    const animation = Animated.timing(lockProgress, {
+      toValue: 1,
+      duration: 1400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    })
+    animation.start(({ finished }) => {
+      if (!finished) return
+      lockedAtRef.current = Date.now()
+      setLockState('locked')
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      // The native camera plays its own shutter, so this is the only cue we
+      // add here — the moment the subject is actually held.
+      playSound('lock-on')
+      Animated.spring(lockScale, {
+        toValue: 1,
+        damping: 16,
+        stiffness: 220,
+        mass: 0.7,
+        useNativeDriver: true,
+      }).start()
+    })
+    return () => animation.stop()
+  }, [lockProgress, lockScale, phase.status, ready, reduceMotion])
 
   const handleClose = useCallback(() => {
     if (router.canGoBack()) {
@@ -129,6 +175,9 @@ export default function CameraScreen() {
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || !canShoot) return
 
+    const lockedFor = lockedAtRef.current ? Date.now() - lockedAtRef.current : 0
+    const captureGrade: CaptureGrade = lockedFor >= 700 ? 'perfect' : lockState === 'locked' ? 'great' : 'good'
+    const gradeDetails = GRADE_DETAILS[captureGrade]
     setPhase({ status: 'capturing' })
     runShutterAnim()
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -156,13 +205,16 @@ export default function CameraScreen() {
           id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
           uri: prepared.uri,
           base64: prepared.base64,
+          captureGrade,
+          captureBonusXp: gradeDetails.xp,
+          captureTrait: gradeDetails.trait,
         },
       })
     } catch {
       setPhase({ status: 'live' })
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     }
-  }, [canShoot, runShutterAnim])
+  }, [canShoot, lockState, runShutterAnim])
 
   const handleRetake = useCallback(() => {
     void Haptics.selectionAsync()
@@ -239,7 +291,7 @@ export default function CameraScreen() {
               {
                 width: scanWidth,
                 height: scanHeight,
-                opacity: isReview ? 1 : framePulse,
+                opacity: 1,
               },
             ]}
           >
@@ -248,15 +300,40 @@ export default function CameraScreen() {
             <View style={[styles.corner, styles.cornerBottomLeft]} />
             <View style={[styles.corner, styles.cornerBottomRight]} />
             {!isReview ? (
-              <View style={styles.frameHint}>
-                <Text style={styles.frameHintText}>{isBusy ? 'hold still…' : 'frame the animal'}</Text>
-              </View>
+              <Animated.View style={[styles.lockReticle, { transform: [{ scale: lockScale }] }]}>
+                <View style={[styles.lockRing, lockState === 'locked' && styles.lockRingReady]}>
+                  <Ionicons
+                    name={lockState === 'locked' ? 'checkmark' : 'paw-outline'}
+                    size={28}
+                    color={lockState === 'locked' ? theme.colors.viewfinder : theme.colors.onDark}
+                  />
+                </View>
+              </Animated.View>
             ) : null}
           </Animated.View>
           <View style={styles.dim} />
         </View>
         <View style={styles.dim} />
       </View>
+
+      {!isReview ? (
+        <View style={[styles.guidanceCard, { top: insets.top + 72 }]} pointerEvents="none">
+          <View style={styles.guidanceTopRow}>
+            <Text style={styles.guidanceLabel}>SUBJECT LOCK</Text>
+            <Text style={[styles.guidanceState, lockState === 'locked' && styles.guidanceStateReady]}>
+              {lockState === 'locked' ? 'READY' : lockState === 'framing' ? 'HOLD STEADY' : 'SEARCHING'}
+            </Text>
+          </View>
+          <View style={styles.guidanceTrack}>
+            <Animated.View style={[styles.guidanceFill, { transform: [{ scaleX: lockProgress }] }]} />
+          </View>
+          <Text style={styles.guidanceHint}>
+            {lockState === 'locked'
+              ? 'Clear frame — capture now for a timing bonus'
+              : 'Fill the frame • keep a safe distance'}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Top chrome */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]} pointerEvents="box-none">
@@ -293,30 +370,41 @@ export default function CameraScreen() {
       {/* Bottom controls */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 28) }]} pointerEvents="box-none">
         {isReview ? (
-          <View style={styles.reviewRow}>
-            <Pressable
-              onPress={handleRetake}
-              style={({ pressed }) => [styles.reviewButton, styles.reviewSecondary, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Retake photo"
-            >
-              <Ionicons name="refresh" size={20} color={theme.colors.onDark} />
-              <Text style={styles.reviewSecondaryText}>retake</Text>
-            </Pressable>
+          <View style={styles.reviewStack}>
+            <View style={styles.gradePill}>
+              <Ionicons name="sparkles" size={16} color={theme.colors.viewfinder} />
+              <Text style={styles.gradeText}>
+                {phase.shot.captureGrade.toUpperCase()} · +{phase.shot.captureBonusXp} FIELD XP
+              </Text>
+            </View>
+            <Text style={styles.gradeTrait}>{phase.shot.captureTrait} earned</Text>
+            <View style={styles.reviewRow}>
+              <Pressable
+                onPress={handleRetake}
+                style={({ pressed }) => [styles.reviewButton, styles.reviewSecondary, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Retake photo"
+              >
+                <Ionicons name="refresh" size={20} color={theme.colors.onDark} />
+                <Text style={styles.reviewSecondaryText}>retake</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={handleUsePhoto}
-              style={({ pressed }) => [styles.reviewButton, styles.reviewPrimary, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Use this photo"
-            >
-              <Ionicons name="checkmark" size={22} color={theme.colors.viewfinder} />
-              <Text style={styles.reviewPrimaryText}>use photo</Text>
-            </Pressable>
+              <Pressable
+                onPress={handleUsePhoto}
+                style={({ pressed }) => [styles.reviewButton, styles.reviewPrimary, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Use this photo"
+              >
+                <Ionicons name="checkmark" size={22} color={theme.colors.viewfinder} />
+                <Text style={styles.reviewPrimaryText}>use photo</Text>
+              </Pressable>
+            </View>
           </View>
         ) : (
           <>
-            <Text style={styles.liveHint}>{ready ? 'tap to capture' : 'starting camera…'}</Text>
+            <Text style={styles.liveHint}>
+              {lockState === 'locked' ? 'locked on' : ready ? 'hold steady, or capture anytime' : 'starting camera…'}
+            </Text>
             <Animated.View style={{ transform: [{ scale: shutterScale }] }}>
               <Pressable
                 onPress={handleCapture}
@@ -446,7 +534,25 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+  },
+  lockReticle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: 'rgba(252,252,251,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockRingReady: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   frameHint: {
     marginBottom: 14,
@@ -508,6 +614,62 @@ const styles = StyleSheet.create({
     gap: 14,
     zIndex: 10,
   },
+  guidanceCard: {
+    position: 'absolute',
+    left: 32,
+    right: 32,
+    zIndex: 10,
+    paddingVertical: 4,
+    gap: 10,
+  },
+  guidanceTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  guidanceLabel: {
+    color: 'rgba(252,252,251,0.82)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  guidanceState: {
+    color: theme.colors.onDark,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  guidanceStateReady: {
+    color: theme.colors.primary,
+  },
+  guidanceTrack: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.34)',
+    overflow: 'hidden',
+  },
+  guidanceFill: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: theme.colors.primary,
+    transformOrigin: 'left center',
+  },
+  guidanceHint: {
+    color: 'rgba(252,252,251,0.82)',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.95)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  },
   liveHint: {
     color: 'rgba(252,252,251,0.7)',
     fontSize: 13,
@@ -538,6 +700,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  reviewStack: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    gap: 8,
+  },
+  gradePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: theme.colors.primary,
+  },
+  gradeText: {
+    color: theme.colors.viewfinder,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  gradeTrait: {
+    color: theme.colors.onDark,
+    fontSize: 13,
+    fontWeight: '700',
   },
   reviewButton: {
     flex: 1,
