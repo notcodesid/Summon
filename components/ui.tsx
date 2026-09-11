@@ -1,14 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-} from 'react-native'
+import { Image, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { theme } from '@/constants/theme'
 
@@ -36,35 +27,17 @@ export function Rule({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 /** Left-aligned label, right-aligned value, separated by a hairline. */
-export function DataRow({
-  label,
-  value,
-  accent,
-}: {
-  label: string
-  value: string
-  accent?: string
-}) {
+export function DataRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <View style={styles.dataRow}>
       <MicroLabel>{label}</MicroLabel>
-      <Text style={[styles.dataValue, accent ? { color: accent } : null]}>
-        {value}
-      </Text>
+      <Text style={[styles.dataValue, accent ? { color: accent } : null]}>{value}</Text>
     </View>
   )
 }
 
 /** Screen header: back chevron, centered title, balanced spacer. */
-export function ScreenHeader({
-  title,
-  onBack,
-  right,
-}: {
-  title: string
-  onBack?: () => void
-  right?: ReactNode
-}) {
+export function ScreenHeader({ title, onBack, right }: { title: string; onBack?: () => void; right?: ReactNode }) {
   return (
     <View style={styles.header}>
       <View style={styles.headerSide}>
@@ -102,11 +75,7 @@ export function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.primary,
-        pressed && styles.primaryPressed,
-        disabled && styles.primaryDisabled,
-      ]}
+      style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed, disabled && styles.primaryDisabled]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
@@ -132,9 +101,7 @@ export function QuietButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      {({ pressed }) => (
-        <Text style={[styles.quiet, pressed && styles.quietPressed]}>{label}</Text>
-      )}
+      {({ pressed }) => <Text style={[styles.quiet, pressed && styles.quietPressed]}>{label}</Text>}
     </Pressable>
   )
 }
@@ -175,9 +142,7 @@ export function Avatar({
     />
   ) : (
     <View style={[styles.avatar, circle]}>
-      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>
-        {initials}
-      </Text>
+      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials}</Text>
     </View>
   )
 

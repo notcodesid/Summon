@@ -1,13 +1,5 @@
 import { useCallback, useEffect } from 'react'
-import {
-  Dimensions,
-  Image,
-  PanResponder,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Dimensions, Image, PanResponder, Platform, StyleSheet, Text, View } from 'react-native'
 import Animated, {
   Easing,
   interpolate,
@@ -19,20 +11,17 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import {
-  RARITY_COLOR,
-  RARITY_LABEL,
-  powerOf,
-  type Creature,
-  type Rarity,
-} from '@/lib/creatures'
+import { RARITY_COLOR, RARITY_LABEL, powerOf, type Creature, type Rarity } from '@/lib/creatures'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 40, 360)
 const CARD_HEIGHT = CARD_WIDTH * 1.38
 
 export type SpecimenCardProps = {
-  creature: Pick<Creature, 'species' | 'commonName' | 'rarity' | 'stats' | 'note'> & {
+  creature: Pick<
+    Creature,
+    'species' | 'commonName' | 'nickname' | 'rarity' | 'stats' | 'note' | 'personality' | 'bondLevel'
+  > & {
     photoUri: string
     cutoutUri?: string
   }
@@ -71,6 +60,14 @@ const FOIL_TINTS: Record<Rarity, { primary: string; secondary: string; shimmer: 
   },
 }
 
+const CARD_FINISH_TINT = {
+  'field notes': 'rgba(245, 242, 233, 0.04)',
+  'silver leaf': 'rgba(215, 225, 228, 0.08)',
+  'blue hour': 'rgba(88, 142, 196, 0.10)',
+  'violet dusk': 'rgba(148, 101, 180, 0.10)',
+  'golden light': 'rgba(218, 174, 74, 0.12)',
+} as const
+
 export function SpecimenCard({
   creature,
   interactive = true,
@@ -85,6 +82,7 @@ export function SpecimenCard({
   const rarityColor = RARITY_COLOR[rarity]
   const foil = FOIL_TINTS[rarity]
   const totalPower = powerOf(creature.stats)
+  const finishTint = creature.personality ? CARD_FINISH_TINT[creature.personality.cardVariation] : 'transparent'
 
   const rotX = useSharedValue(0)
   const rotY = useSharedValue(0)
@@ -160,19 +158,11 @@ export function SpecimenCard({
 
     const transX = interpolate(activeRotY, [-18, 18], [-cardWidth * 0.8, cardWidth * 0.8])
     const transY = interpolate(activeRotX, [-18, 18], [cardHeight * 0.8, -cardHeight * 0.8])
-    const opacity = interpolate(
-      Math.abs(activeRotX) + Math.abs(activeRotY),
-      [0, 6, 24],
-      [0.2, 0.45, 0.85],
-    )
+    const opacity = interpolate(Math.abs(activeRotX) + Math.abs(activeRotY), [0, 6, 24], [0.2, 0.45, 0.85])
 
     return {
       opacity,
-      transform: [
-        { translateX: transX },
-        { translateY: transY },
-        { rotate: '35deg' },
-      ],
+      transform: [{ translateX: transX }, { translateY: transY }, { rotate: '35deg' }],
     }
   })
 
@@ -183,11 +173,7 @@ export function SpecimenCard({
     const shiftY = interpolate(rotX.value, [-18, 18], [12, -12])
 
     return {
-      transform: [
-        { scale: popScale },
-        { translateX: shiftX },
-        { translateY: shiftY },
-      ],
+      transform: [{ scale: popScale }, { translateX: shiftX }, { translateY: shiftY }],
     }
   })
 
@@ -197,10 +183,7 @@ export function SpecimenCard({
     const shiftY = interpolate(rotX.value, [-18, 18], [6, -6])
 
     return {
-      transform: [
-        { translateX: shiftX },
-        { translateY: shiftY },
-      ],
+      transform: [{ translateX: shiftX }, { translateY: shiftY }],
     }
   })
 
@@ -226,6 +209,7 @@ export function SpecimenCard({
       >
         {/* Background Ambient Rarity Glow Plate */}
         <View style={[styles.ambientGlow, { backgroundColor: `${rarityColor}18` }]} />
+        <View style={[styles.ambientGlow, { backgroundColor: finishTint }]} />
 
         {/* Top Header Row: Rarity Badge + Power Rating */}
         <View style={styles.cardHeaderRow}>
@@ -238,6 +222,8 @@ export function SpecimenCard({
               <Text style={styles.powerLabel}>CP</Text>
               <Text style={styles.powerValue}>{totalPower}</Text>
             </View>
+          ) : creature.personality ? (
+            <Text style={styles.finishLabel}>{creature.personality.cardVariation}</Text>
           ) : null}
         </View>
 
@@ -281,14 +267,23 @@ export function SpecimenCard({
           <Animated.View style={[styles.detailsPlate, statsParallaxStyle]}>
             <View style={styles.titleColumn}>
               <Text style={styles.commonName} numberOfLines={1}>
-                {creature.commonName || creature.species}
+                {creature.nickname || creature.commonName || creature.species}
               </Text>
-              {creature.species ? (
+              {creature.nickname || creature.species ? (
                 <Text style={styles.speciesName} numberOfLines={1}>
-                  {creature.species}
+                  {creature.nickname ? creature.commonName : creature.species}
                 </Text>
               ) : null}
             </View>
+
+            {creature.personality ? (
+              <View style={styles.personalityLine}>
+                <Text style={styles.personalityText} numberOfLines={1}>
+                  {creature.personality.temperament} · {creature.personality.passiveTrait}
+                </Text>
+                <Text style={styles.bondText}>bond {creature.bondLevel ?? 1}</Text>
+              </View>
+            ) : null}
 
             {creature.note ? (
               <Text style={styles.noteText} numberOfLines={2}>
@@ -369,6 +364,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  finishLabel: {
+    color: '#C3C9C4',
+    fontSize: 10,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   powerPill: {
@@ -486,6 +487,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: '#C3C9C4',
+  },
+  personalityLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  personalityText: {
+    flex: 1,
+    color: '#F5F2E9',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  bondText: {
+    color: '#9CA69D',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   statsRow: {
     flexDirection: 'row',

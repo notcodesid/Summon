@@ -63,7 +63,7 @@ const ORBS: Orb[] = [
   { size: 60, left: 0.61, top: 2, icon: 'fish', tone: 'rare' },
   { size: 66, left: 0.19, top: 0, icon: 'paw', tone: 'ink' },
   { size: 48, left: 0.84, top: 18, icon: 'flower', tone: 'pale' },
-  { size: 52, left: 0.00, top: 6, icon: 'leaf', tone: 'pale' },
+  { size: 52, left: 0.0, top: 6, icon: 'leaf', tone: 'pale' },
 ]
 
 const CLUSTER_HEIGHT = 300
@@ -77,15 +77,7 @@ const CYCLE_MS = 5200
 const EMIT_GAP = 430
 const ANCHOR_DELAY = 120
 
-function SpecimenOrb({
-  orb,
-  index,
-  containerWidth,
-}: {
-  orb: Orb
-  index: number
-  containerWidth: number
-}) {
+function SpecimenOrb({ orb, index, containerWidth }: { orb: Orb; index: number; containerWidth: number }) {
   const cycle = useSharedValue(0)
   const tone = TONES[orb.tone]
   const photo = animalImageAt(index)
@@ -100,11 +92,7 @@ function SpecimenOrb({
   useEffect(() => {
     cycle.value = withDelay(
       index * EMIT_GAP,
-      withRepeat(
-        withTiming(1, { duration: CYCLE_MS, easing: Easing.linear }),
-        -1,
-        false,
-      ),
+      withRepeat(withTiming(1, { duration: CYCLE_MS, easing: Easing.linear }), -1, false),
     )
   }, [cycle, index])
 
@@ -116,17 +104,8 @@ function SpecimenOrb({
     const eased = 1 - Math.pow(1 - t, 3)
 
     return {
-      opacity: interpolate(
-        p,
-        [0, 0.1, 0.8, 0.97],
-        [0, 1, 1, 0],
-        Extrapolation.CLAMP,
-      ),
-      transform: [
-        { translateX: (1 - eased) * dx },
-        { translateY: (1 - eased) * dy },
-        { scale: 0.12 + eased * 0.88 },
-      ],
+      opacity: interpolate(p, [0, 0.1, 0.8, 0.97], [0, 1, 1, 0], Extrapolation.CLAMP),
+      transform: [{ translateX: (1 - eased) * dx }, { translateY: (1 - eased) * dy }, { scale: 0.12 + eased * 0.88 }],
     }
   })
 
@@ -148,10 +127,7 @@ function SpecimenOrb({
       {photo ? (
         <Image
           source={photo}
-          style={[
-            styles.photo,
-            { width: orb.size, height: orb.size, borderRadius: orb.size / 2 },
-          ]}
+          style={[styles.photo, { width: orb.size, height: orb.size, borderRadius: orb.size / 2 }]}
           resizeMode="cover"
         />
       ) : (
@@ -167,10 +143,7 @@ function AnchorOrb({ containerWidth }: { containerWidth: number }) {
   const pulse = useSharedValue(0)
 
   useEffect(() => {
-    enter.value = withDelay(
-      ANCHOR_DELAY,
-      withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }),
-    )
+    enter.value = withDelay(ANCHOR_DELAY, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }))
     // A slow breath, timed to the emission so the logo feels like the source.
     pulse.value = withDelay(
       ANCHOR_DELAY + 400,
@@ -205,11 +178,7 @@ function AnchorOrb({ containerWidth }: { containerWidth: number }) {
         animatedStyle,
       ]}
     >
-      <Ionicons
-        name="scan"
-        size={ANCHOR_SIZE * 0.42}
-        color={theme.colors.onDark}
-      />
+      <Ionicons name="scan" size={ANCHOR_SIZE * 0.42} color={theme.colors.onDark} />
     </Animated.View>
   )
 }
@@ -221,12 +190,7 @@ export function SpecimenOrbs() {
   return (
     <View style={styles.cluster} pointerEvents="none">
       {ORBS.map((orb, index) => (
-        <SpecimenOrb
-          key={orb.icon}
-          orb={orb}
-          index={index}
-          containerWidth={containerWidth}
-        />
+        <SpecimenOrb key={orb.icon} orb={orb} index={index} containerWidth={containerWidth} />
       ))}
       {/* Drawn last so specimens emerge from behind the logo. */}
       <AnchorOrb containerWidth={containerWidth} />
