@@ -1,4 +1,4 @@
-import { isRarity, statsFor, type Creature, type Rarity } from '@/lib/creatures'
+import { isRarity, statsFor, type CaptureGrade, type Creature, type Rarity } from '@/lib/creatures'
 import { callEdgeFunction, EdgeFunctionError, isEdgeConfigured } from '@/lib/edge'
 
 /**
@@ -16,6 +16,8 @@ export type Identification = {
   rarity: Rarity
   note: string
   message: string
+  photoQuality: CaptureGrade
+  qualityNote: string
 }
 
 export class IdentifyError extends Error {
@@ -58,6 +60,8 @@ export async function identifyAnimal(base64Image: string): Promise<Identificatio
         rarity: 'common',
         note: '',
         message: (result.message || '').trim() || 'No real animal found — try again with a living animal.',
+        photoQuality: 'good',
+        qualityNote: '',
       }
     }
 
@@ -72,6 +76,8 @@ export async function identifyAnimal(base64Image: string): Promise<Identificatio
       rarity: isRarity(result.rarity) ? result.rarity : 'common',
       note: (result.note || '').trim(),
       message: (result.message || '').trim(),
+      photoQuality: result.photoQuality === 'great' || result.photoQuality === 'perfect' ? result.photoQuality : 'good',
+      qualityNote: (result.qualityNote || '').trim(),
     }
   } catch (error) {
     const raw = error instanceof Error ? error.message : 'Identify failed'

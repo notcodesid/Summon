@@ -1,14 +1,9 @@
 import { Buffer } from 'buffer'
-import {
-  Connection,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
+import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js'
 import { catchIdBytesFromHex } from '@/lib/catch-id'
 import type { Creature, Rarity } from '@/lib/creatures'
 import { withRpcRetry, type SignAndSendProvider } from '@/lib/onchain-player'
+import { simulateBeforeSend } from '@/lib/transaction-safety'
 import { solanaRpcUrl, summonProgramId } from '@/lib/solana-config'
 
 const CREATURE_SEED = 'creature'
@@ -37,10 +32,7 @@ export function creaturePdaFor(walletAddress: string, catchIdHex: string): Publi
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(walletAddress)
   const catchId = catchIdBytesFromHex(catchIdHex)
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from(CREATURE_SEED), wallet.toBuffer(), catchId],
-    program,
-  )
+  const [pda] = PublicKey.findProgramAddressSync([Buffer.from(CREATURE_SEED), wallet.toBuffer(), catchId], program)
   return pda
 }
 
@@ -138,18 +130,21 @@ export async function collectCreatureOnchain(args: {
     photoHash: args.photoHash,
   })
 
-  const { blockhash } = await withRpcRetry('getLatestBlockhash', () =>
-    connection.getLatestBlockhash('confirmed'),
-  )
+  const { blockhash } = await withRpcRetry('getLatestBlockhash', () => connection.getLatestBlockhash('confirmed'))
   const transaction = new Transaction({
     feePayer: wallet,
     recentBlockhash: blockhash,
   }).add(instruction)
 
-  const provider = await args.getProvider()
-  const { signature } = await provider.request({
-    method: 'signAndSendTransaction',
-    params: { transaction, connection, options: { commitment: 'confirmed' } },
+  const { signature } = await simulateBeforeSend({
+    simulate: () => withRpcRetry('simulateTransaction', () => connection.simulateTransaction(transaction)),
+    send: async () => {
+      const provider = await args.getProvider()
+      return provider.request({
+        method: 'signAndSendTransaction',
+        params: { transaction, connection, options: { commitment: 'confirmed' } },
+      })
+    },
   })
 
   return { pda: pda.toBase58(), signature, created: true }

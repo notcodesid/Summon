@@ -3,11 +3,7 @@ import { Connection, PublicKey } from '@solana/web3.js'
 import { digest, CryptoDigestAlgorithm } from 'expo-crypto'
 import type { Creature } from '@/lib/creatures'
 import { CATCH_ID_LENGTH } from '@/lib/catch-id'
-import {
-  collectCreatureOnchain,
-  CREATURE_ACCOUNT_SPACE,
-  hasOnchainCreature,
-} from '@/lib/onchain-creature'
+import { collectCreatureOnchain, CREATURE_ACCOUNT_SPACE, hasOnchainCreature } from '@/lib/onchain-creature'
 import { ensureOnchainPlayer, type SignAndSendProvider } from '@/lib/onchain-player'
 import { isDevnetRpc, solanaRpcUrl } from '@/lib/solana-config'
 import { requestSponsorDrip } from '@/lib/sponsor'
@@ -28,9 +24,7 @@ export async function photoHashFromBase64(imageBase64: string): Promise<Uint8Arr
   return new Uint8Array(digestBuffer)
 }
 
-export type KeepOnchainResult =
-  | { ok: true; pda: string }
-  | { ok: false; message: string }
+export type KeepOnchainResult = { ok: true; pda: string } | { ok: false; message: string }
 
 /**
  * First Keep for a wallet: drip if needed, open the player game-file,
@@ -80,9 +74,7 @@ export async function keepCreatureOnchain(args: {
     }
 
     const wallet = new PublicKey(args.walletAddress)
-    const rent = await connection
-      .getMinimumBalanceForRentExemption(CREATURE_ACCOUNT_SPACE)
-      .catch(() => 0)
+    const rent = await connection.getMinimumBalanceForRentExemption(CREATURE_ACCOUNT_SPACE).catch(() => 0)
     let balance = await connection.getBalance(wallet).catch(() => 0)
     if (balance < rent) {
       const maybeFunded = await fundWallet(connection, wallet)

@@ -1,13 +1,8 @@
 import { Buffer } from 'buffer'
 import { digest, CryptoDigestAlgorithm, getRandomBytes } from 'expo-crypto'
-import {
-  Connection,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
+import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js'
 import { cannedOpponentFor } from '@/lib/canned-opponent'
+import { ECOLOGICAL_CLASSES, ecologicalClassFor, passiveTraitIndex, type BattleAction } from '@/lib/battle-rules'
 import type { Creature } from '@/lib/creatures'
 import {
   ensureOnchainPlayer,
@@ -29,6 +24,7 @@ import {
   solanaRpcUrl,
   summonProgramId,
 } from '@/lib/solana-config'
+import { simulateBeforeSend } from '@/lib/transaction-safety'
 
 const BATTLE_SEED = 'battle'
 const BATTLE_ID_LENGTH = 16
@@ -40,7 +36,7 @@ const ATTACK_DISCRIMINATOR = Buffer.from([197, 26, 63, 242, 77, 247, 101, 119])
 const SETTLE_BATTLE_DISCRIMINATOR = Buffer.from([4, 146, 32, 157, 82, 216, 214, 28])
 
 /** 8 disc + Battle::INIT_SPACE. */
-export const BATTLE_ACCOUNT_SPACE = 109
+export const BATTLE_ACCOUNT_SPACE = 117
 
 export type BattleWinner = 'none' | 'player' | 'opponent'
 
@@ -51,10 +47,16 @@ export type OnchainBattle = {
   playerMaxHp: number
   playerAttack: number
   playerDefense: number
+  playerSpeed: number
+  playerEnergy: number
+  playerClass: number
+  playerTrait: number
   opponentHp: number
   opponentMaxHp: number
   opponentAttack: number
   opponentDefense: number
+  opponentSpeed: number
+  opponentClass: number
   turn: number
   status: 'active' | 'finished'
   winner: BattleWinner
@@ -66,6 +68,9 @@ export type BattleTurnLog = {
   opponentHp: number
   winner: BattleWinner
   latencyMs: number
+  action?: BattleAction
+  playerDamage?: number
+  opponentDamage?: number
 }
 
 function encodeU16(value: number): Buffer {
@@ -127,18 +132,9 @@ function delegationPdas(battlePda: PublicKey): {
 } {
   const program = new PublicKey(summonProgramId)
   const dlp = new PublicKey(DELEGATION_PROGRAM_ID)
-  const [buffer] = PublicKey.findProgramAddressSync(
-    [Buffer.from('buffer'), battlePda.toBuffer()],
-    program,
-  )
-  const [record] = PublicKey.findProgramAddressSync(
-    [Buffer.from('delegation'), battlePda.toBuffer()],
-    dlp,
-  )
-  const [metadata] = PublicKey.findProgramAddressSync(
-    [Buffer.from('delegation-metadata'), battlePda.toBuffer()],
-    dlp,
-  )
+  const [buffer] = PublicKey.findProgramAddressSync([Buffer.from('buffer'), battlePda.toBuffer()], program)
+  const [record] = PublicKey.findProgramAddressSync([Buffer.from('delegation'), battlePda.toBuffer()], dlp)
+  const [metadata] = PublicKey.findProgramAddressSync([Buffer.from('delegation-metadata'), battlePda.toBuffer()], dlp)
   return { buffer, record, metadata }
 }
 
@@ -156,6 +152,14 @@ export function decodeBattle(data: Buffer): Omit<OnchainBattle, 'pda'> {
   offset += 2
   const playerDefense = data.readUInt16LE(offset)
   offset += 2
+  const playerSpeed = data.readUInt16LE(offset)
+  offset += 2
+  const playerEnergy = data.readUInt8(offset)
+  offset += 1
+  const playerClass = data.readUInt8(offset)
+  offset += 1
+  const playerTrait = data.readUInt8(offset)
+  offset += 1
   const opponentHp = data.readUInt16LE(offset)
   offset += 2
   const opponentMaxHp = data.readUInt16LE(offset)
@@ -164,6 +168,10 @@ export function decodeBattle(data: Buffer): Omit<OnchainBattle, 'pda'> {
   offset += 2
   const opponentDefense = data.readUInt16LE(offset)
   offset += 2
+  const opponentSpeed = data.readUInt16LE(offset)
+  offset += 2
+  const opponentClass = data.readUInt8(offset)
+  offset += 1
   const turn = data.readUInt8(offset)
   offset += 1
   const status = data.readUInt8(offset) === 1 ? 'finished' : 'active'
@@ -177,20 +185,23 @@ export function decodeBattle(data: Buffer): Omit<OnchainBattle, 'pda'> {
     playerMaxHp,
     playerAttack,
     playerDefense,
+    playerSpeed,
+    playerEnergy,
+    playerClass,
+    playerTrait,
     opponentHp,
     opponentMaxHp,
     opponentAttack,
     opponentDefense,
+    opponentSpeed,
+    opponentClass,
     turn,
     status,
     winner,
   }
 }
 
-async function fetchBattle(
-  connection: Connection,
-  pda: PublicKey,
-): Promise<OnchainBattle | null> {
+async function fetchBattle(connection: Connection, pda: PublicKey): Promise<OnchainBattle | null> {
   const info = await withRpcRetry('getAccountInfo', () => connection.getAccountInfo(pda))
   if (!info?.data) return null
   return { ...decodeBattle(Buffer.from(info.data)), pda: pda.toBase58() }
@@ -216,13 +227,18 @@ async function signAndSend(args: {
         feePayer: wallet,
         recentBlockhash: blockhash,
       }).add(args.instruction)
-      const provider = await args.getProvider()
-      const { signature } = await provider.request({
-        method: 'signAndSendTransaction',
-        params: {
-          transaction,
-          connection: args.connection,
-          options: { commitment: 'confirmed' },
+      const { signature } = await simulateBeforeSend({
+        simulate: () => withRpcRetry('simulateTransaction', () => args.connection.simulateTransaction(transaction)),
+        send: async () => {
+          const provider = await args.getProvider()
+          return provider.request({
+            method: 'signAndSendTransaction',
+            params: {
+              transaction,
+              connection: args.connection,
+              options: { commitment: 'confirmed' },
+            },
+          })
         },
       })
       return signature
@@ -246,10 +262,7 @@ async function waitForDelegatedBattle(connection: Connection, pda: PublicKey): P
 }
 
 async function creatureHashFor(creature: Creature): Promise<Buffer> {
-  const digestBuffer = await digest(
-    CryptoDigestAlgorithm.SHA256,
-    new TextEncoder().encode(creature.id),
-  )
+  const digestBuffer = await digest(CryptoDigestAlgorithm.SHA256, new TextEncoder().encode(creature.id))
   return Buffer.from(digestBuffer)
 }
 
@@ -260,9 +273,14 @@ function buildCreateBattleInstruction(args: {
   playerHp: number
   playerAttack: number
   playerDefense: number
+  playerSpeed: number
+  playerClass: number
+  playerTrait: number
   opponentHp: number
   opponentAttack: number
   opponentDefense: number
+  opponentSpeed: number
+  opponentClass: number
 }): TransactionInstruction {
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(args.walletAddress)
@@ -274,9 +292,13 @@ function buildCreateBattleInstruction(args: {
     encodeU16(args.playerHp),
     encodeU16(args.playerAttack),
     encodeU16(args.playerDefense),
+    encodeU16(args.playerSpeed),
+    Buffer.from([args.playerClass, args.playerTrait]),
     encodeU16(args.opponentHp),
     encodeU16(args.opponentAttack),
     encodeU16(args.opponentDefense),
+    encodeU16(args.opponentSpeed),
+    Buffer.from([args.opponentClass]),
   ])
   return new TransactionInstruction({
     programId: program,
@@ -289,10 +311,7 @@ function buildCreateBattleInstruction(args: {
   })
 }
 
-function buildDelegateBattleInstruction(args: {
-  walletAddress: string
-  battleId: Buffer
-}): TransactionInstruction {
+function buildDelegateBattleInstruction(args: { walletAddress: string; battleId: Buffer }): TransactionInstruction {
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(args.walletAddress)
   const pda = battlePdaFor(args.walletAddress, args.battleId)
@@ -317,6 +336,7 @@ function buildDelegateBattleInstruction(args: {
 function buildAttackInstruction(args: {
   walletAddress: string
   battleId: Buffer
+  action?: BattleAction
 }): TransactionInstruction {
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(args.walletAddress)
@@ -327,14 +347,14 @@ function buildAttackInstruction(args: {
       { pubkey: wallet, isSigner: true, isWritable: false },
       { pubkey: pda, isSigner: false, isWritable: true },
     ],
-    data: ATTACK_DISCRIMINATOR,
+    data: Buffer.concat([
+      ATTACK_DISCRIMINATOR,
+      Buffer.from([args.action === 'guard' ? 1 : args.action === 'instinct' ? 2 : 0]),
+    ]),
   })
 }
 
-function buildSettleBattleInstruction(args: {
-  walletAddress: string
-  battleId: Buffer
-}): TransactionInstruction {
+function buildSettleBattleInstruction(args: { walletAddress: string; battleId: Buffer }): TransactionInstruction {
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(args.walletAddress)
   const pda = battlePdaFor(args.walletAddress, args.battleId)
@@ -387,6 +407,154 @@ async function waitForProgression(args: {
   return {
     progression: await fetchPlayerProgression(args.connection, args.walletAddress).catch(() => null),
     verified: false,
+  }
+}
+
+export type InteractiveBattleSession = {
+  walletAddress: string
+  battleId: Buffer
+  pda: string
+  battle: OnchainBattle
+  turns: BattleTurnLog[]
+  baseConnection: Connection
+  ephemeralConnection: Connection
+  progressionBefore: PlayerProgression | null
+  getProvider: () => Promise<SignAndSendProvider>
+}
+
+async function fundForBattle(connection: Connection, destination: PublicKey): Promise<boolean> {
+  if (await requestSponsorDrip(destination.toBase58())) return true
+  if (!isDevnetRpc(connection.rpcEndpoint) && !connection.rpcEndpoint.includes('magicblock')) return false
+  try {
+    await connection.requestAirdrop(destination, 100_000_000)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function prepareInteractiveBattle(args: {
+  walletAddress: string
+  creature: Creature
+  getProvider: () => Promise<SignAndSendProvider>
+}): Promise<InteractiveBattleSession> {
+  const baseConnection = await availableBaseBattleConnection()
+  const ephemeralConnection = ephemeralBattleConnection()
+  const player = await ensureOnchainPlayer({
+    walletAddress: args.walletAddress,
+    getProvider: args.getProvider,
+    connection: baseConnection,
+    fundWallet: fundForBattle,
+  })
+  if (player.funded === false) throw new Error('Need a little SOL to start a fight. Try again in a moment.')
+
+  const wallet = new PublicKey(args.walletAddress)
+  const rent = await baseConnection.getMinimumBalanceForRentExemption(BATTLE_ACCOUNT_SPACE).catch(() => 0)
+  let balance = await baseConnection.getBalance(wallet).catch(() => 0)
+  if (balance < rent && (await fundForBattle(baseConnection, wallet))) {
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    balance = await baseConnection.getBalance(wallet).catch(() => 0)
+  }
+  if (balance < rent) throw new Error('Need a little SOL to start a fight. Try again in a moment.')
+
+  const progressionBefore = await fetchPlayerProgression(baseConnection, args.walletAddress)
+  const battleId = Buffer.from(getRandomBytes(BATTLE_ID_LENGTH))
+  const creatureHash = await creatureHashFor(args.creature)
+  const opponent = cannedOpponentFor(args.creature)
+  const pda = battlePdaFor(args.walletAddress, battleId)
+
+  await signAndSend({
+    connection: baseConnection,
+    walletAddress: args.walletAddress,
+    getProvider: args.getProvider,
+    instruction: buildCreateBattleInstruction({
+      walletAddress: args.walletAddress,
+      battleId,
+      creatureHash,
+      playerHp: args.creature.stats.hp,
+      playerAttack: args.creature.stats.attack,
+      playerDefense: args.creature.stats.defense,
+      playerSpeed: args.creature.stats.speed,
+      playerClass: ECOLOGICAL_CLASSES.indexOf(ecologicalClassFor(args.creature)),
+      playerTrait: passiveTraitIndex(args.creature),
+      opponentHp: opponent.hp,
+      opponentAttack: opponent.attack,
+      opponentDefense: opponent.defense,
+      opponentSpeed: opponent.speed,
+      opponentClass: opponent.ecologicalClass,
+    }),
+  })
+  await signAndSend({
+    connection: baseConnection,
+    walletAddress: args.walletAddress,
+    getProvider: args.getProvider,
+    instruction: buildDelegateBattleInstruction({ walletAddress: args.walletAddress, battleId }),
+  })
+  const battle = await waitForDelegatedBattle(ephemeralConnection, pda)
+  if (!battle) throw new Error('The rollup did not receive the match. Please try again.')
+  return {
+    walletAddress: args.walletAddress,
+    battleId,
+    pda: pda.toBase58(),
+    battle,
+    turns: [],
+    baseConnection,
+    ephemeralConnection,
+    progressionBefore,
+    getProvider: args.getProvider,
+  }
+}
+
+export async function playInteractiveTurn(
+  session: InteractiveBattleSession,
+  action: BattleAction,
+): Promise<InteractiveBattleSession> {
+  if (action === 'instinct' && session.battle.playerEnergy < 2) throw new Error('Instinct needs two energy.')
+  const before = session.battle
+  const startedAt = Date.now()
+  await signAndSend({
+    connection: session.ephemeralConnection,
+    walletAddress: session.walletAddress,
+    getProvider: session.getProvider,
+    instruction: buildAttackInstruction({ walletAddress: session.walletAddress, battleId: session.battleId, action }),
+  })
+  const battle = await fetchBattle(session.ephemeralConnection, new PublicKey(session.pda))
+  if (!battle) throw new Error('The rollup did not return this turn.')
+  const turn: BattleTurnLog = {
+    turn: battle.turn,
+    playerHp: battle.playerHp,
+    opponentHp: battle.opponentHp,
+    winner: battle.winner,
+    latencyMs: Date.now() - startedAt,
+    action,
+    playerDamage: Math.max(0, before.playerHp - battle.playerHp),
+    opponentDamage: Math.max(0, before.opponentHp - battle.opponentHp),
+  }
+  return { ...session, battle, turns: [...session.turns, turn] }
+}
+
+export async function settleInteractiveBattle(session: InteractiveBattleSession): Promise<ErBattleResult> {
+  if (session.battle.status !== 'finished') throw new Error('The battle is not finished yet.')
+  const settlementSignature = await signAndSend({
+    connection: session.ephemeralConnection,
+    walletAddress: session.walletAddress,
+    getProvider: session.getProvider,
+    instruction: buildSettleBattleInstruction({ walletAddress: session.walletAddress, battleId: session.battleId }),
+  })
+  const progressionResult = await waitForProgression({
+    connection: session.baseConnection,
+    walletAddress: session.walletAddress,
+    before: session.progressionBefore,
+    winner: session.battle.winner,
+  })
+  return {
+    winner: session.battle.winner,
+    turns: session.turns,
+    pda: session.pda,
+    finalBattle: session.battle,
+    settlementSignature,
+    progression: progressionResult.progression,
+    progressionVerified: progressionResult.verified,
   }
 }
 
@@ -459,9 +627,14 @@ export async function runEphemeralBattle(args: {
         playerHp: args.creature.stats.hp,
         playerAttack: args.creature.stats.attack,
         playerDefense: args.creature.stats.defense,
+        playerSpeed: args.creature.stats.speed,
+        playerClass: ECOLOGICAL_CLASSES.indexOf(ecologicalClassFor(args.creature)),
+        playerTrait: passiveTraitIndex(args.creature),
         opponentHp: opponent.hp,
         opponentAttack: opponent.attack,
         opponentDefense: opponent.defense,
+        opponentSpeed: opponent.speed,
+        opponentClass: opponent.ecologicalClass,
       }),
     })
 
@@ -484,7 +657,7 @@ export async function runEphemeralBattle(args: {
     if (!battle) {
       return { ok: false, message: 'The rollup did not receive the match. Please try again.' }
     }
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 8; i += 1) {
       if (!battle || battle.status === 'finished') break
       const turnStartedAt = Date.now()
       await signAndSend({

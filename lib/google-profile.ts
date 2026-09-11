@@ -17,9 +17,7 @@ export type GoogleProfile = {
  * Returns null rather than throwing — a missing photo must never block a
  * successful sign-in.
  */
-export async function fetchGoogleProfile(
-  accessToken: string,
-): Promise<GoogleProfile | null> {
+export async function fetchGoogleProfile(accessToken: string): Promise<GoogleProfile | null> {
   try {
     const response = await fetch(USERINFO_URL, {
       headers: { Authorization: `Bearer ${accessToken}` },

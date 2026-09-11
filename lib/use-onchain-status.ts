@@ -8,7 +8,10 @@ export type OnchainStatus = 'unknown' | 'pending' | 'ready'
  * Login and Profile do not create that account; first battle does,
  * via runOnchainEnsure.
  */
-export function useOnchainStatus(privyUserId?: string, walletAddress?: string): {
+export function useOnchainStatus(
+  privyUserId?: string,
+  walletAddress?: string,
+): {
   status: OnchainStatus
   pda?: string
 } {

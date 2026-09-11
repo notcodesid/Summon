@@ -17,8 +17,38 @@ export {
 } from '@/lib/sanctuary-position'
 
 const STORAGE_PREFIX = 'summon.sanctuary.v1.'
+const LIFE_STORAGE_PREFIX = 'summon.sanctuary-life.v1.'
 
 export type SanctuaryPlacements = Record<string, SanctuaryPoint>
+export type SanctuaryLifeState = {
+  interactionDays: Record<string, string[]>
+  lastSeenCreatureId?: string
+}
+
+export async function loadSanctuaryLife(privyUserId?: string): Promise<SanctuaryLifeState> {
+  if (!privyUserId) return { interactionDays: {} }
+  try {
+    const raw = await AsyncStorage.getItem(`${LIFE_STORAGE_PREFIX}${privyUserId}`)
+    if (!raw) return { interactionDays: {} }
+    const parsed = JSON.parse(raw) as Partial<SanctuaryLifeState>
+    return {
+      interactionDays:
+        parsed.interactionDays && typeof parsed.interactionDays === 'object' ? parsed.interactionDays : {},
+      ...(typeof parsed.lastSeenCreatureId === 'string' ? { lastSeenCreatureId: parsed.lastSeenCreatureId } : {}),
+    }
+  } catch {
+    return { interactionDays: {} }
+  }
+}
+
+export async function saveSanctuaryLife(privyUserId: string | undefined, state: SanctuaryLifeState): Promise<void> {
+  if (!privyUserId) return
+  try {
+    await AsyncStorage.setItem(`${LIFE_STORAGE_PREFIX}${privyUserId}`, JSON.stringify(state))
+  } catch {
+    // The sanctuary remains usable if ambient state cannot be persisted.
+  }
+}
 
 export async function loadPlacements(privyUserId?: string): Promise<SanctuaryPlacements> {
   if (!privyUserId) return {}

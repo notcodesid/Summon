@@ -5,10 +5,15 @@
  * the hop between the two screens. Each capture has a unique id so reveal can
  * detect a new shot after retake (the screen often stays mounted).
  */
+import type { CaptureGrade } from '@/lib/creatures'
+
 export type PendingCapture = {
   id: string
   uri: string
   base64: string
+  captureGrade: CaptureGrade
+  captureBonusXp: number
+  captureTrait: string
 }
 
 let pending: PendingCapture | null = null
@@ -18,6 +23,9 @@ export function setPendingCapture(capture: Omit<PendingCapture, 'id'> & { id?: s
     id: capture.id ?? `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
     uri: capture.uri,
     base64: capture.base64,
+    captureGrade: capture.captureGrade,
+    captureBonusXp: capture.captureBonusXp,
+    captureTrait: capture.captureTrait,
   }
 }
 

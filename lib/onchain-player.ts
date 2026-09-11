@@ -8,6 +8,10 @@ import {
   type Commitment,
 } from '@solana/web3.js'
 import { solanaRpcUrl, summonProgramId, isDevnetRpc } from '@/lib/solana-config'
+import { withRpcRetry } from '@/lib/rpc-retry'
+import { simulateBeforeSend } from '@/lib/transaction-safety'
+
+export { withRpcRetry } from '@/lib/rpc-retry'
 
 /**
  * On-chain player (game file) helpers.
@@ -49,23 +53,6 @@ const DEVNET_AIRDROP_LAMPORTS = 100_000_000
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Public RPCs (devnet especially) answer 429 when crowded. Retry a few
- * times with growing waits instead of failing on the first busy signal.
- */
-export async function withRpcRetry<T>(label: string, work: () => Promise<T>): Promise<T> {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      return await work()
-    } catch (error) {
-      lastError = error
-      await sleep(1000 * (attempt + 1))
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error(`RPC busy (${label})`)
-}
-
-/**
  * Top up a fresh wallet. Returns true when money may have arrived.
  * Default: devnet airdrop only (tests / pre-deploy). The app passes a
  * sponsor-drip-first version. No confirm polling — the caller rechecks
@@ -92,10 +79,7 @@ export type SignAndSendProvider = {
 export function playerPdaFor(walletAddress: string): PublicKey {
   const program = new PublicKey(summonProgramId)
   const wallet = new PublicKey(walletAddress)
-  const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from(PLAYER_SEED), wallet.toBuffer()],
-    program,
-  )
+  const [pda] = PublicKey.findProgramAddressSync([Buffer.from(PLAYER_SEED), wallet.toBuffer()], program)
   return pda
 }
 
@@ -143,9 +127,7 @@ export async function buildInitializePlayerTransaction(
     data: INITIALIZE_PLAYER_DISCRIMINATOR,
   })
 
-  const { blockhash } = await withRpcRetry('getLatestBlockhash', () =>
-    connection.getLatestBlockhash('confirmed'),
-  )
+  const { blockhash } = await withRpcRetry('getLatestBlockhash', () => connection.getLatestBlockhash('confirmed'))
   const transaction = new Transaction({
     feePayer: wallet,
     recentBlockhash: blockhash,
@@ -199,10 +181,15 @@ export async function ensureOnchainPlayer(args: {
   }
 
   const { transaction, pda } = await buildInitializePlayerTransaction(connection, args.walletAddress)
-  const provider = await args.getProvider()
-  const { signature } = await provider.request({
-    method: 'signAndSendTransaction',
-    params: { transaction, connection, options: { commitment: 'confirmed' } },
+  const { signature } = await simulateBeforeSend({
+    simulate: () => withRpcRetry('simulateTransaction', () => connection.simulateTransaction(transaction)),
+    send: async () => {
+      const provider = await args.getProvider()
+      return provider.request({
+        method: 'signAndSendTransaction',
+        params: { transaction, connection, options: { commitment: 'confirmed' } },
+      })
+    },
   })
 
   return { pda, signature, created: true, funded: true }

@@ -3,7 +3,7 @@
  * No secrets here — RPC URL and program id are public.
  */
 
-export const DEFAULT_SUMMON_PROGRAM_ID = '31PMrc54Z6aZ8YHbm47FugFKpzUc6PJ92vNJtinBUPxN'
+export const DEFAULT_SUMMON_PROGRAM_ID = '6YdQKUGoeaT1LmuF4PJMRYMMQo1dvW7JNYzAS3CZgoeA'
 export const DEFAULT_SOLANA_RPC_URL = 'https://api.devnet.solana.com'
 export const DEFAULT_MAGIC_ROUTER_URL = 'https://devnet-router.magicblock.app'
 /** Direct endpoint for the validator selected below. Transactions must get
