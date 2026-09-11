@@ -71,15 +71,6 @@ async function saveExpeditionLog(privyUserId: string | undefined, log: Expeditio
   }
 }
 
-export async function clearExpeditionLog(privyUserId?: string): Promise<void> {
-  if (!privyUserId) return
-  try {
-    await AsyncStorage.removeItem(`${STORAGE_PREFIX}${privyUserId}`)
-  } catch {
-    // Nothing to do.
-  }
-}
-
 export function expeditionXpTotal(log: ExpeditionLog): number {
   return Object.values(log.completed).reduce((total, entry) => total + Math.max(0, entry.rewardXp), 0)
 }
@@ -128,13 +119,6 @@ export async function recordExpedition(
   }
   await saveExpeditionLog(privyUserId, next)
   return next
-}
-
-/** Most recent completions first — the profile's expedition history. */
-export function recentExpeditions(log: ExpeditionLog, limit = 5): CompletedExpedition[] {
-  return Object.values(log.completed)
-    .sort((a, b) => b.completedAt - a.completedAt)
-    .slice(0, Math.max(0, limit))
 }
 
 /**

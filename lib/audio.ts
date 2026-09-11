@@ -1,8 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
-import { revealSoundFor } from '@/lib/feedback-cues'
-
-export { revealSoundFor } from '@/lib/feedback-cues'
 
 /**
  * Summon's sound palette.

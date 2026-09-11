@@ -101,13 +101,6 @@ export const ANIMAL_PHOTOS: AnimalPhoto[] = [
   },
 ]
 
-/** Just the images, in the same order. Used by the dev sanctuary seeding. */
-export const ANIMAL_IMAGES: ImageSourcePropType[] = ANIMAL_PHOTOS.map((photo) => photo.image)
-
-export function animalImageAt(index: number): ImageSourcePropType | undefined {
-  return ANIMAL_IMAGES[index]
-}
-
 /** The photo for a field-guide entry, matched on the species it depicts. */
 export function animalPhotoFor(species: string, commonName: string): AnimalPhoto | undefined {
   const wanted = species.trim().toLowerCase()

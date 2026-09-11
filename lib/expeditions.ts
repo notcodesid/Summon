@@ -28,10 +28,15 @@ export const HABITATS: Habitat[] = [
  * A stable key for the local calendar day. One key per day, never a timestamp,
  * so "today" means the same thing to the mission, the streak and the
  * expedition log.
+ *
+ * Months are 1-indexed to match `localDayKey` in lib/sanctuary-life.ts. The two
+ * are deliberately identical now: they key different stores today, but a
+ * mix-up used to produce silently different days, and merging them into one
+ * shared module is blocked by the test runner's module resolution.
  */
 export function discoveryDayKey(timestamp: number | Date): string {
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 }
 
 function todaysCreatures(creatures: Creature[], now: Date): Creature[] {

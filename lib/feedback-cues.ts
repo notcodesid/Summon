@@ -3,8 +3,6 @@ import type { Rarity } from './creatures'
 
 type BattleWinner = 'none' | 'player' | 'opponent'
 
-export type HapticCue = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error'
-
 export function revealSoundFor(rarity: Rarity): `reveal-${Rarity}` {
   return `reveal-${rarity}`
 }
