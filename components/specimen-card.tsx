@@ -71,8 +71,8 @@ const CARD_FINISH_TINT = {
 export function SpecimenCard({
   creature,
   interactive = true,
-  /** Combat numbers. Off until battle ships — see PLAN.md. */
-  showStats = false,
+  /** Combat numbers. On by default now that battles are the point of a catch. */
+  showStats = true,
   showDetails = true,
   cardWidth = CARD_WIDTH,
   onPress,

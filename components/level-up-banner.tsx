@@ -1,26 +1,22 @@
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { theme } from '@/constants/theme'
 import { playSound } from '@/lib/audio'
-import type { ExplorerProgress, ExplorerUnlock } from '@/lib/progression'
+import type { ExplorerProgress } from '@/lib/progression'
 
 /**
  * The moment levelling up is worth something: it names the new level, shows
- * the progress that earned it, and — when the level crossed an unlock —
- * announces what changed in the sanctuary.
+ * the progress that earned it.
  */
 export function LevelUpBanner({
   visible,
   progress,
-  unlocks,
   onDismiss,
   reduceMotion = false,
 }: {
   visible: boolean
   progress: ExplorerProgress
-  unlocks: ExplorerUnlock[]
   onDismiss: () => void
   reduceMotion?: boolean
 }) {
@@ -51,9 +47,9 @@ export function LevelUpBanner({
       }).start()
     }
 
-    const timer = setTimeout(onDismiss, unlocks.length > 0 ? 6000 : 4500)
+    const timer = setTimeout(onDismiss, 4500)
     return () => clearTimeout(timer)
-  }, [visible, reduceMotion, scrim, card, glow, onDismiss, unlocks.length])
+  }, [visible, reduceMotion, scrim, card, glow, onDismiss])
 
   if (!visible) return null
 
@@ -88,23 +84,6 @@ export function LevelUpBanner({
               style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress.progress)) * 100)}%` }]}
             />
           </View>
-
-          {unlocks.length > 0 ? (
-            <View style={styles.unlockBlock}>
-              {unlocks.map((unlock) => (
-                <View key={unlock.key} style={styles.unlockRow}>
-                  <View style={styles.unlockIcon}>
-                    <Ionicons name={unlock.icon as keyof typeof Ionicons.glyphMap} size={19} color="#171A17" />
-                  </View>
-                  <View style={styles.unlockCopy}>
-                    <Text style={styles.unlockLabel}>UNLOCKED · SANCTUARY</Text>
-                    <Text style={styles.unlockName}>{unlock.label}</Text>
-                    <Text style={styles.unlockDetail}>{unlock.detail}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
 
           <Text style={styles.dismiss}>tap to continue</Text>
         </Animated.View>
@@ -161,26 +140,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { height: '100%', borderRadius: 4, backgroundColor: theme.colors.primary },
-  unlockBlock: {
-    width: '100%',
-    marginTop: 22,
-    paddingTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(245, 242, 233, 0.12)',
-    gap: 14,
-  },
-  unlockRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  unlockIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-  },
-  unlockCopy: { flex: 1 },
-  unlockLabel: { ...theme.type.micro, color: theme.colors.earth, fontSize: 10 },
-  unlockName: { fontSize: 16, fontWeight: '800', color: '#F5F2E9', letterSpacing: -0.2, marginTop: 1 },
-  unlockDetail: { fontSize: 12, color: '#9CA69D', marginTop: 2 },
   dismiss: { ...theme.type.micro, color: '#68736A', marginTop: 22, fontSize: 10 },
 })
