@@ -13,7 +13,7 @@ step by step build plan for summon. check things off as we go.
 
 **Ship the scan moment first. 3D is a power-up, not the foundation.**
 
-Players care about: *I found a real animal → the app got it → I own something cool.*  
+Players care about: _I found a real animal → the app got it → I own something cool._
 If that loop is weak, a 3D mesh won’t save it. If that loop is strong, depth / 3D makes it unforgettable later.
 
 Order of work:
@@ -75,7 +75,7 @@ Earn the collect moment with real AI scan. Manual rename is fallback/edit only.
 
 ### phase 2 — scan v1.5 (magic / 2.5D)
 
-High payoff, lower cost than full mesh. Creature *pops* on reveal + collection.
+High payoff, lower cost than full mesh. Creature _pops_ on reveal + collection.
 
 - [x] background **cutout** media model and backend storage pipeline support
 - [x] interactive **2.5D parallax / tilt card** with Reanimated 3D perspective

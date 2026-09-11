@@ -56,9 +56,9 @@ Remove `EXPO_PUBLIC_GEMINI_API_KEY` from the app `.env` so the key is not bundle
 
 ## 6. Smoke test
 
-1. Sign in with Google  
-2. Scan a real animal → identify should hit `/functions/v1/identify`  
-3. Keep → photo lands in Storage, row in `creatures`  
+1. Sign in with Google
+2. Scan a real animal → identify should hit `/functions/v1/identify`
+3. Keep → photo lands in Storage, row in `creatures`
 4. Confirm with anon key alone you cannot `select * from creatures` (RLS deny)
 
 ## Rollback (dev only)
