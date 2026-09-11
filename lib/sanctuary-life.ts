@@ -9,6 +9,11 @@ function hash(input: string): number {
   return value
 }
 
+/**
+ * The local calendar day, 1-indexed months. Must stay byte-identical to
+ * `discoveryDayKey` in lib/expeditions.ts — see the note there for why they
+ * are two functions rather than one.
+ */
 export function localDayKey(date: Date = new Date()): string {
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 }

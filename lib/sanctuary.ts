@@ -83,12 +83,3 @@ export async function savePlacement(
     // Losing an arrangement is survivable; the derived spot still applies.
   }
 }
-
-export async function clearPlacements(privyUserId?: string): Promise<void> {
-  if (!privyUserId) return
-  try {
-    await AsyncStorage.removeItem(`${STORAGE_PREFIX}${privyUserId}`)
-  } catch {
-    // Nothing to do.
-  }
-}
