@@ -62,4 +62,24 @@ app-example
 
 # Rust / Anchor build artifacts and generated deploy keypairs
 **/target/
-/.anchor/
+ /.anchor/
+.anchor/
+test-ledger/
+*-keypair.json
+*-wallet.json
+
+# Supabase CLI temp state (linked project ref, versions — local only, never commit)
+supabase/.temp/
+supabase/.branches/
+
+# Personal AI agent skills — local only, never commit
+# NOTE: .agents/skills/colosseum-copilot and solana-dev are already tracked
+# and will stay tracked; this only ignores new untracked skills.
+.agents/
+
+# Editor / OS / local junk
+.vscode/
+.idea/
+.cursor/
+*.log
+.DS_Store
